@@ -1,3 +1,5 @@
+import StudyBoard from "@/features/chess/StudyBoard";
+
 const NAV_ITEMS = [
   { label: "Review", selected: true },
   { label: "Learn", selected: false },
@@ -41,16 +43,7 @@ export default function Home() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <section aria-label="Interactive chessboard">
-            <div className="flex aspect-square w-full max-w-2xl items-center justify-center rounded-lg border border-dashed border-black/[.15] bg-white p-6 text-center dark:border-white/[.2] dark:bg-black">
-              <div>
-                <p className="text-lg font-medium text-black dark:text-zinc-50">
-                  Interactive chessboard
-                </p>
-                <p className="mt-2 max-w-sm text-sm text-zinc-600 dark:text-zinc-400">
-                  The interactive board will be added in the next development stage.
-                </p>
-              </div>
-            </div>
+            <StudyBoard />
           </section>
 
           <aside aria-label="Game review" className="rounded-lg border border-black/[.08] bg-white p-5 dark:border-white/[.145] dark:bg-black">

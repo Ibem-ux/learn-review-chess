@@ -33,18 +33,10 @@ describe("Home page", () => {
     );
   });
 
-  it("renders the interactive chessboard placeholder", () => {
+  it("renders the interactive chessboard workspace region", () => {
     render(<Home />);
     expect(
       screen.getByRole("region", { name: "Interactive chessboard" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Interactive chessboard")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "The interactive board will be added in the next development stage."
-      )
     ).toBeInTheDocument();
   });
 
