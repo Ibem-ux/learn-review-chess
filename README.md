@@ -40,6 +40,8 @@ npm test
 
 Legal chess-game state and move validation are handled by [chess.js](https://github.com/jhlywa/chess.js). The wrapper lives in `src/features/chess`.
 
+Completed games can be parsed into structured review data (headers, per-move SAN, color, source/destination squares, before/after positions, final FEN, and half-move count) using `parsePgn` from `src/features/chess/pgn.ts`. This supports future game-import and review features.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
