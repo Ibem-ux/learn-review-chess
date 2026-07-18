@@ -5,6 +5,8 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
   const position = typeof options.position === "string" ? options.position : "";
   const orientation =
     options.boardOrientation === "black" ? "black" : "white";
+  const id = typeof options.id === "string" ? options.id : "interactive";
+  const allowDragging = options.allowDragging !== false;
   const onPieceDrop = options.onPieceDrop as
     | ((args: PieceDropHandlerArgs) => boolean)
     | undefined;
@@ -25,41 +27,48 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
     targetSquare: "e5",
   };
 
+  const label = id === "review" ? "Review chessboard" : "Interactive chessboard";
+
   return (
     <section
       role="region"
-      aria-label="Interactive chessboard"
+      aria-label={label}
       data-testid="chessboard"
+      data-board-id={id}
       data-position={position}
       data-orientation={orientation}
     >
-      <button
-        type="button"
-        data-testid="simulate-drop"
-        onClick={() => {
-          onPieceDrop?.(legalDrop);
-        }}
-      >
-        simulate legal drop
-      </button>
-      <button
-        type="button"
-        data-testid="simulate-second-drop"
-        onClick={() => {
-          onPieceDrop?.(secondDrop);
-        }}
-      >
-        simulate second legal drop
-      </button>
-      <button
-        type="button"
-        data-testid="simulate-illegal-drop"
-        onClick={() => {
-          onPieceDrop?.(illegalDrop);
-        }}
-      >
-        simulate illegal drop
-      </button>
+      {allowDragging && (
+        <>
+          <button
+            type="button"
+            data-testid="simulate-drop"
+            onClick={() => {
+              onPieceDrop?.(legalDrop);
+            }}
+          >
+            simulate legal drop
+          </button>
+          <button
+            type="button"
+            data-testid="simulate-second-drop"
+            onClick={() => {
+              onPieceDrop?.(secondDrop);
+            }}
+          >
+            simulate second legal drop
+          </button>
+          <button
+            type="button"
+            data-testid="simulate-illegal-drop"
+            onClick={() => {
+              onPieceDrop?.(illegalDrop);
+            }}
+          >
+            simulate illegal drop
+          </button>
+        </>
+      )}
     </section>
   );
 }
