@@ -22,11 +22,108 @@ describe("StudyBoard", () => {
     expect(screen.getByTestId("side-to-move")).toHaveTextContent("White");
   });
 
+  it("undo is initially disabled", () => {
+    render(<StudyBoard />);
+    expect(screen.getByRole("button", { name: "Undo move" })).toBeDisabled();
+  });
+
+  it("shows the empty-history state initially", () => {
+    render(<StudyBoard />);
+    expect(screen.getByTestId("move-history-empty")).toBeInTheDocument();
+    expect(
+      screen.getByText("No moves yet.")
+    ).toBeInTheDocument();
+  });
+
+  it("adds the SAN entry after a legal move", () => {
+    render(<StudyBoard />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    expect(screen.getByTestId("move-history").textContent).toBe("1. e4");
+    expect(screen.queryByTestId("move-history-empty")).not.toBeInTheDocument();
+  });
+
+  it("displays a short legal sequence in correct move-number order", () => {
+    render(<StudyBoard />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    fireEvent.click(screen.getByTestId("simulate-second-drop"));
+    expect(screen.getByTestId("move-history").textContent).toBe("1. e4 e5");
+    expect(screen.getByTestId("side-to-move")).toHaveTextContent("White");
+  });
+
   it("updates the side to move to Black after a legal move", () => {
     render(<StudyBoard />);
     expect(screen.getByTestId("side-to-move")).toHaveTextContent("White");
     fireEvent.click(screen.getByTestId("simulate-drop"));
     expect(screen.getByTestId("side-to-move")).toHaveTextContent("Black");
+  });
+
+  it("does not change history after an illegal move", () => {
+    render(<StudyBoard />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    fireEvent.click(screen.getByTestId("simulate-illegal-drop"));
+    expect(screen.getByTestId("move-history").textContent).toBe("1. e4");
+    expect(screen.getByTestId("side-to-move")).toHaveTextContent("Black");
+  });
+
+  it("removes only the latest half-move on undo", () => {
+    render(<StudyBoard />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    fireEvent.click(screen.getByTestId("simulate-second-drop"));
+    expect(screen.getByTestId("move-history").textContent).toBe("1. e4 e5");
+    fireEvent.click(screen.getByRole("button", { name: "Undo move" }));
+    expect(screen.getByTestId("move-history").textContent).toBe("1. e4");
+    expect(screen.getByTestId("side-to-move")).toHaveTextContent("Black");
+  });
+
+  it("restores the correct position and side to move on undo", () => {
+    render(<StudyBoard />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    expect(screen.getByTestId("side-to-move")).toHaveTextContent("Black");
+    fireEvent.click(screen.getByRole("button", { name: "Undo move" }));
+    expect(screen.getByTestId("side-to-move")).toHaveTextContent("White");
+    expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    );
+    expect(screen.getByTestId("move-history-empty")).toBeInTheDocument();
+  });
+
+  it("preserves Black orientation after undo following a flip", () => {
+    render(<StudyBoard />);
+    fireEvent.click(screen.getByRole("button", { name: "Flip board" }));
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    fireEvent.click(screen.getByRole("button", { name: "Undo move" }));
+    expect(screen.getByTestId("chessboard").getAttribute("data-orientation")).toBe(
+      "black"
+    );
+    expect(screen.getByTestId("move-history-empty")).toBeInTheDocument();
+  });
+
+  it("reset clears history while preserving orientation", () => {
+    render(<StudyBoard />);
+    fireEvent.click(screen.getByRole("button", { name: "Flip board" }));
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    fireEvent.click(screen.getByTestId("simulate-second-drop"));
+    expect(screen.getByTestId("move-history").textContent).toBe("1. e4 e5");
+    fireEvent.click(screen.getByRole("button", { name: "Reset position" }));
+    expect(screen.getByTestId("move-history-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("chessboard").getAttribute("data-orientation")).toBe(
+      "black"
+    );
+    expect(screen.getByTestId("side-to-move")).toHaveTextContent("White");
+  });
+
+  it("flip alone does not modify history or position", () => {
+    render(<StudyBoard />);
+    const board = screen.getByTestId("chessboard");
+    const positionBefore = board.getAttribute("data-position");
+    fireEvent.click(screen.getByRole("button", { name: "Flip board" }));
+    expect(screen.getByTestId("chessboard").getAttribute("data-orientation")).toBe(
+      "black"
+    );
+    expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
+      positionBefore
+    );
+    expect(screen.getByTestId("move-history-empty")).toBeInTheDocument();
   });
 
   it("rejects an illegal move and leaves White to move", () => {

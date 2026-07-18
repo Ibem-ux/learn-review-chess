@@ -14,6 +14,11 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
     sourceSquare: "e2",
     targetSquare: "e4",
   };
+  const secondDrop: PieceDropHandlerArgs = {
+    piece: { isSparePiece: false, position: "e7", pieceType: "bP" },
+    sourceSquare: "e7",
+    targetSquare: "e5",
+  };
   const illegalDrop: PieceDropHandlerArgs = {
     piece: { isSparePiece: false, position: "e2", pieceType: "wP" },
     sourceSquare: "e2",
@@ -36,6 +41,15 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
         }}
       >
         simulate legal drop
+      </button>
+      <button
+        type="button"
+        data-testid="simulate-second-drop"
+        onClick={() => {
+          onPieceDrop?.(secondDrop);
+        }}
+      >
+        simulate second legal drop
       </button>
       <button
         type="button"
