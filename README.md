@@ -36,6 +36,10 @@ Run the tests in watch mode during development:
 npm test
 ```
 
+## Chess rules
+
+Legal chess-game state and move validation are handled by [chess.js](https://github.com/jhlywa/chess.js). The wrapper lives in `src/features/chess`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
