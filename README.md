@@ -42,6 +42,10 @@ Legal chess-game state and move validation are handled by [chess.js](https://git
 
 Completed games can be parsed into structured review data (headers, per-move SAN, color, source/destination squares, before/after positions, final FEN, and half-move count) using `parsePgn` from `src/features/chess/pgn.ts`. This supports future game-import and review features.
 
+## Game import
+
+Chess.com importing uses the official public [Chess.com PubAPI](https://www.chess.com/news/view/published-chess-api-announcement) and lives under `src/features/game-import`. The typed client provides archive listing and monthly game retrieval with runtime response validation, controlled failures, and no credentials.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
