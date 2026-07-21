@@ -1,4 +1,4 @@
-import StudyBoard from "@/features/chess/StudyBoard";
+import ReviewWorkspace from "@/features/chess/ReviewWorkspace";
 
 const NAV_ITEMS = [
   { label: "Review", selected: true },
@@ -41,20 +41,7 @@ export default function Home() {
       </nav>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <section aria-label="Interactive chessboard">
-            <StudyBoard />
-          </section>
-
-          <aside aria-label="Game review" className="rounded-lg border border-black/[.08] bg-white p-5 dark:border-white/[.145] dark:bg-black">
-            <h2 className="text-base font-semibold text-black dark:text-zinc-50">
-              Game review
-            </h2>
-            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-              Import a completed game to begin reviewing.
-            </p>
-          </aside>
-        </div>
+        <ReviewWorkspace />
       </main>
     </div>
   );

@@ -36,7 +36,20 @@ describe("Home page", () => {
   it("renders the interactive chessboard workspace region", () => {
     render(<Home />);
     expect(
-      screen.getByRole("region", { name: "Interactive chessboard" })
+      screen.getByRole("region", { name: "Chess workspace" })
+    ).toBeInTheDocument();
+  });
+
+  it("renders the PGN import form with a labeled textarea", () => {
+    render(<Home />);
+    expect(
+      screen.getByLabelText("Paste a completed PGN game")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Only completed games are reviewed/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Load game" })
     ).toBeInTheDocument();
   });
 

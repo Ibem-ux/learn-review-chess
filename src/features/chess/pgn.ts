@@ -30,6 +30,17 @@ export type PgnFailure = {
 
 export type PgnResult = PgnSuccess | PgnFailure;
 
+export function normalizeHeader(value: string | undefined): string {
+  if (value == null) {
+    return "Not specified";
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed === "?") {
+    return "Not specified";
+  }
+  return value;
+}
+
 function toUserSafeReason(): string {
   return "Unable to parse PGN. Check that the game notation is valid.";
 }

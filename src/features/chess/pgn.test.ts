@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePgn } from "@/features/chess/pgn";
+import { normalizeHeader, parsePgn } from "@/features/chess/pgn";
 
 describe("parsePgn", () => {
   it("rejects empty input", () => {
@@ -156,5 +156,26 @@ describe("parsePgn", () => {
     const pgn = ["[Event \"x\"]", "", "1. e4 e5 *"].join("\n");
     const result = parsePgn(pgn);
     expect(result.ok).toBe(true);
+  });
+
+  it("normalizes undefined to Not specified", () => {
+    expect(normalizeHeader(undefined)).toBe("Not specified");
+  });
+
+  it("normalizes empty string to Not specified", () => {
+    expect(normalizeHeader("")).toBe("Not specified");
+  });
+
+  it("normalizes whitespace-only string to Not specified", () => {
+    expect(normalizeHeader("   ")).toBe("Not specified");
+  });
+
+  it("normalizes ? to Not specified", () => {
+    expect(normalizeHeader("?")).toBe("Not specified");
+  });
+
+  it("preserves legitimate header values", () => {
+    expect(normalizeHeader("Alice")).toBe("Alice");
+    expect(normalizeHeader("Bob ")).toBe("Bob ");
   });
 });
