@@ -6,18 +6,19 @@ This project incorporates third-party components subject to their respective lic
 
 - **Component:** Stockfish
 - **Engine version:** Stockfish 18
-- **npm package:** `stockfish@18.0.8`
+- **npm package:** `stockfish@18.0.0`
 - **Package license:** GPL-3.0
 - **Package repository:** https://github.com/nmrugg/stockfish.js
+- **Published release:** https://github.com/nmrugg/stockfish.js/releases/tag/v18.0.0
+- **Tagged source archive:** https://github.com/nmrugg/stockfish.js/archive/refs/tags/v18.0.0.tar.gz
 - **Distributed build:** `stockfish-18-lite-single.js` and `stockfish-18-lite-single.wasm`
 - **Local license file:** `licenses/stockfish/COPYING.txt`
 
 ### Confirmed source/build information
 
-- The `stockfish@18.0.8` npm package is published by Nathan Rugg and is associated with the repository at https://github.com/nmrugg/stockfish.js.
+- The `stockfish@18.0.0` npm package corresponds to the published `v18.0.0` release in the repository at https://github.com/nmrugg/stockfish.js.
 - The package README identifies the distributed WASM builds as Stockfish 18.
 - The stockfish.js repository release `v18.0.0` identifies upstream official Stockfish source commit `cb3d4ee9b47d0c5aae855b12379378ea1439675c` (tag `sf_18` in https://github.com/official-stockfish/Stockfish).
-- The npm package version `18.0.8` does not have a directly corresponding published GitHub tag in the stockfish.js repository; the repository release tag is `v18.0.0`.
 - The distributed lite single-threaded build uses Emscripten-generated JavaScript glue and a WASM binary. NNUE weights are embedded in the WASM; no separate `.nnue` asset is distributed for this build.
 
 ### Corresponding source

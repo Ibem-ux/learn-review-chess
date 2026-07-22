@@ -2,18 +2,18 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 
-const VERSION = "18.0.8";
+const VERSION = "18.0.0";
 const OUTPUT_DIR = path.join("public", "engines", "stockfish", VERSION);
 
 const DESCRIPTORS = [
   {
-    sourceRelative: path.join("bin", "stockfish-18-lite-single.js"),
+    sourceRelative: path.join("src", "stockfish-18-lite-single.js"),
     outputFilename: "stockfish-18-lite-single.js",
-    expectedSize: 21429,
-    expectedHash: "5243fd9b276cab7dfe3ad1d43ab9ead73568fac76468c614242977a210c4a391",
+    expectedSize: 20670,
+    expectedHash: "2278005057f381491f1c9bb3e44c9f5920b3a00bef9759e33cc6582769a1f1fe",
   },
   {
-    sourceRelative: path.join("bin", "stockfish-18-lite-single.wasm"),
+    sourceRelative: path.join("src", "stockfish-18-lite-single.wasm"),
     outputFilename: "stockfish-18-lite-single.wasm",
     expectedSize: 7295411,
     expectedHash: "a8fbc05ec6920b56d7485826dcb02c5ffd2826bcbf751cf973046f237a9096f1",

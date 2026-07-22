@@ -7,7 +7,7 @@ import { spawnSync } from "child_process";
 
 function createFixtureDir() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "stockfish-test-"));
-  const packageDir = path.join(root, "node_modules", "stockfish", "bin");
+  const packageDir = path.join(root, "node_modules", "stockfish", "src");
   fs.mkdirSync(packageDir, { recursive: true });
 
   const jsContent = Buffer.alloc(100, "a");
@@ -31,17 +31,17 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 
-const OUTPUT_DIR = path.join("public", "engines", "stockfish", "18.0.8");
+const OUTPUT_DIR = path.join("public", "engines", "stockfish", "18.0.0");
 
 const DESCRIPTORS = [
   {
-    sourceRelative: path.join("bin", "stockfish-18-lite-single.js"),
+    sourceRelative: path.join("src", "stockfish-18-lite-single.js"),
     outputFilename: "stockfish-18-lite-single.js",
     expectedSize: ${descriptor.jsContent.length},
     expectedHash: "${descriptor.jsHash}",
   },
   {
-    sourceRelative: path.join("bin", "stockfish-18-lite-single.wasm"),
+    sourceRelative: path.join("src", "stockfish-18-lite-single.wasm"),
     outputFilename: "stockfish-18-lite-single.wasm",
     expectedSize: ${descriptor.wasmContent.length},
     expectedHash: "${descriptor.wasmHash}",
@@ -106,7 +106,7 @@ function prepareStockfishAssets() {
       fs.renameSync(tempPath, finalPath);
     }
 
-    console.log("Prepared Stockfish 18.0.8 assets to " + OUTPUT_DIR);
+    console.log("Prepared Stockfish 18.0.0 assets to " + OUTPUT_DIR);
     for (const descriptor of DESCRIPTORS) {
       console.log("  " + descriptor.outputFilename);
     }
@@ -141,11 +141,11 @@ describe("prepare-stockfish-assets", () => {
 
     const result = execScript(scriptPath, fixture.root);
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("Prepared Stockfish 18.0.8 assets");
+    expect(result.stdout).toContain("Prepared Stockfish 18.0.0 assets");
     expect(result.stdout).toContain("stockfish-18-lite-single.js");
     expect(result.stdout).toContain("stockfish-18-lite-single.wasm");
 
-    const outputDir = path.join(fixture.root, "public", "engines", "stockfish", "18.0.8");
+    const outputDir = path.join(fixture.root, "public", "engines", "stockfish", "18.0.0");
     expect(fs.existsSync(outputDir)).toBe(true);
     expect(fs.statSync(path.join(outputDir, "stockfish-18-lite-single.js")).size).toBe(fixture.jsContent.length);
     expect(fs.statSync(path.join(outputDir, "stockfish-18-lite-single.wasm")).size).toBe(fixture.wasmContent.length);
@@ -163,7 +163,7 @@ describe("prepare-stockfish-assets", () => {
     const result2 = execScript(scriptPath, fixture.root);
     expect(result2.status).toBe(0);
 
-    const outputDir = path.join(fixture.root, "public", "engines", "stockfish", "18.0.8");
+    const outputDir = path.join(fixture.root, "public", "engines", "stockfish", "18.0.0");
     expect(fs.statSync(path.join(outputDir, "stockfish-18-lite-single.js")).size).toBe(fixture.jsContent.length);
 
     fs.rmSync(fixture.root, { recursive: true, force: true });
@@ -276,7 +276,7 @@ describe("prepare-stockfish-assets", () => {
     const result = execScript(scriptPath, fixture.root);
     expect(result.status).not.toBe(0);
 
-    const outputDir = path.join(fixture.root, "public", "engines", "stockfish", "18.0.8");
+    const outputDir = path.join(fixture.root, "public", "engines", "stockfish", "18.0.0");
     expect(fs.existsSync(outputDir)).toBe(false);
 
     fs.rmSync(fixture.root, { recursive: true, force: true });
@@ -286,7 +286,7 @@ describe("prepare-stockfish-assets", () => {
     const fixture = createFixtureDir();
     const scriptPath = writeDescriptorScript(fixture.root, fixture);
 
-    const outputDir = path.join(fixture.root, "public", "engines", "stockfish", "18.0.8");
+    const outputDir = path.join(fixture.root, "public", "engines", "stockfish", "18.0.0");
     fs.mkdirSync(outputDir, { recursive: true });
     fs.writeFileSync(path.join(outputDir, "stale.txt"), "stale");
 
