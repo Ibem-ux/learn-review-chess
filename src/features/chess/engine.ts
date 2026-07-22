@@ -3,6 +3,7 @@ import type { Color } from "chess.js";
 export type EngineColor = Color;
 
 export type EngineStatus =
+  | "idle"
   | "loading"
   | "ready"
   | "analyzing"
