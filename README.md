@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Project Context
+
+For detailed product goals, architecture, implemented features, planned Stockfish and move-classification roadmaps, and security rules, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
+
 ## Getting Started
 
 First, run the development server:
