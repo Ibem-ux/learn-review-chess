@@ -8,14 +8,18 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "prepare:engines": "node scripts/prepare-stockfish-assets.mjs",
+    "predev": "npm run prepare:engines",
+    "prebuild": "npm run prepare:engines"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
     "next": "16.2.10",
     "react": "19.2.4",
     "react-chessboard": "^5.10.0",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "stockfish": "18.0.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
