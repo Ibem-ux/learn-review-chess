@@ -36,7 +36,7 @@ export type EngineInfo = {
   readonly nps?: number;
   readonly timeMs?: number;
   readonly hashfull?: number;
-  readonly pv: readonly string[];
+  readonly pv?: readonly string[];
 };
 
 export type EngineBestMove = {

@@ -170,20 +170,12 @@ describe("parseUciLine - partial info lines", () => {
     expect(result?.type).toBe("info");
     if (result?.type !== "info") return;
     expect(result.info.depth).toBe(1);
-    expect(result.info.pv).toEqual([]);
+    expect(result.info.pv).toBeUndefined();
     expect(result.info.multipv).toBeUndefined();
     expect(result.info.score).toBeUndefined();
   });
 
-  it("parses info depth and pv", () => {
-    const result = parseUciLine("info depth 1 pv e2e4");
-    expect(result?.type).toBe("info");
-    if (result?.type !== "info") return;
-    expect(result.info.depth).toBe(1);
-    expect(result.info.pv).toEqual(["e2e4"]);
-  });
-
-  it("parses info with only pv", () => {
+  it("parses info with only pv and no depth", () => {
     const result = parseUciLine("info pv e2e4 e7e5");
     expect(result?.type).toBe("info");
     if (result?.type !== "info") return;

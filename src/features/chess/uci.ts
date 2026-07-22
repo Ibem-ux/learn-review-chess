@@ -50,7 +50,7 @@ export type ParsedInfo = {
   nps?: number;
   timeMs?: number;
   hashfull?: number;
-  pv: readonly string[];
+  pv?: readonly string[];
 };
 
 export type UciMessage =
@@ -132,7 +132,7 @@ function isUciMove(token: string): boolean {
 
 function parseInfo(content: string): ParsedInfo | null {
   const tokens = tokenize(content);
-  const result: ParsedInfo = { pv: [] };
+  const result: ParsedInfo = {};
   let hasParsedField = false;
 
   let i = 0;
@@ -270,10 +270,12 @@ function parseInfo(content: string): ParsedInfo | null {
       }
       case "pv": {
         i += 1;
+        const pvMoves: string[] = [];
         while (i < tokens.length) {
-          result.pv = result.pv.concat(tokens[i]);
+          pvMoves.push(tokens[i]);
           i += 1;
         }
+        result.pv = pvMoves;
         hasParsedField = true;
         continue;
       }
