@@ -42,6 +42,15 @@ Legal chess-game state and move validation are handled by [chess.js](https://git
 
 Completed games can be parsed into structured review data (headers, per-move SAN, color, source/destination squares, before/after positions, final FEN, and half-move count) using `parsePgn` from `src/features/chess/pgn.ts`. This supports future game-import and review features.
 
+## Internal API routes
+
+Internal Next.js server routes proxy Chess.com data through the existing PubAPI client while keeping browser code off the public API:
+
+- `GET /api/chesscom/[username]/archives` — returns archive URLs for a player
+- `GET /api/chesscom/[username]/games/[year]/[month]` — returns monthly games for a player
+
+Responses include conservative `Cache-Control` headers and sanitized error shapes. Rate-limited responses preserve `Retry-After` when available.
+
 ## Game import
 
 Chess.com importing uses the official public [Chess.com PubAPI](https://www.chess.com/news/view/published-chess-api-announcement) and lives under `src/features/game-import`. The typed client provides archive listing and monthly game retrieval with runtime response validation, controlled failures, and no credentials.
