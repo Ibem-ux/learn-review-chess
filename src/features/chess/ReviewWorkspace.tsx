@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import StudyBoard from "@/features/chess/StudyBoard";
 import ReviewBoard from "@/features/chess/ReviewBoard";
 import { normalizeHeader, parsePgn } from "@/features/chess/pgn";
 import { buildTimeline, type ReviewTimeline } from "@/features/chess/timeline";
+import ChesscomGamePicker from "@/features/game-import/ChesscomGamePicker";
 
 const MAX_PGN_LENGTH = 20000;
+
+type ImportMethod = "paste" | "chesscom";
 
 function summarize(parsed: {
   halfMoveCount: number;
@@ -30,18 +33,19 @@ export default function ReviewWorkspace() {
   const [summary, setSummary] = useState<ReturnType<typeof summarize> | null>(
     null
   );
+  const [importMethod, setImportMethod] = useState<ImportMethod>("paste");
+  const [activeSource, setActiveSource] = useState<string | null>(null);
   const [descriptionId] = useState("pgn-description");
   const [errorId] = useState("pgn-error");
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (pgn.length > MAX_PGN_LENGTH) {
+  const loadGame = useCallback((source: string, rawPgn: string) => {
+    if (rawPgn.length > MAX_PGN_LENGTH) {
       setError(
         "PGN input is too long. Paste a completed game of reasonable size."
       );
       return;
     }
-    const result = parsePgn(pgn);
+    const result = parsePgn(rawPgn);
     if (!result.ok) {
       setError(result.reason);
       return;
@@ -49,6 +53,16 @@ export default function ReviewWorkspace() {
     setTimeline(buildTimeline(result.value));
     setSummary(summarize(result.value));
     setError(null);
+    setActiveSource(source);
+  }, []);
+
+  const handlePasteSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    loadGame("Pasted PGN", pgn);
+  };
+
+  const handleChesscomSelect = (selectedPgn: string) => {
+    loadGame("Chess.com", selectedPgn);
   };
 
   const handleClear = () => {
@@ -56,6 +70,7 @@ export default function ReviewWorkspace() {
     setSummary(null);
     setError(null);
     setPgn("");
+    setActiveSource(null);
   };
 
   return (
@@ -79,6 +94,10 @@ export default function ReviewWorkspace() {
               {summary.halfMoves === 1 ? "" : "s"} imported.
             </p>
             <dl className="space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+              <div className="flex gap-2">
+                <dt className="font-medium">Source:</dt>
+                <dd>{activeSource ?? "Not specified"}</dd>
+              </div>
               <div className="flex gap-2">
                 <dt className="font-medium">White:</dt>
                 <dd>{summary.white ?? "Not specified"}</dd>
@@ -106,34 +125,65 @@ export default function ReviewWorkspace() {
           </p>
         )}
 
-        <form className="mt-5" onSubmit={handleSubmit}>
-          <label
-            htmlFor="pgn-input"
-            className="block text-sm font-medium text-black dark:text-zinc-50"
-          >
-            Paste a completed PGN game
-          </label>
-          <p id={descriptionId} className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-            Only completed games are reviewed. Paste the full PGN, including
-            move list and result.
-          </p>
-          <textarea
-            id="pgn-input"
-            name="pgn"
-            value={pgn}
-            onChange={(event) => setPgn(event.target.value)}
-            aria-describedby={descriptionId}
-            aria-invalid={error ? true : undefined}
-            rows={6}
-            className="mt-2 w-full resize-y rounded-md border border-black/[.12] bg-white p-2 text-sm text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground dark:border-white/[.2] dark:bg-black dark:text-zinc-50"
-          />
+        <div
+          className="mt-5 flex gap-2"
+          role="group"
+          aria-label="Import method"
+        >
           <button
-            type="submit"
-            className="mt-3 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            type="button"
+            aria-pressed={importMethod === "paste"}
+            onClick={() => setImportMethod("paste")}
+            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
-            Load game
+            Paste PGN
           </button>
-        </form>
+          <button
+            type="button"
+            aria-pressed={importMethod === "chesscom"}
+            onClick={() => setImportMethod("chesscom")}
+            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+          >
+            Chess.com
+          </button>
+        </div>
+
+        {importMethod === "paste" && (
+          <form className="mt-4" onSubmit={handlePasteSubmit}>
+            <label
+              htmlFor="pgn-input"
+              className="block text-sm font-medium text-black dark:text-zinc-50"
+            >
+              Paste a completed PGN game
+            </label>
+            <p id={descriptionId} className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+              Only completed games are reviewed. Paste the full PGN, including
+              move list and result.
+            </p>
+            <textarea
+              id="pgn-input"
+              name="pgn"
+              value={pgn}
+              onChange={(event) => setPgn(event.target.value)}
+              aria-describedby={descriptionId}
+              aria-invalid={error ? true : undefined}
+              rows={6}
+              className="mt-2 w-full resize-y rounded-md border border-black/[.12] bg-white p-2 text-sm text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground dark:border-white/[.2] dark:bg-black dark:text-zinc-50"
+            />
+            <button
+              type="submit"
+              className="mt-3 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            >
+              Load game
+            </button>
+          </form>
+        )}
+
+        {importMethod === "chesscom" && (
+          <div className="mt-4">
+            <ChesscomGamePicker onSelectPgn={handleChesscomSelect} />
+          </div>
+        )}
 
         {error && (
           <p
