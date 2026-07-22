@@ -119,16 +119,20 @@ export default function ReviewBoard({
         </button>
       </div>
 
-      <div className="aspect-square w-full max-w-2xl overflow-hidden rounded-lg border border-black/[.15] dark:border-white/[.2]">
-        <Chessboard
-          options={{
-            id: "review",
-            position: fen,
-            boardOrientation: orientation,
-            allowDragging: false,
-            animationDurationInMs: 150,
-          }}
-        />
+      <div
+        className="aspect-square w-full max-w-2xl overflow-hidden rounded-lg border border-black/[.15] dark:border-white/[.2]"
+      >
+        <section aria-label="Review chessboard" className="h-full w-full">
+          <Chessboard
+            options={{
+              id: "review",
+              position: fen,
+              boardOrientation: orientation,
+              allowDragging: false,
+              animationDurationInMs: 150,
+            }}
+          />
+        </section>
       </div>
     </div>
   );

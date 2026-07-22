@@ -62,4 +62,22 @@ describe("Home page", () => {
       screen.getByText("Import a completed game to begin reviewing.")
     ).toBeInTheDocument();
   });
+
+  it("renders Paste PGN and Chess.com import methods", () => {
+    render(<Home />);
+    expect(screen.getByRole("button", { name: "Paste PGN" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chess.com" })).toBeInTheDocument();
+  });
+
+  it("has Paste PGN selected by default", () => {
+    render(<Home />);
+    expect(screen.getByRole("button", { name: "Paste PGN" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: "Chess.com" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+  });
 });

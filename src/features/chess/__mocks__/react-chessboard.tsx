@@ -27,12 +27,8 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
     targetSquare: "e5",
   };
 
-  const label = id === "review" ? "Review chessboard" : "Interactive chessboard";
-
   return (
-    <section
-      role="region"
-      aria-label={label}
+    <div
       data-testid="chessboard"
       data-board-id={id}
       data-position={position}
@@ -69,6 +65,6 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
           </button>
         </>
       )}
-    </section>
+    </div>
   );
 }

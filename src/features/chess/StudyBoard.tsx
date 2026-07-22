@@ -95,15 +95,19 @@ export default function StudyBoard() {
         </div>
       </div>
 
-      <div className="aspect-square w-full max-w-2xl overflow-hidden rounded-lg border border-black/[.15] dark:border-white/[.2]">
-        <Chessboard
-          options={{
-            position: fen,
-            boardOrientation: orientation,
-            onPieceDrop: handlePieceDrop,
-            animationDurationInMs: 150,
-          }}
-        />
+      <div
+        className="aspect-square w-full max-w-2xl overflow-hidden rounded-lg border border-black/[.15] dark:border-white/[.2]"
+      >
+        <section aria-label="Interactive chessboard" className="h-full w-full">
+          <Chessboard
+            options={{
+              position: fen,
+              boardOrientation: orientation,
+              onPieceDrop: handlePieceDrop,
+              animationDurationInMs: 150,
+            }}
+          />
+        </section>
       </div>
 
       <section
