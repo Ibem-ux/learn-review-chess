@@ -1,0 +1,19 @@
+Component: Stockfish
+Engine generation: Stockfish 18
+npm package: stockfish@18.0.0
+Package repository: https://github.com/nmrugg/stockfish.js
+Tagged build-system release: https://github.com/nmrugg/stockfish.js/releases/tag/v18.0.0
+Tagged build-system source archive: https://github.com/nmrugg/stockfish.js/archive/refs/tags/v18.0.0.tar.gz
+Official engine source tag: https://github.com/official-stockfish/Stockfish/tree/sf_18
+Official engine source archive: https://github.com/official-stockfish/Stockfish/archive/refs/tags/sf_18.tar.gz
+GPL license: /licenses/stockfish/18.0.0/COPYING.txt
+
+Distributed runtime files:
+- stockfish-18-lite-single.js
+  SHA-256: 2278005057F381491F1C9BB3E44C9F5920B3A00BEF9759E33CC6582769A1F1FE
+- stockfish-18-lite-single.wasm
+  SHA-256: A8FBC05EC6920B56D7485826DCB02C5FFD2826BCBF751CF973046F237A9096F1
+
+These runtime assets are prepared from the exact npm package stockfish@18.0.0. The package is associated with the published stockfish.js v18.0.0 release.
+
+Corresponding-source and GPL distribution obligations require legal review before public production deployment. External source links alone do not guarantee GPL compliance.

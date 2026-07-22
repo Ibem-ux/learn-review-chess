@@ -12,7 +12,9 @@ This project incorporates third-party components subject to their respective lic
 - **Published release:** https://github.com/nmrugg/stockfish.js/releases/tag/v18.0.0
 - **Tagged source archive:** https://github.com/nmrugg/stockfish.js/archive/refs/tags/v18.0.0.tar.gz
 - **Distributed build:** `stockfish-18-lite-single.js` and `stockfish-18-lite-single.wasm`
-- **Local license file:** `licenses/stockfish/COPYING.txt`
+- **Deployed license URL:** `/licenses/stockfish/18.0.0/COPYING.txt`
+- **Deployed source-information URL:** `/licenses/stockfish/18.0.0/SOURCE.txt`
+- **Local license file:** `public/licenses/stockfish/18.0.0/COPYING.txt`
 
 ### Confirmed source/build information
 
