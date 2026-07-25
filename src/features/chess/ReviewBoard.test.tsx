@@ -3,6 +3,40 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("react-chessboard", () => import("@/features/chess/__mocks__/react-chessboard"));
 
+const { mockFullGameAnalysisPanel, lifecycleEvents } = vi.hoisted(() => {
+  return {
+    mockFullGameAnalysisPanel: vi.fn(),
+    lifecycleEvents: vi.fn(),
+  };
+});
+
+vi.mock("@/features/chess/full-game-analysis-panel", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require("react");
+  return {
+    default: function MockFullGameAnalysisPanel(props: unknown) {
+      React.useEffect(() => {
+        lifecycleEvents("mount");
+        return () => lifecycleEvents("cleanup");
+      }, []);
+      mockFullGameAnalysisPanel(props);
+      const panelProps = props as { timeline?: { analysisEligible?: boolean } };
+      if (panelProps.timeline?.analysisEligible === false) {
+        return (
+          <p
+            role="status"
+            aria-live="polite"
+            className="mt-4 text-sm text-zinc-600 dark:text-zinc-400"
+          >
+            Full-game analysis is available only for completed games.
+          </p>
+        );
+      }
+      return <div data-testid="mock-full-game-analysis-panel" />;
+    },
+  };
+});
+
 import ReviewBoard from "@/features/chess/ReviewBoard";
 import { parsePgn } from "@/features/chess/pgn";
 import { buildTimeline, type ReviewTimeline } from "@/features/chess/timeline";
@@ -189,5 +223,83 @@ describe("ReviewBoard", () => {
     expect(screen.getByTestId("chessboard").getAttribute("data-orientation")).toBe(
       "black"
     );
+  });
+
+  describe("FullGameAnalysisPanel integration", () => {
+    it("renders FullGameAnalysisPanel with timeline, current ply, fixed limit, and multiPv 3", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+      expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          timeline,
+          currentPly: 0,
+          limit: { kind: "depth", value: 10 },
+          multiPv: 3,
+        })
+      );
+    });
+
+    it("updates currentPly on navigation without remounting", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+
+      expect(lifecycleEvents).toHaveBeenCalledWith("mount");
+      lifecycleEvents.mockClear();
+
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          currentPly: 1,
+        })
+      );
+
+      expect(lifecycleEvents).not.toHaveBeenCalledWith("cleanup");
+      expect(lifecycleEvents).not.toHaveBeenCalledWith("mount");
+    });
+
+    it("does not change timeline or currentPly when flipped", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Flip board" }));
+      expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          timeline,
+          currentPly: 0,
+        })
+      );
+    });
+
+    it("resets to initial ply on new timeline without remounting panel identity", () => {
+      const first = timelineOf(SHORT_GAME);
+      const { rerender } = render(<ReviewBoard timeline={first} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      lifecycleEvents.mockClear();
+
+      const second = timelineOf('[Event "Other"]\n\n1. d4 d5 *');
+      rerender(<ReviewBoard timeline={second} />);
+
+      expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          timeline: second,
+          currentPly: 0,
+        })
+      );
+      expect(lifecycleEvents).not.toHaveBeenCalledWith("cleanup");
+      expect(lifecycleEvents).not.toHaveBeenCalledWith("mount");
+    });
+
+    it("renders completed-games-only messaging for ineligible timelines", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      const ineligibleTimeline = { ...timeline, analysisEligible: false };
+      render(<ReviewBoard timeline={ineligibleTimeline} />);
+      expect(
+        screen.getByText("Full-game analysis is available only for completed games.")
+      ).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Analyze full game" })
+      ).not.toBeInTheDocument();
+    });
   });
 });

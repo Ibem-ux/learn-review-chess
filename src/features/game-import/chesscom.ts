@@ -269,7 +269,7 @@ export async function getMonthlyGames(
     games.push({
       url: entry.url,
       pgn: entry.pgn,
-      endTime: entry.end_time,
+      endTime: normalizeEndTime(entry.end_time),
       timeControl: entry.time_control,
       timeClass: entry.time_class,
       rules: entry.rules,
@@ -304,10 +304,31 @@ function isMonthlyGamesResponse(value: unknown): value is { readonly games: read
   return true;
 }
 
+function isFiniteNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && Number.isInteger(value);
+}
+
+function isNumericTimestampString(value: unknown): value is string {
+  if (typeof value !== "string" || value.length === 0) return false;
+  if (!/^\d+$/.test(value)) return false;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 && Number.isInteger(parsed);
+}
+
+function normalizeEndTime(value: unknown): string {
+  if (isFiniteNonNegativeInteger(value)) {
+    return String(value);
+  }
+  if (isNumericTimestampString(value)) {
+    return value;
+  }
+  throw new Error("Invalid end_time");
+}
+
 function isChesscomGame(value: unknown): value is {
   readonly url: string;
   readonly pgn: string;
-  readonly end_time: string;
+  readonly end_time: string | number;
   readonly time_control: string;
   readonly time_class: string;
   readonly rules: string;
@@ -315,12 +336,20 @@ function isChesscomGame(value: unknown): value is {
 } {
   if (typeof value !== "object" || value === null) return false;
   const obj = value as Record<string, unknown>;
-  return (
-    typeof obj.url === "string" &&
-    typeof obj.pgn === "string" &&
-    typeof obj.end_time === "string" &&
-    typeof obj.time_control === "string" &&
-    typeof obj.time_class === "string" &&
-    typeof obj.rules === "string"
-  );
+  if (
+    typeof obj.url !== "string" ||
+    typeof obj.pgn !== "string" ||
+    typeof obj.time_control !== "string" ||
+    typeof obj.time_class !== "string" ||
+    typeof obj.rules !== "string"
+  ) {
+    return false;
+  }
+  if (!isFiniteNonNegativeInteger(obj.end_time) && !isNumericTimestampString(obj.end_time)) {
+    return false;
+  }
+  if (obj.rated !== undefined && typeof obj.rated !== "boolean") {
+    return false;
+  }
+  return true;
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { normalizeHeader, parsePgn } from "@/features/chess/pgn";
 
+const ELIGIBLE_RESULTS = ["1-0", "0-1", "1/2-1/2"] as const;
+
 describe("parsePgn", () => {
   it("rejects empty input", () => {
     const result = parsePgn("");
@@ -177,5 +179,92 @@ describe("parsePgn", () => {
   it("preserves legitimate header values", () => {
     expect(normalizeHeader("Alice")).toBe("Alice");
     expect(normalizeHeader("Bob ")).toBe("Bob ");
+  });
+
+  describe("analysisEligible", () => {
+    for (const result of ELIGIBLE_RESULTS) {
+      it(`marks ${result} as eligible`, () => {
+        let terminalMovetext: string;
+        if (result === "1-0") {
+          terminalMovetext = "1. e4 e5 2. Qh5 Nc6 3. Qxf7# 1-0";
+        } else if (result === "0-1") {
+          terminalMovetext = "1. e4 e5 2. Qh5 Nc6 3. Qxf7# 0-1";
+        } else {
+          terminalMovetext = "1. e4 e5 2. Qh5 Nc6 3. Bb5+ 1/2-1/2";
+        }
+        const pgn = [
+          '[Event "Test"]',
+          `[Result "${result}"]`,
+          "",
+          terminalMovetext,
+        ].join("\n");
+        const parsed = parsePgn(pgn);
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+        expect(parsed.value.analysisEligible).toBe(true);
+      });
+    }
+
+    it("marks Result * as ineligible while still parsing", () => {
+      const pgn = [
+        '[Event "Test"]',
+        '[Result "*"]',
+        "",
+        "1. e4 e5 *",
+      ].join("\n");
+      const parsed = parsePgn(pgn);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      expect(parsed.value.analysisEligible).toBe(false);
+    });
+
+    it("marks missing Result as ineligible while still parsing", () => {
+      const pgn = ["[Event \"Test\"]", "", "1. e4 e5 *"].join("\n");
+      const parsed = parsePgn(pgn);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      expect(parsed.value.analysisEligible).toBe(false);
+    });
+
+    it("marks header 1-0 with movetext * as ineligible", () => {
+      const pgn = [
+        '[Event "Test"]',
+        '[Result "1-0"]',
+        "",
+        "1. e4 e5 *",
+      ].join("\n");
+      const parsed = parsePgn(pgn);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      expect(parsed.value.analysisEligible).toBe(false);
+    });
+
+    it("marks conflicting header 1-0 with movetext 0-1 as eligible", () => {
+      const pgn = [
+        '[Event "Test"]',
+        '[Result "1-0"]',
+        "",
+        "1. e4 e5 2. Qh5 Nc6 3. Qxf7# 0-1",
+      ].join("\n");
+      const parsed = parsePgn(pgn);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      expect(parsed.value.analysisEligible).toBe(true);
+    });
+
+    it("marks unrecognized Result values as ineligible", () => {
+      for (const value of ["?", "1/X", "ongoing", ""]) {
+        const pgn = [
+          '[Event "Test"]',
+          `[Result "${value}"]`,
+          "",
+          "1. e4 e5 *",
+        ].join("\n");
+        const parsed = parsePgn(pgn);
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+        expect(parsed.value.analysisEligible).toBe(false);
+      }
+    });
   });
 });

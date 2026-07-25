@@ -470,6 +470,301 @@ describe("getMonthlyGames", () => {
     }
   });
 
+  it("normalizes numeric end_time to string", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: 1782907523,
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+            rated: true,
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(true);
+    if (isMonthlyGamesSuccess(result)) {
+      expect(result.games[0].endTime).toBe("1782907523");
+    }
+  });
+
+  it("accepts numeric-string end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: "1782907523",
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(true);
+    if (isMonthlyGamesSuccess(result)) {
+      expect(result.games[0].endTime).toBe("1782907523");
+    }
+  });
+
+  it("ignores harmless additional fields", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: 1782907523,
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+            accuracies: { white: 89.61, black: 94.18 },
+            tcn: "abc123",
+            uuid: "063be5e8-86b4-11f1-bd1d-370ea001000f",
+            fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(true);
+    if (isMonthlyGamesSuccess(result)) {
+      expect(result.games).toHaveLength(1);
+      expect(result.games[0].endTime).toBe("1782907523");
+    }
+  });
+
+  it("rejects missing end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("rejects null end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: null,
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("rejects boolean end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: true,
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("rejects object end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: { value: 1 },
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("rejects array end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: [1],
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("rejects empty string end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: "",
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("rejects non-numeric string end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: "not-a-timestamp",
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("rejects negative number end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: -1,
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("rejects fractional number end_time", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [
+          {
+            url: "https://www.chess.com/game/live/123456789",
+            pgn: "1. e4 e5 *",
+            end_time: 1782907523.5,
+            time_control: "180",
+            time_class: "blitz",
+            rules: "chess",
+          },
+        ],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
+  it("returns empty games array as valid success", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        games: [],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(true);
+    if (isMonthlyGamesSuccess(result)) {
+      expect(result.games).toHaveLength(0);
+    }
+  });
+
+  it("rejects invalid top-level response shape", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        data: [],
+      })
+    );
+    const result = await getMonthlyGames("hikaru", 2026, 7, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isMonthlyGamesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
   it("handles optional rated field absence", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       createResponse(200, {

@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { Chessboard } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
+import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
+import type { EngineAnalysisLimit } from "@/features/chess/engine";
+
+const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
 
 function isDisabled(ply: number, total: number): {
   atStart: boolean;
@@ -133,6 +137,15 @@ export default function ReviewBoard({
             }}
           />
         </section>
+      </div>
+
+      <div className="w-full max-w-2xl">
+        <FullGameAnalysisPanel
+          timeline={timeline}
+          currentPly={ply}
+          limit={FULL_GAME_ANALYSIS_LIMIT}
+          multiPv={3}
+        />
       </div>
     </div>
   );
