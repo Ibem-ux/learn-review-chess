@@ -1,6 +1,7 @@
+import { Chess } from "chess.js";
 import type { EngineColor, EngineInfo, EngineScore } from "./engine";
 import { isEngineColor, scoreToWhitePerspective } from "./engine";
-import type { ReviewTimeline } from "./timeline";
+import type { ReviewTimeline, TimelinePly } from "./timeline";
 import type { QuickPassCompletedJob } from "./quick-pass-runner";
 
 // ---------------------------------------------------------------------------
@@ -8,15 +9,7 @@ import type { QuickPassCompletedJob } from "./quick-pass-runner";
 // ---------------------------------------------------------------------------
 
 /**
- * Side to move parsed from the FEN active-color field.
- *
- * Verified contract:
- * - The UCI parser (uci.ts line 187) sets `perspective: "side-to-move"` on
- *   every parsed `EngineScore`. Stockfish UCI scores are always relative to
- *   the side to move.
- * - `scoreToWhitePerspective` (engine.ts line 109) converts a side-to-move
- *   score to a White-perspective score by preserving when White is to move
- *   and negating (value + bound swap) when Black is to move.
+ * Side to move parsed from a fully validated FEN via chess.js.
  */
 export type SideToMove = EngineColor;
 
@@ -62,23 +55,34 @@ export type EvaluationSeriesResult =
 // ---------------------------------------------------------------------------
 
 /**
- * Parses the side to move from the FEN active-color field (the second
- * space-delimited token). Returns `null` for malformed FEN or unsupported
- * active-color values.
+ * Parses the side to move from a fully validated FEN using chess.js.
+ *
+ * Rejects:
+ * - Empty or non-string input
+ * - Malformed FEN (invalid board layout, rank count, piece placement, etc.)
+ * - Unsupported active-color values
+ *
+ * Evidence: `new Chess(fen)` throws on structurally invalid FEN, including
+ * `"not-a-valid-board w"` (piece data does not contain 8 '/'-delimited rows).
+ * `chess.turn()` returns `"w"` or `"b"` for any valid position.
  */
 export function parseSideToMove(fen: string): SideToMove | null {
   if (typeof fen !== "string" || fen.trim().length === 0) {
     return null;
   }
-  const parts = fen.split(" ");
-  if (parts.length < 2) {
+
+  let chess: Chess;
+  try {
+    chess = new Chess(fen);
+  } catch {
     return null;
   }
-  const activeColor = parts[1];
-  if (!isEngineColor(activeColor)) {
+
+  const turn = chess.turn();
+  if (!isEngineColor(turn)) {
     return null;
   }
-  return activeColor;
+  return turn;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,9 +91,20 @@ export function parseSideToMove(fen: string): SideToMove | null {
 
 /**
  * Normalizes an `EngineScore` to the White perspective without mutating the
- * source. Delegates to the verified `scoreToWhitePerspective` utility.
+ * source.
  *
- * Returns `null` if the input score is `undefined`.
+ * Behavior:
+ * - `undefined` input → `null`
+ * - Already White-perspective score → returned as White-perspective, no inversion
+ * - Side-to-move score with White to move → preserved
+ * - Side-to-move score with Black to move → value negated, bound swapped
+ *
+ * The `scoreToWhitePerspective` helper (engine.ts) handles side-to-move input
+ * and swaps bounds when Black is to move. We guard already-White-perspective
+ * input so it is not incorrectly inverted.
+ *
+ * Type assertion is required because `scoreToWhitePerspective` returns
+ * `EngineScore`, not the narrower `NormalizedScore`.
  */
 export function normalizeScore(
   score: EngineScore | undefined,
@@ -98,7 +113,60 @@ export function normalizeScore(
   if (score === undefined) {
     return null;
   }
+  if (score.perspective === "white") {
+    return { ...score, perspective: "white" } as NormalizedScore;
+  }
   return scoreToWhitePerspective(score, sideToMove) as NormalizedScore;
+}
+
+// ---------------------------------------------------------------------------
+// Ply validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates a result ply. Returns a deterministic failure reason for:
+ * - Non-finite values (`NaN`, `Infinity`, `-Infinity`)
+ * - Fractional values
+ * - Negative integers
+ *
+ * Returns `null` for valid finite non-negative integers.
+ */
+export function validateResultPly(ply: number): string | null {
+  if (!Number.isFinite(ply)) {
+    return `Result ply must be a finite integer, got ${String(ply)}.`;
+  }
+  if (!Number.isInteger(ply)) {
+    return `Result ply must be an integer, got ${ply}.`;
+  }
+  if (ply < 0) {
+    return `Result has negative ply: ${ply}.`;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Timeline lookup
+// ---------------------------------------------------------------------------
+
+/**
+ * Safely retrieves a timeline step by ply. Returns `null` if the ply is
+ * out of range or the step does not carry the expected ply identifier.
+ *
+ * This guards against malformed timeline input where `steps[ply]` could be
+ * `undefined` or carry an unexpected ply value.
+ */
+export function getTimelineStepSafe(
+  timeline: ReviewTimeline,
+  ply: number,
+): TimelinePly | null {
+  if (ply < 0 || ply > timeline.totalPlies) {
+    return null;
+  }
+  const step = timeline.steps[ply];
+  if (!step || step.ply !== ply) {
+    return null;
+  }
+  return step;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,8 +185,9 @@ export function normalizeScore(
  *   Rank 2/3 candidate lines are never substituted.
  * - Missing result → `completed: false`, `score: null`.
  * - Completed result without score → `completed: true`, `score: null`.
- * - Duplicate result plies, negative plies, out-of-range plies,
- *   FEN mismatches, and malformed FEN are rejected with a safe reason.
+ * - Duplicate result plies, non-finite/fractional/negative plies,
+ *   out-of-range plies, FEN mismatches, and malformed FEN are rejected with
+ *   a safe reason.
  */
 export function buildQuickPassEvaluationSeries(
   timeline: ReviewTimeline,
@@ -128,15 +197,15 @@ export function buildQuickPassEvaluationSeries(
   const resultByPly = new Map<number, QuickPassCompletedJob>();
 
   for (const result of results) {
-    const ply = result.job.ply;
-
-    // Reject negative plies.
-    if (ply < 0) {
+    const plyValidation = validateResultPly(result.job.ply);
+    if (plyValidation !== null) {
       return {
         ok: false,
-        reason: `Result has negative ply: ${ply}.`,
+        reason: plyValidation,
       };
     }
+
+    const ply = result.job.ply;
 
     // Reject out-of-range plies.
     if (ply > timeline.totalPlies) {
@@ -154,8 +223,14 @@ export function buildQuickPassEvaluationSeries(
       };
     }
 
-    // Reject FEN mismatch.
-    const timelineStep = timeline.steps[ply];
+    // Reject FEN mismatch against the exact timeline step.
+    const timelineStep = getTimelineStepSafe(timeline, ply);
+    if (timelineStep === null) {
+      return {
+        ok: false,
+        reason: `Timeline has no step for ply ${ply}.`,
+      };
+    }
     if (result.job.fen !== timelineStep.fen) {
       return {
         ok: false,

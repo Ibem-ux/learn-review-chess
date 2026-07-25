@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { EngineScore, EngineInfo } from "@/features/chess/engine";
-import type { ReviewTimeline, TimelinePly } from "@/features/chess/timeline";
+import type { EngineScore, EngineInfo, ScoreBound } from "@/features/chess/engine";
+import type { ReviewTimeline } from "@/features/chess/timeline";
 import type { QuickPassCompletedJob } from "@/features/chess/quick-pass-runner";
 import type { QuickPassJob } from "@/features/chess/quick-pass-planner";
 import {
   buildQuickPassEvaluationSeries,
   normalizeScore,
   parseSideToMove,
+  validateResultPly,
+  getTimelineStepSafe,
 } from "@/features/chess/quick-pass-evaluation";
 
 // ---------------------------------------------------------------------------
@@ -18,13 +20,15 @@ const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
 const AFTER_E5 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2";
 const AFTER_NF3 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
 
-function makeTimeline(steps: TimelinePly[], opts?: { analysisEligible?: boolean }): ReviewTimeline {
+type TimelinePly = { readonly ply: number; readonly fen: string; readonly move: null };
+
+function makeTimeline(steps: TimelinePly[]): ReviewTimeline {
   return {
     steps,
     totalPlies: steps.length - 1,
     initialFen: steps[0].fen,
     finalFen: steps[steps.length - 1].fen,
-    analysisEligible: opts?.analysisEligible ?? true,
+    analysisEligible: true,
   };
 }
 
@@ -53,24 +57,15 @@ function makeResult(
 function twoStepTimeline(): ReviewTimeline {
   return makeTimeline([
     { ply: 0, fen: INITIAL_FEN, move: null },
-    { ply: 1, fen: AFTER_E4, move: { san: "e4", before: INITIAL_FEN, after: AFTER_E4, color: "w" } as TimelinePly["move"] },
+    { ply: 1, fen: AFTER_E4, move: null },
   ]);
 }
 
 function threeStepTimeline(): ReviewTimeline {
   return makeTimeline([
     { ply: 0, fen: INITIAL_FEN, move: null },
-    { ply: 1, fen: AFTER_E4, move: { san: "e4", before: INITIAL_FEN, after: AFTER_E4, color: "w" } as TimelinePly["move"] },
-    { ply: 2, fen: AFTER_E5, move: { san: "e5", before: AFTER_E4, after: AFTER_E5, color: "b" } as TimelinePly["move"] },
-  ]);
-}
-
-function fourStepTimeline(): ReviewTimeline {
-  return makeTimeline([
-    { ply: 0, fen: INITIAL_FEN, move: null },
-    { ply: 1, fen: AFTER_E4, move: { san: "e4", before: INITIAL_FEN, after: AFTER_E4, color: "w" } as TimelinePly["move"] },
-    { ply: 2, fen: AFTER_E5, move: { san: "e5", before: AFTER_E4, after: AFTER_E5, color: "b" } as TimelinePly["move"] },
-    { ply: 3, fen: AFTER_NF3, move: { san: "Nf3", before: AFTER_E5, after: AFTER_NF3, color: "w" } as TimelinePly["move"] },
+    { ply: 1, fen: AFTER_E4, move: null },
+    { ply: 2, fen: AFTER_E5, move: null },
   ]);
 }
 
@@ -91,16 +86,113 @@ describe("parseSideToMove", () => {
     expect(parseSideToMove("")).toBeNull();
   });
 
-  it("returns null for a FEN with only one token", () => {
+  it("returns null for a FEN with missing active-color field", () => {
     expect(parseSideToMove("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")).toBeNull();
   });
 
-  it("returns null for an unsupported active-color field", () => {
+  it("returns null for a FEN with unsupported active-color token", () => {
     expect(parseSideToMove("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1")).toBeNull();
   });
 
-  it("returns null for numeric active-color field", () => {
-    expect(parseSideToMove("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR 1 KQkq - 0 1")).toBeNull();
+  it("returns null for invalid board layout with active token 'w'", () => {
+    expect(parseSideToMove("not-a-valid-board w KQkq - 0 1")).toBeNull();
+  });
+
+  it("returns null for invalid board layout with active token 'b'", () => {
+    expect(parseSideToMove("not-a-valid-board b KQkq - 0 1")).toBeNull();
+  });
+
+  it("returns null for FEN with wrong rank count", () => {
+    expect(parseSideToMove("rnbqkbnr/pppppppp/8/8/4P3/PPPP1PPP/RNBQKBNR w KQkq - 0 1")).toBeNull();
+  });
+
+  it("returns null for FEN with invalid piece placement", () => {
+    expect(parseSideToMove("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPPP/RNBQKBNR w KQkq - 0 1")).toBeNull();
+  });
+
+  it("parses 'w' from a valid non-starting FEN", () => {
+    expect(parseSideToMove(AFTER_E5)).toBe("w");
+  });
+
+  it("parses 'b' from a valid non-starting FEN", () => {
+    expect(parseSideToMove(AFTER_NF3)).toBe("b");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateResultPly
+// ---------------------------------------------------------------------------
+
+describe("validateResultPly", () => {
+  it("accepts zero", () => {
+    expect(validateResultPly(0)).toBeNull();
+  });
+
+  it("accepts positive integers", () => {
+    expect(validateResultPly(1)).toBeNull();
+    expect(validateResultPly(99)).toBeNull();
+  });
+
+  it("rejects NaN", () => {
+    expect(validateResultPly(NaN)).toContain("finite integer");
+  });
+
+  it("rejects positive Infinity", () => {
+    expect(validateResultPly(Infinity)).toContain("finite integer");
+  });
+
+  it("rejects negative Infinity", () => {
+    expect(validateResultPly(-Infinity)).toContain("finite integer");
+  });
+
+  it("rejects fractional ply", () => {
+    expect(validateResultPly(1.5)).toContain("integer");
+    expect(validateResultPly(0.1)).toContain("integer");
+  });
+
+  it("rejects negative integers", () => {
+    expect(validateResultPly(-1)).toContain("negative");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getTimelineStepSafe
+// ---------------------------------------------------------------------------
+
+describe("getTimelineStepSafe", () => {
+  it("returns the requested in-range step", () => {
+    const timeline = threeStepTimeline();
+    const step = getTimelineStepSafe(timeline, 1);
+    expect(step).not.toBeNull();
+    if (step) {
+      expect(step.ply).toBe(1);
+    }
+  });
+
+  it("returns null for negative ply", () => {
+    const timeline = threeStepTimeline();
+    expect(getTimelineStepSafe(timeline, -1)).toBeNull();
+  });
+
+  it("returns null for out-of-range ply", () => {
+    const timeline = threeStepTimeline();
+    expect(getTimelineStepSafe(timeline, 99)).toBeNull();
+  });
+
+  it("returns null when step ply does not match requested ply", () => {
+    const badTimeline: ReviewTimeline = {
+      ...threeStepTimeline(),
+      steps: [
+        { ply: 0, fen: INITIAL_FEN, move: null },
+        { ply: 2, fen: AFTER_E4, move: null },
+      ],
+      totalPlies: 1,
+    };
+    expect(getTimelineStepSafe(badTimeline, 0)).not.toBeNull();
+    if (getTimelineStepSafe(badTimeline, 0)) {
+      expect(getTimelineStepSafe(badTimeline, 0)!.ply).toBe(0);
+    }
+    expect(getTimelineStepSafe(badTimeline, 1)).toBeNull();
   });
 });
 
@@ -184,6 +276,36 @@ describe("normalizeScore", () => {
     normalizeScore(score, "b");
     expect(score).toEqual({ type: "cp", value: 50, perspective: "side-to-move" });
   });
+
+  it("preserves already White-perspective cp score regardless of side to move", () => {
+    const score: EngineScore = { type: "cp", value: 40, perspective: "white", bound: "upperbound" as ScoreBound };
+    expect(normalizeScore(score, "b")).toEqual({
+      type: "cp", value: 40, perspective: "white", bound: "upperbound",
+    });
+  });
+
+  it("preserves already White-perspective mate score regardless of side to move", () => {
+    const score: EngineScore = { type: "mate", value: -3, perspective: "white", bound: "lowerbound" as ScoreBound };
+    expect(normalizeScore(score, "w")).toEqual({
+      type: "mate", value: -3, perspective: "white", bound: "lowerbound",
+    });
+  });
+
+  it("swaps lowerbound to upperbound when inverting side-to-move cp for Black", () => {
+    const score: EngineScore = { type: "cp", value: 20, perspective: "side-to-move", bound: "lowerbound" as ScoreBound };
+    const result = normalizeScore(score, "b");
+    expect(result).toEqual({
+      type: "cp", value: -20, perspective: "white", bound: "upperbound",
+    });
+  });
+
+  it("swaps upperbound to lowerbound when inverting side-to-move cp for Black", () => {
+    const score: EngineScore = { type: "cp", value: 20, perspective: "side-to-move", bound: "upperbound" as ScoreBound };
+    const result = normalizeScore(score, "b");
+    expect(result).toEqual({
+      type: "cp", value: -20, perspective: "white", bound: "lowerbound",
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -193,15 +315,14 @@ describe("normalizeScore", () => {
 describe("buildQuickPassEvaluationSeries", () => {
   describe("timeline coverage", () => {
     it("returns one point for every timeline step including ply 0", () => {
-      const timeline = fourStepTimeline();
+      const timeline = threeStepTimeline();
       const series = buildQuickPassEvaluationSeries(timeline, []);
       expect(series.ok).toBe(true);
       if (!series.ok) return;
-      expect(series.points).toHaveLength(4);
+      expect(series.points).toHaveLength(3);
       expect(series.points[0].ply).toBe(0);
       expect(series.points[1].ply).toBe(1);
       expect(series.points[2].ply).toBe(2);
-      expect(series.points[3].ply).toBe(3);
     });
 
     it("preserves the FEN for each point from the timeline", () => {
@@ -468,6 +589,38 @@ describe("buildQuickPassEvaluationSeries", () => {
         type: "cp", value: 40, perspective: "side-to-move",
       });
     });
+
+    it("preserves already White-perspective cp score regardless of side to move", () => {
+      const timeline = twoStepTimeline();
+      const job0 = makeJob(0, INITIAL_FEN);
+      const info: EngineInfo = {
+        depth: 14,
+        score: { type: "cp", value: 40, perspective: "white" },
+      };
+      const series = buildQuickPassEvaluationSeries(timeline, [makeResult(job0, info)]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+
+      expect(series.points[0].score).toEqual({
+        type: "cp", value: 40, perspective: "white",
+      });
+    });
+
+    it("preserves already White-perspective mate score regardless of side to move", () => {
+      const timeline = twoStepTimeline();
+      const job1 = makeJob(1, AFTER_E4);
+      const info: EngineInfo = {
+        depth: 14,
+        score: { type: "mate", value: -3, perspective: "white" },
+      };
+      const series = buildQuickPassEvaluationSeries(timeline, [makeResult(job1, info)]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+
+      expect(series.points[1].score).toEqual({
+        type: "mate", value: -3, perspective: "white",
+      });
+    });
   });
 
   describe("metadata preservation", () => {
@@ -530,15 +683,15 @@ describe("buildQuickPassEvaluationSeries", () => {
 
       // Points are in timeline order.
       expect(series.points[0].ply).toBe(0);
-      expect(series.points[0].score!.value).toBe(10); // White to move, preserved.
+      expect(series.points[0].score!.value).toBe(10);
       expect(series.points[1].ply).toBe(1);
-      expect(series.points[1].score!.value).toBe(-20); // Black to move, negated.
+      expect(series.points[1].score!.value).toBe(-20);
       expect(series.points[2].ply).toBe(2);
-      expect(series.points[2].score!.value).toBe(30); // White to move, preserved.
+      expect(series.points[2].score!.value).toBe(30);
     });
 
     it("preserves deterministic timeline ordering", () => {
-      const timeline = fourStepTimeline();
+      const timeline = threeStepTimeline();
       const series = buildQuickPassEvaluationSeries(timeline, []);
       expect(series.ok).toBe(true);
       if (!series.ok) return;
@@ -554,7 +707,6 @@ describe("buildQuickPassEvaluationSeries", () => {
       const timeline = twoStepTimeline();
       const job0 = makeJob(0, INITIAL_FEN);
 
-      // Simulate a result with null rank-1 info but candidate lines at rank 2/3.
       const result: QuickPassCompletedJob = {
         job: job0,
         info: null,
@@ -576,6 +728,70 @@ describe("buildQuickPassEvaluationSeries", () => {
   });
 
   describe("validation failures", () => {
+    it("rejects NaN result ply", () => {
+      const timeline = twoStepTimeline();
+      const badJob: QuickPassJob = {
+        id: "qp-nan",
+        phase: "quick-pass",
+        ply: NaN as unknown as number,
+        fen: INITIAL_FEN,
+        limit: { kind: "depth", value: 14 },
+      };
+
+      const series = buildQuickPassEvaluationSeries(timeline, [makeResult(badJob, { depth: 14 })]);
+      expect(series.ok).toBe(false);
+      if (series.ok) return;
+      expect(series.reason).toContain("finite integer");
+    });
+
+    it("rejects positive infinity ply", () => {
+      const timeline = twoStepTimeline();
+      const badJob: QuickPassJob = {
+        id: "qp-inf",
+        phase: "quick-pass",
+        ply: Infinity,
+        fen: INITIAL_FEN,
+        limit: { kind: "depth", value: 14 },
+      };
+
+      const series = buildQuickPassEvaluationSeries(timeline, [makeResult(badJob, { depth: 14 })]);
+      expect(series.ok).toBe(false);
+      if (series.ok) return;
+      expect(series.reason).toContain("finite integer");
+    });
+
+    it("rejects negative infinity ply", () => {
+      const timeline = twoStepTimeline();
+      const badJob: QuickPassJob = {
+        id: "qp-ninf",
+        phase: "quick-pass",
+        ply: -Infinity,
+        fen: INITIAL_FEN,
+        limit: { kind: "depth", value: 14 },
+      };
+
+      const series = buildQuickPassEvaluationSeries(timeline, [makeResult(badJob, { depth: 14 })]);
+      expect(series.ok).toBe(false);
+      if (series.ok) return;
+      expect(series.reason).toContain("finite integer");
+    });
+
+    it("rejects fractional ply", () => {
+      const timeline = twoStepTimeline();
+      const badJob: QuickPassJob = {
+        id: "qp-frac",
+        phase: "quick-pass",
+        ply: 1.5,
+        fen: INITIAL_FEN,
+        limit: { kind: "depth", value: 14 },
+      };
+
+      const series = buildQuickPassEvaluationSeries(timeline, [makeResult(badJob, { depth: 14 })]);
+      expect(series.ok).toBe(false);
+      if (series.ok) return;
+      expect(series.reason).toContain("integer");
+    });
+
     it("rejects duplicate result plies", () => {
       const timeline = twoStepTimeline();
       const job0a = makeJob(0, INITIAL_FEN);
@@ -610,7 +826,7 @@ describe("buildQuickPassEvaluationSeries", () => {
     });
 
     it("rejects out-of-range ply", () => {
-      const timeline = twoStepTimeline(); // totalPlies = 1
+      const timeline = twoStepTimeline();
       const badJob: QuickPassJob = {
         id: "quick-pass-99",
         phase: "quick-pass",
@@ -656,15 +872,43 @@ describe("buildQuickPassEvaluationSeries", () => {
       expect(series.reason).toContain("0");
     });
 
-    it("rejects unsupported active-color in timeline FEN", () => {
+    it("rejects invalid board layout with 'w' active color in timeline", () => {
       const badTimeline = makeTimeline([
-        { ply: 0, fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR X KQkq - 0 1", move: null },
+        { ply: 0, fen: "not-a-valid-board w KQkq - 0 1", move: null },
       ]);
 
       const series = buildQuickPassEvaluationSeries(badTimeline, []);
       expect(series.ok).toBe(false);
       if (series.ok) return;
       expect(series.reason).toContain("Malformed FEN");
+    });
+
+    it("rejects invalid board layout with 'b' active color in timeline", () => {
+      const badTimeline = makeTimeline([
+        { ply: 0, fen: "not-a-valid-board b KQkq - 0 1", move: null },
+      ]);
+
+      const series = buildQuickPassEvaluationSeries(badTimeline, []);
+      expect(series.ok).toBe(false);
+      if (series.ok) return;
+      expect(series.reason).toContain("Malformed FEN");
+    });
+
+    it("rejects malformed FEN in result when matching ply", () => {
+      const timeline = twoStepTimeline();
+      const badJob: QuickPassJob = {
+        id: "qp-bad-fen",
+        phase: "quick-pass",
+        ply: 0,
+        fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1",
+        limit: { kind: "depth", value: 14 },
+      };
+      const info: EngineInfo = { depth: 14 };
+
+      const series = buildQuickPassEvaluationSeries(timeline, [makeResult(badJob, info)]);
+      expect(series.ok).toBe(false);
+      if (series.ok) return;
+      expect(series.reason).toContain("FEN mismatch");
     });
   });
 
@@ -689,6 +933,21 @@ describe("buildQuickPassEvaluationSeries", () => {
         id: "qp--1",
         phase: "quick-pass",
         ply: -1,
+        fen: INITIAL_FEN,
+        limit: { kind: "depth", value: 14 },
+      };
+
+      expect(() =>
+        buildQuickPassEvaluationSeries(timeline, [makeResult(badJob, { depth: 14 })])
+      ).not.toThrow();
+    });
+
+    it("returns a failure result for fractional ply instead of throwing", () => {
+      const timeline = twoStepTimeline();
+      const badJob: QuickPassJob = {
+        id: "qp-frac",
+        phase: "quick-pass",
+        ply: 1.5,
         fen: INITIAL_FEN,
         limit: { kind: "depth", value: 14 },
       };
