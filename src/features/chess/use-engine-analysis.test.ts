@@ -376,6 +376,9 @@ describe("use-engine-analysis", () => {
     });
 
     it("handles missing Worker support deterministically without an unhandled effect error", async () => {
+      vi.doUnmock("@/features/chess/engine-worker-factory");
+      vi.doUnmock("@/features/chess/engine-controller");
+
       fakeWorker = createFakeWorker();
       const failingFactory = vi.fn(() => {
         throw new Error("Web Workers are not available in this environment.");
