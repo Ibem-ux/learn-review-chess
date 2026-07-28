@@ -2,7 +2,7 @@
 
 > **Warning:** `PROJECT_CONTEXT.md` is a maintained project guide, not a substitute for inspecting current code and Git state.
 
-*Snapshot Last Verified:* Commit `ec680fa` (Accessibility alignment for chessboard contract)
+*Snapshot Last Verified:* Working tree includes full-game quick-pass analysis, ReviewBoard integration, depth-10 / MultiPV-3 configuration, and verified Playwright smoke coverage.
 
 ---
 
@@ -39,11 +39,21 @@ src/
 │   └── page.tsx               # Main application shell with header & navigation
 └── features/
     ├── chess/                 # Core chess domain logic & UI components
+    │   ├── engine.ts          # Engine types, score normalization, and analysis limits
+    │   ├── engine-controller.ts # State-machine-based Stockfish controller
+    │   ├── engine-worker-factory.ts # Browser Worker factory for Stockfish
+    │   ├── use-engine-analysis.ts # Hook for EngineController lifecycle and single-position request correlation
+    │   ├── uci.ts             # UCI command builders and message parser
     │   ├── game.ts            # chess.js wrapper (createGame, move, undo, history)
     │   ├── pgn.ts             # Robust PGN parser (parsePgn, normalizeHeader)
     │   ├── timeline.ts        # Review timeline builder (buildTimeline, getTimelineStep)
+    │   ├── quick-pass-planner.ts  # Full-game quick-pass job planner
+    │   ├── quick-pass-runner.ts   # Sequential full-game quick-pass runner
+    │   ├── use-quick-pass-analysis.ts # Hook owning Worker/controller lifecycle for full-game analysis
+    │   ├── full-game-analysis-panel.tsx # Full-game analysis panel integrated into ReviewBoard
     │   ├── StudyBoard.tsx     # Interactive freeform chess board component
     │   ├── ReviewBoard.tsx    # Read-only timeline review board component
+    │   ├── analysis-panel.tsx # Manual, structurally gated single-position analysis UI
     │   ├── ReviewWorkspace.tsx# Combined workspace managing imports, state & active board
     │   └── __mocks__/         # Mock implementation for react-chessboard in UI tests
     └── game-import/           # External game import module
@@ -55,6 +65,7 @@ src/
 - **Separation of Concerns**: Pure domain logic (`game.ts`, `pgn.ts`, `timeline.ts`, `chesscom.ts`) is completely decoupled from React and tested independently.
 - **Client Components**: Interactive UI components (`StudyBoard`, `ReviewBoard`, `ReviewWorkspace`, `ChesscomGamePicker`) use `"use client"`.
 - **Backend API Proxies**: External requests to `api.chess.com` are proxied through internal Next.js Server API routes (`src/app/api/chesscom/...`) to prevent browser CORS issues, apply HTTP caching, and enforce consistent error responses.
+- **Engine Infrastructure**: Stockfish runtime assets, UCI command/parsing utilities, engine types, EngineController, Worker integration, quick-pass planner/runner, and full-game analysis panel are implemented. Analysis is structurally gated for eligible ReviewBoard timelines. The existing manual AnalysisPanel remains available as reusable single-position infrastructure.
 
 ## Implemented Features
 All features listed below have been verified in the codebase:
@@ -75,12 +86,20 @@ All features listed below have been verified in the codebase:
 - **Production-owned chessboard accessibility wrappers**: Production components (`StudyBoard`, `ReviewBoard`) wrap `<Chessboard>` inside accessible semantic elements (`<section aria-label="...">`, `<div role="status" aria-live="polite">`, `<div role="group" aria-label="...">`) for screen-reader accessibility.
 - **Mock-based component tests**: Comprehensive Vitest test suite using a lightweight `react-chessboard` mock (`src/features/chess/__mocks__/react-chessboard.tsx`) for fast, reliable component state and interaction tests.
 - **Non-mocked react-chessboard contract test**: Contract smoke test (`src/features/chess/react-chessboard.contract.test.tsx`) verifying real `react-chessboard` rendering in JSDOM, confirming DOM element structure, controlled position updates, and disabled drag attributes.
+- **Stockfish runtime asset pipeline**: Verified, hash-verified preparation script (`scripts/prepare-stockfish-assets.mjs`) copies the lite single-threaded Stockfish 18.0.0 WASM/JS runtime from `node_modules/stockfish/src/` into `public/engines/stockfish/18.0.0/`. Assets are versioned, adjacent, and Git-ignored.
+- **Stockfish license and source notices**: Deployment-accessible files under `public/licenses/stockfish/18.0.0/` (`COPYING.txt` and `SOURCE.txt`) document GPLv3 obligations and provenance. Legal review remains required before public deployment.
+- **UCI infrastructure**: UCI command builders (`setoption`, `position fen`, `go depth/nodes/movetime`) and a line parser (`parseUciLine`) are implemented and tested in `src/features/chess/uci.ts`.
+- **Engine types and controller**: Engine score types, configuration, analysis limits, and `EngineController` state machine are implemented and unit-tested in `src/features/chess/engine.ts` and `src/features/chess/engine-controller.ts`.
+- **Stockfish Browser Worker**: Classic browser Worker factory constructed in `src/features/chess/engine-worker-factory.ts` using adjacent versioned public WASM assets.
+- **Engine Analysis Hook**: `useEngineAnalysis` owns the Worker and controller lifecycle, and exposes request IDs for correlation.
+- **Analysis Eligibility**: PGN parsing extracts timeline analysis eligibility. Only timelines with normalized terminal results (1-0, 0-1, 1/2-1/2) are eligible.
+- **Analysis UI and Integration**: A gated, manual `AnalysisPanel` matches request IDs and FENs to suppress stale-position output, integrated into `ReviewBoard` for single-position analysis with a fixed depth-14 limit.
+- **Full-game quick-pass analysis**: `ReviewBoard` renders `FullGameAnalysisPanel`, which uses `useQuickPassAnalysis` to analyze every timeline position sequentially at depth 10 with MultiPV 3. One click starts the full-game pass; navigation selects the matching completed result without restarting analysis. Incomplete timelines remain reviewable but ineligible for engine analysis. `StudyBoard` remains engine-free.
 
 ## Partially Verified Features
 - **Browser Drag-and-Drop Interaction**: Controlled position rendering and `allowDragging: false` attributes are verified via unit and contract tests in JSDOM. However, actual browser pointer/touch drag mechanics rely on `@dnd-kit/core` sensors which cannot be fully verified in JSDOM environments. Real drag interaction must be verified manually in a browser or via end-to-end browser tests.
 
 ## Planned Features
-- Stockfish 18 WebAssembly integration for automated game evaluation.
 - Move classification and annotation system (Brilliant, Blunder, Mistake, Inaccuracy, etc.).
 - Position evaluation bar and advantage graph across game plies.
 - Interactive explanation system for why a move was a mistake or blunder.
@@ -89,16 +108,19 @@ All features listed below have been verified in the codebase:
 - Dark mode theme toggle & visual polish.
 
 ## Stockfish Analysis Roadmap
-*Status: Planned (Not Implemented)*
+*Status: Full-game quick-pass analysis implemented; graph, explanations, and drills planned*
 
-- **Engine Version**: Stockfish 18 WebAssembly (WASM).
-- **Execution Environment**: Web Worker in the browser for background calculation without blocking the main UI thread.
+- **Engine Version**: Stockfish 18 WebAssembly (WASM), npm package `stockfish@18.0.0`.
+- **Runtime Assets**: Hash-verified lite single-threaded runtime files are prepared under `public/engines/stockfish/18.0.0/` by `scripts/prepare-stockfish-assets.mjs`.
+- **Execution Environment**: Web Worker in the browser for background calculation without blocking the main UI thread (implemented).
 - **Analysis Workflow**:
-  1. *Quick full-game pass*: Fast evaluation across all game plies at lower depth to compute position evaluation graph and detect major eval swings.
-  2. *Deeper critical-position pass*: Higher-depth evaluation focused on turning points, mistakes, blunders, and candidate brilliant moves.
-- **Optional Native Fallback**: Optional native server-side Stockfish analysis engine for low-power mobile devices or batch analysis.
-- **Metrics Recorded**: Engine version, search depth, node count, evaluation score (centipawns or mate count), and principal variation (PV line).
+  1. *Quick full-game pass*: Fast evaluation across all game plies at depth 10 with MultiPV 3 to compute candidate lines for each position. (Implemented in `FullGameAnalysisPanel` via `useQuickPassAnalysis`.)
+  2. *Deeper critical-position pass*: Higher-depth evaluation focused on turning points, mistakes, blunders, and candidate brilliant moves. (Planned)
+- **Optional Native Fallback**: Optional native server-side Stockfish analysis engine for low-power mobile devices or batch analysis. (Planned)
+- **Metrics Recorded**: Single-position metrics (depth, nodes, time, score, PV) and ranked candidate lines (MultiPV 1–3) are displayed when supplied by the engine (implemented). Full-game metric collection and graphing remain planned.
 - **Fair-Play Rule**: Stockfish engine analysis is strictly restricted to completed games. Live or ongoing game evaluation is strictly forbidden.
+- **Single-position Analysis**: ReviewBoard provides manual depth-14 Stockfish analysis of the currently displayed timeline position via AnalysisPanel (implemented).
+- **Full-game Analysis**: ReviewBoard provides one-click sequential full-game analysis at depth 10 with MultiPV 3 via FullGameAnalysisPanel. Analysis begins only after explicit user activation. StudyBoard exposes no engine assets or controls.
 
 ## Move Classification Roadmap
 *Status: Planned (Not Implemented)*
@@ -154,42 +176,74 @@ Brilliant move classification must use transparent, open, objective criteria (in
 - `src/features/chess/StudyBoard.tsx`: Interactive freeform board component.
 - `src/features/chess/ReviewBoard.tsx`: Read-only review board component with timeline navigation.
 - `src/features/chess/ReviewWorkspace.tsx`: Top-level workspace component integrating board views and import forms.
-- `src/features/game-import/chesscom.ts`: Client for Chess.com PubAPI (`getArchives`, `getMonthlyGames`).
-- `src/features/game-import/ChesscomGamePicker.tsx`: Game selection UI component for Chess.com.
-- `src/app/api/chesscom/[username]/archives/route.ts`: Server proxy route for player archives.
-- `src/app/api/chesscom/[username]/games/[year]/[month]/route.ts`: Server proxy route for monthly player games.
+- `scripts/prepare-stockfish-assets.mjs`: Reproducible, hash-verified Stockfish 18.0.0 runtime asset preparation script.
+- `public/engines/stockfish/18.0.0/stockfish-18-lite-single.js` and `.wasm`: Generated lite single-threaded Stockfish runtime (Git-ignored, versioned output).
+- `public/licenses/stockfish/18.0.0/COPYING.txt`: Verbatim GPLv3 license text for deployment.
+- `public/licenses/stockfish/18.0.0/SOURCE.txt`: Stockfish provenance, hashes, and source-availability notice.
+- `src/features/chess/engine.ts`: Engine type definitions and score normalization.
+- `src/features/chess/engine-controller.ts`: State-machine-based engine controller with worker abstraction (integrated via useEngineAnalysis hook).
+- `src/features/chess/uci.ts`: UCI command builders and message parser.
 - `src/features/chess/react-chessboard.contract.test.tsx`: Contract test for `react-chessboard` behavior in JSDOM.
+- `src/features/chess/engine-worker-factory.ts`: Browser Worker factory for Stockfish.
+- `src/features/chess/use-engine-analysis.ts`: Hook for EngineController lifecycle and request correlation.
+  - `src/features/chess/analysis-panel.tsx`: Manual, structurally gated single-position analysis UI.
+  - `src/features/chess/quick-pass-planner.ts`: Full-game quick-pass job planner.
+  - `src/features/chess/quick-pass-runner.ts`: Sequential full-game quick-pass runner with MultiPV candidate tracking.
+  - `src/features/chess/use-quick-pass-analysis.ts`: Hook owning Worker/controller lifecycle for full-game analysis.
+  - `src/features/chess/full-game-analysis-panel.tsx`: Full-game analysis panel integrated into ReviewBoard.
+- `src/features/chess/engine-controller.test.ts`: Unit tests for `EngineController`.
+- `src/features/chess/uci.test.ts`: Unit tests for UCI command builders and parser.
+- `src/features/chess/engine-worker-factory.test.ts`: Tests for Worker factory logic.
+- `src/features/chess/use-engine-analysis.test.ts`: Tests for hook lifecycle and request correlation.
+ - `src/features/chess/analysis-panel.test.tsx`: Tests for analysis UI and eligibility structural gating.
+ - `src/features/chess/engine-controller.test.ts`: Unit tests for `EngineController`.
+ - `src/features/chess/uci.test.ts`: Unit tests for UCI command builders and parser.
+ - `src/features/chess/engine-worker-factory.test.ts`: Tests for Worker factory logic.
+ - `src/features/chess/use-engine-analysis.test.ts`: Tests for hook lifecycle and request correlation.
+ - `scripts/prepare-stockfish-assets.test.mjs`: Unit tests for the Stockfish asset preparation pipeline.
+ - `playwright.config.ts`: Playwright configuration for the Chromium real-browser smoke suite.
+ - `e2e/stockfish-analysis.smoke.spec.ts`: End-to-end Playwright smoke tests covering StudyBoard isolation, completed-game Worker/WASM loading, manual depth-14 analysis output, navigation stale-result suppression, and incomplete-PGN eligibility gating.
+ - `.github/workflows/ci.yml`: GitHub Actions workflow running lint, Vitest, build, and Playwright smoke tests on push and pull request.
 
 ## Client and Server Boundaries
 - **Browser (Client)**:
   - React Client Components (`"use client"`): `StudyBoard`, `ReviewBoard`, `ReviewWorkspace`, `ChesscomGamePicker`.
   - Client-side chess rules engine (`chess.js`) and timeline position state.
-  - Planned client-side Stockfish Web Worker WASM analysis.
+  - Stockfish WASM runtime assets are prepared for client-side use under `public/engines/stockfish/18.0.0/`. A classic browser Worker runs the Stockfish engine, initialized when the eligible `FullGameAnalysisPanel` lifecycle mounts. No full-game analysis request begins until explicit user activation. No Stockfish analysis runs on the Next.js server.
 - **Server (Next.js Node.js)**:
   - Server Route Handlers (`src/app/api/chesscom/...`).
   - Proxies requests to `api.chess.com` to prevent client CORS issues, protect client IP rate-limiting, and enforce server response caching.
   - Never handles, accepts, or stores user credentials.
 
 ## Security and Fair-Play Rules
-- **Completed Games Only**: The application exclusively imports and reviews completed games. Live or ongoing game review is strictly prohibited.
+- **Post-Game Review**: The application exclusively supports post-game review, prohibiting live or ongoing game assistance. Syntactically valid incomplete PGNs remain reviewable but are strictly ineligible for Stockfish analysis. Only timelines with normalized terminal results (1-0, 0-1, 1/2-1/2) are eligible for analysis. StudyBoard exposes no analysis. (Note: This is a client-side product guard, not tamper-proof authoritative verification.)
 - **No Live Assistance**: No engine analysis, move recommendations, or tactical hints while a game is active.
 - **No External Move Automation**: The application will never automate move input or interface with live games on third-party platforms (Chess.com, Lichess, etc.).
 - **Official Public APIs Only**: All external data access uses official public APIs. Scraping third-party web pages is strictly forbidden.
 - **Zero Credentials**: No requesting, storing, or handling of user passwords, private keys, or API tokens.
 
 ## Licensing Considerations
-- **Stockfish License (GPLv3)**: Stockfish is licensed under the GNU General Public License v3 (GPLv3). Integrating Stockfish WASM or native binaries requires full compliance with GPLv3 source availability and copyright notice obligations.
+- **Stockfish License (GPLv3)**: Stockfish is licensed under the GNU General Public License v3 (GPLv3). The project deploys the GPLv3 license text at `public/licenses/stockfish/18.0.0/COPYING.txt` and a source-provenance notice at `public/licenses/stockfish/18.0.0/SOURCE.txt`. Distributing the compiled WASM and JavaScript binaries triggers GPLv3 source-availability obligations. Legal review is required before public deployment to confirm that external source links and notices satisfy corresponding-source requirements.
 - **Original Content & Algorithms**: Do NOT copy proprietary lessons, annotations, icons, UI elements, or classification algorithms from Chess.com, Lichess, or other commercial services. All feature implementations (such as Brilliant move criteria) must be independently designed using transparent, open criteria.
 
 ## Testing and Verification
 - **Test Command**: `npm run test:run` (runs unit, integration, and contract tests once in Vitest).
 - **Lint Command**: `npm run lint` (runs ESLint).
 - **Build Command**: `npm run build` (executes Next.js production build).
+- **E2E Command**: `npm run test:e2e` (runs the Playwright Chromium smoke suite against the real application).
+- **Current Validation Baseline**:
+  - Vitest: 22 test files / 514 tests passing.
+  - Playwright: 4 Chromium smoke tests passing, covering StudyBoard isolation, eligible ReviewBoard Worker/WASM loading, one-click full-game analysis output, navigation result selection, and incomplete-PGN eligibility gating.
+  - Clean lint and production build.
 - **Testing Architecture**:
   - Unit tests for pure domain functions (`game.test.ts`, `pgn.test.ts`, `timeline.test.ts`, `chesscom.test.ts`).
   - API route integration tests testing server handlers and error mapping.
-  - Component unit and integration tests using `react-chessboard` mocks.
+  - Component unit and integration tests using `react-chessboard` mocks (includes `AnalysisPanel` and `FullGameAnalysisPanel` integration with `ReviewBoard`).
   - Contract smoke test (`react-chessboard.contract.test.tsx`) testing unmocked `react-chessboard` in JSDOM.
+  - Engine infrastructure tests: `engine-controller.test.ts`, `uci.test.ts`, `engine-worker-factory.test.ts`, and `use-engine-analysis.test.ts` thoroughly cover the Stockfish lifecycle, correlation, and UCI layers.
+  - Asset pipeline tests: `scripts/prepare-stockfish-assets.test.mjs` verifies hash-verified preparation, idempotency, and failure handling.
+  - Real-browser smoke tests: `e2e/stockfish-analysis.smoke.spec.ts` verifies the complete production browser path, including successful loading of `/engines/stockfish/18.0.0/stockfish-18-lite-single.js` and `.wasm`, one-click full-game analysis with real engine information fields and ranked candidate lines (depth, nodes, time, score, engine line, best move), navigation result selection without another click, and correct eligibility gating. These tests require Playwright Chromium to be installed locally (`npx playwright install chromium`).
+- **CI Workflow**: `.github/workflows/ci.yml` runs on push and pull request events. It uses Node 20 with npm caching, installs dependencies via `npm ci`, installs Playwright Chromium with system dependencies (`npx playwright install --with-deps chromium`), and executes `npm run lint`, `npm run test:run`, `npm run build`, and `npm run test:e2e` with `CI: true`. The workflow uses read-only permissions, cancels superseded runs on the same ref, and uploads Playwright failure artifacts from `test-results/` with 7-day retention only on failure. The CI commands have been verified locally, but a remote GitHub Actions run has not yet been observed in this thread.
 
 ## Development Rules
 - **Immutability**: Domain helper functions must return new immutable objects rather than mutating parameters.

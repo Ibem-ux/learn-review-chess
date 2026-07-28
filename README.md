@@ -40,11 +40,28 @@ Run the tests in watch mode during development:
 npm test
 ```
 
+Run the Playwright browser smoke suite once (requires Chromium to be installed first):
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+The Playwright smoke suite verifies the real-browser Stockfish path: StudyBoard exposes no engine assets, an eligible completed game loads the Worker JavaScript and WASM from versioned public paths, one-click full-game analysis produces ranked candidate lines and best-move output, navigation selects the matching ply result without another click, and incomplete PGNs remain reviewable but expose no engine controls or assets.
+
+## Continuous Integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm run lint`, `npm run test:run`, `npm run build`, and `npm run test:e2e` on every push and pull request. The workflow uses Node 20 with npm caching, installs Playwright Chromium and required system dependencies, and uploads Playwright failure artifacts only when the browser smoke tests fail.
+
 ## Chess rules
 
 Legal chess-game state and move validation are handled by [chess.js](https://github.com/jhlywa/chess.js). The wrapper lives in `src/features/chess`.
 
 Completed games can be parsed into structured review data (headers, per-move SAN, color, source/destination squares, before/after positions, final FEN, and half-move count) using `parsePgn` from `src/features/chess/pgn.ts`. This supports future game-import and review features.
+
+## Stockfish full-game analysis
+
+Eligible completed games can be analyzed sequentially using Stockfish 18.0.0. In `ReviewBoard`, clicking **Analyze full game** starts a quick-pass that evaluates every timeline position at depth 10 with MultiPV 3. The panel shows progress, cancellation, and ranked candidate lines for the currently selected ply. Navigation updates the displayed ply without restarting analysis. Incomplete games remain reviewable but do not expose engine analysis. `StudyBoard` remains engine-free.
 
 ## Internal API routes
 

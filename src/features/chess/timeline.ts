@@ -11,6 +11,7 @@ export type ReviewTimeline = {
   readonly totalPlies: number;
   readonly initialFen: string;
   readonly finalFen: string;
+  readonly analysisEligible: boolean;
 };
 
 export type TimelineStepSuccess = {
@@ -42,6 +43,7 @@ export function buildTimeline(parsed: PgnParsed): ReviewTimeline {
     totalPlies: parsed.moves.length,
     initialFen,
     finalFen: parsed.finalFen,
+    analysisEligible: parsed.analysisEligible,
   };
 }
 

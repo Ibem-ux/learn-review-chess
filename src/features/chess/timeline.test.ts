@@ -102,6 +102,24 @@ describe("buildTimeline", () => {
       "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     );
   });
+
+  it("propagates analysisEligible from parsed PGN", () => {
+    const eligible = parsePgn(
+      ['[Event "Test"]', '[Result "1-0"]', '', "1. e4 e5 2. Qh5 Nc6 3. Qxf7# 1-0"].join("\n")
+    );
+    expect(eligible.ok).toBe(true);
+    if (!eligible.ok) return;
+    const eligibleTimeline = buildTimeline(eligible.value);
+    expect(eligibleTimeline.analysisEligible).toBe(true);
+
+    const ineligible = parsePgn(
+      ['[Event "Test"]', '', "1. e4 e5 *"].join("\n")
+    );
+    expect(ineligible.ok).toBe(true);
+    if (!ineligible.ok) return;
+    const ineligibleTimeline = buildTimeline(ineligible.value);
+    expect(ineligibleTimeline.analysisEligible).toBe(false);
+  });
 });
 
 describe("getTimelineStep", () => {

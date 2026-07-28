@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Chessboard } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
+import { useQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
+import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
+import { MoveList } from "@/features/chess/move-list";
+import { buildMoveAssessments } from "@/features/chess/move-assessment";
+import { classifyMoves, type MoveClassification } from "@/features/chess/move-classification";
+import type { EngineAnalysisLimit } from "@/features/chess/engine";
+import type { QuickPassCompletedJob } from "@/features/chess/quick-pass-runner";
+
+const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
 
 function isDisabled(ply: number, total: number): {
   atStart: boolean;
@@ -16,6 +25,25 @@ function timelineIdentity(timeline: ReviewTimeline): string {
     .map((step) => `${step.ply}:${step.fen}:${step.move?.san ?? ""}`)
     .join("|");
   return `${timeline.initialFen}#${timeline.totalPlies}#${steps}`;
+}
+
+export function buildClassificationMap(
+  timeline: ReviewTimeline,
+  results: readonly QuickPassCompletedJob[],
+): ReadonlyMap<number, MoveClassification> {
+  if (results.length === 0) {
+    return new Map<number, MoveClassification>();
+  }
+  const assessmentResult = buildMoveAssessments(timeline, results);
+  if (!assessmentResult.ok) {
+    return new Map<number, MoveClassification>();
+  }
+  return classifyMoves(assessmentResult.assessments)
+    .filter((classified) => classified.classification !== "unclassified")
+    .reduce((map, classified) => {
+      map.set(classified.assessment.ply, classified.classification);
+      return map;
+    }, new Map<number, MoveClassification>());
 }
 
 export default function ReviewBoard({
@@ -33,6 +61,13 @@ export default function ReviewBoard({
     setLastIdentity(identity);
     setPly(0);
   }
+  const analysisState = useQuickPassAnalysis();
+
+  const classifications = useMemo(
+    () => buildClassificationMap(timeline, analysisState.results),
+    [timeline, analysisState.results]
+  );
+
   const result = getTimelineStep(timeline, ply);
   const fen = result.ok ? result.step.fen : timeline.initialFen;
   const currentMove = result.ok ? result.step.move : null;
@@ -72,6 +107,8 @@ export default function ReviewBoard({
           ({ply} / {timeline.totalPlies})
         </span>
       </div>
+
+      <MoveList timeline={timeline} currentPly={ply} onSelectPly={goTo} classifications={classifications} />
 
       <div
         role="group"
@@ -133,6 +170,16 @@ export default function ReviewBoard({
             }}
           />
         </section>
+      </div>
+
+      <div className="w-full max-w-2xl">
+        <FullGameAnalysisPanel
+          timeline={timeline}
+          currentPly={ply}
+          limit={FULL_GAME_ANALYSIS_LIMIT}
+          multiPv={3}
+          analysisState={analysisState}
+        />
       </div>
     </div>
   );

@@ -19,6 +19,7 @@
 
 # production
 /build
+/public/engines/stockfish/
 
 # misc
 .DS_Store
@@ -39,3 +40,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright
+playwright-report/
+test-results/
+blob-report/
+
+# Markdown: ignore new docs by default, keep load-bearing ones
+*.md
+!README.md
+!AGENTS.md
+!CLAUDE.md
+!PROJECT_CONTEXT.md
+!THIRD_PARTY_NOTICES.md

@@ -16,6 +16,7 @@ export type PgnParsed = {
   readonly moves: readonly PgnMove[];
   readonly finalFen: string;
   readonly halfMoveCount: number;
+  readonly analysisEligible: boolean;
 };
 
 export type PgnSuccess = {
@@ -43,6 +44,12 @@ export function normalizeHeader(value: string | undefined): string {
 
 function toUserSafeReason(): string {
   return "Unable to parse PGN. Check that the game notation is valid.";
+}
+
+const TERMINAL_RESULTS = new Set(["1-0", "0-1", "1/2-1/2"]);
+
+function isTerminalResult(result: string | undefined): boolean {
+  return result !== undefined && TERMINAL_RESULTS.has(result);
 }
 
 export function parsePgn(input: string): PgnResult {
@@ -78,6 +85,7 @@ export function parsePgn(input: string): PgnResult {
       moves,
       finalFen,
       halfMoveCount: moves.length,
+      analysisEligible: isTerminalResult(headers.Result),
     },
   };
 }
