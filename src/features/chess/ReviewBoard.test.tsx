@@ -1,5 +1,9 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReviewTimeline } from "@/features/chess/timeline";
+import { parsePgn } from "@/features/chess/pgn";
+import { buildTimeline } from "@/features/chess/timeline";
+import ReviewBoard from "@/features/chess/ReviewBoard";
 
 vi.mock("react-chessboard", () => import("@/features/chess/__mocks__/react-chessboard"));
 
@@ -20,7 +24,19 @@ vi.mock("@/features/chess/full-game-analysis-panel", () => {
         return () => lifecycleEvents("cleanup");
       }, []);
       mockFullGameAnalysisPanel(props);
-      const panelProps = props as { timeline?: { analysisEligible?: boolean } };
+      const panelProps = props as {
+        timeline?: { analysisEligible?: boolean };
+        analysisState?: {
+          start?: (timeline: unknown, limit: unknown, multiPv?: number) => boolean;
+          cancel?: () => void;
+          status?: string;
+          totalJobs?: number;
+          completedJobs?: number;
+          currentJobId?: string | null;
+          results?: readonly unknown[];
+          error?: string | null;
+        };
+      };
       if (panelProps.timeline?.analysisEligible === false) {
         return (
           <p
@@ -32,20 +48,68 @@ vi.mock("@/features/chess/full-game-analysis-panel", () => {
           </p>
         );
       }
-      return <div data-testid="mock-full-game-analysis-panel" />;
+      return (
+        <div data-testid="mock-full-game-analysis-panel">
+          <button
+            type="button"
+            data-testid="analyze-button"
+            onClick={() => {
+              panelProps.analysisState?.start?.(
+                panelProps.timeline,
+                panelProps.timeline
+              );
+            }}
+          >
+            Analyze full game
+          </button>
+          {panelProps.analysisState?.status === "running" && (
+            <button
+              type="button"
+              data-testid="cancel-button"
+              onClick={() => panelProps.analysisState?.cancel?.()}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      );
     },
   };
 });
 
-import ReviewBoard from "@/features/chess/ReviewBoard";
-import { parsePgn } from "@/features/chess/pgn";
-import { buildTimeline, type ReviewTimeline } from "@/features/chess/timeline";
+let { EngineControllerSpy, capturedController } = vi.hoisted(() => {
+  return {
+    EngineControllerSpy: vi.fn(),
+    capturedController: null as { stop: ReturnType<typeof vi.fn> } | null,
+  };
+});
 
-function timelineOf(pgn: string): ReviewTimeline {
-  const result = parsePgn(pgn);
-  if (!result.ok) throw new Error("expected successful parse");
-  return buildTimeline(result.value);
-}
+vi.mock("@/features/chess/engine-controller", () => ({
+  EngineController: vi.fn(function MockEngineController() {
+    EngineControllerSpy();
+    const controller = {
+      status: "ready",
+      subscribe: vi.fn(() => () => {}),
+      initialize: vi.fn(),
+      dispose: vi.fn(),
+      analyze: vi.fn(),
+      stop: vi.fn(),
+    };
+    capturedController = controller;
+    return controller;
+  }),
+}));
+
+vi.mock("@/features/chess/engine-worker-factory", () => ({
+  createStockfishWorkerFactory: vi.fn(() => () => ({
+    postMessage: vi.fn(),
+    terminate: vi.fn(),
+    addMessageListener: vi.fn(),
+    removeMessageListener: vi.fn(),
+    addErrorListener: vi.fn(),
+    removeErrorListener: vi.fn(),
+  })),
+}));
 
 const SHORT_GAME = [
   '[Event "Test"]',
@@ -55,22 +119,33 @@ const SHORT_GAME = [
   "1. e4 e5 2. Nf3 Nc6 *",
 ].join("\n");
 
+function timelineOf(pgn: string): ReviewTimeline {
+  const result = parsePgn(pgn);
+  if (!result.ok) throw new Error("expected successful parse");
+  return buildTimeline(result.value);
+}
+
 describe("ReviewBoard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    capturedController = null;
+    EngineControllerSpy = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.doUnmock("@/features/chess/engine-controller");
+    vi.doUnmock("@/features/chess/engine-worker-factory");
   });
 
   it("renders the review chessboard region", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     expect(
       screen.getByRole("region", { name: "Review chessboard" })
     ).toBeInTheDocument();
   });
 
   it("starts at ply 0 with the start position label", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     expect(screen.getByTestId("review-ply-status")).toHaveTextContent(
       "Start position"
     );
@@ -82,8 +157,7 @@ describe("ReviewBoard", () => {
   });
 
   it("disables Start and Previous initially", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     expect(screen.getByRole("button", { name: "Start" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
@@ -91,8 +165,7 @@ describe("ReviewBoard", () => {
   });
 
   it("advances one ply with Next and updates SAN", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByTestId("review-ply-status")).toHaveTextContent("e4");
     expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(1 / 4)");
@@ -102,8 +175,7 @@ describe("ReviewBoard", () => {
   });
 
   it("returns one ply with Previous", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(2 / 4)");
@@ -113,8 +185,7 @@ describe("ReviewBoard", () => {
   });
 
   it("reaches the final FEN with End and disables Next/End", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     fireEvent.click(screen.getByRole("button", { name: "End" }));
     expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(4 / 4)");
     expect(screen.getByTestId("review-ply-status")).toHaveTextContent("Nc6");
@@ -126,8 +197,7 @@ describe("ReviewBoard", () => {
   });
 
   it("returns to ply 0 with Start", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     fireEvent.click(screen.getByRole("button", { name: "End" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(0 / 4)");
@@ -137,8 +207,7 @@ describe("ReviewBoard", () => {
   });
 
   it("never navigates beyond the timeline boundaries", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     fireEvent.click(screen.getByRole("button", { name: "End" }));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -150,8 +219,7 @@ describe("ReviewBoard", () => {
   });
 
   it("flip changes orientation without changing ply or FEN", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     const before = screen.getByTestId("chessboard").getAttribute("data-position");
     fireEvent.click(screen.getByRole("button", { name: "Flip board" }));
@@ -162,8 +230,7 @@ describe("ReviewBoard", () => {
   });
 
   it("does not accept or persist user moves", () => {
-    const timeline = timelineOf(SHORT_GAME);
-    render(<ReviewBoard timeline={timeline} />);
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     expect(screen.queryByTestId("simulate-drop")).not.toBeInTheDocument();
     expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
       "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
@@ -225,13 +292,71 @@ describe("ReviewBoard", () => {
     );
   });
 
+  it("mounts exactly one EngineController", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    expect(EngineControllerSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("navigating plies creates no second EngineController", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    EngineControllerSpy.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "End" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous" }));
+    expect(EngineControllerSpy).not.toHaveBeenCalled();
+  });
+
+  it("flipping the board creates no second EngineController", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    EngineControllerSpy.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Flip board" }));
+    expect(EngineControllerSpy).not.toHaveBeenCalled();
+  });
+
+  it("rendering ReviewBoard with eligible timeline then ineligible does not create second EngineController", () => {
+    const timeline = timelineOf(SHORT_GAME);
+    const ineligibleTimeline = { ...timeline, analysisEligible: false };
+    const { rerender } = render(<ReviewBoard timeline={timeline} />);
+    expect(EngineControllerSpy).toHaveBeenCalledTimes(1);
+    EngineControllerSpy.mockClear();
+    rerender(<ReviewBoard timeline={ineligibleTimeline} />);
+    expect(EngineControllerSpy).not.toHaveBeenCalled();
+  });
+
+  it("losing eligibility during run does not duplicate cancel", async () => {
+    const timeline = timelineOf(SHORT_GAME);
+    const eligibleTimeline = { ...timeline, analysisEligible: true };
+    const ineligibleTimeline = { ...timeline, analysisEligible: false };
+    const { rerender } = render(<ReviewBoard timeline={eligibleTimeline} />);
+    fireEvent.click(screen.getByTestId("analyze-button"));
+    expect(await screen.findByTestId("cancel-button")).toBeDefined();
+    capturedController?.stop.mockClear();
+    rerender(<ReviewBoard timeline={ineligibleTimeline} />);
+    expect(capturedController?.stop).toHaveBeenCalledTimes(0);
+  });
+
+  it("passes analysisState from hook to panel", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        analysisState: expect.objectContaining({
+          status: expect.any(String),
+          totalJobs: expect.any(Number),
+          start: expect.any(Function),
+          cancel: expect.any(Function),
+        }),
+      })
+    );
+  });
+
   describe("FullGameAnalysisPanel integration", () => {
-    it("renders FullGameAnalysisPanel with timeline, current ply, fixed limit, and multiPv 3", () => {
-      const timeline = timelineOf(SHORT_GAME);
-      render(<ReviewBoard timeline={timeline} />);
+    it("renders FullGameAnalysisPanel with timeline, current ply, fixed limit, multiPv 3, and analysisState", () => {
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
       expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          timeline,
+          timeline: expect.any(Object),
           currentPly: 0,
           limit: { kind: "depth", value: 10 },
           multiPv: 3,
@@ -240,8 +365,7 @@ describe("ReviewBoard", () => {
     });
 
     it("updates currentPly on navigation without remounting", () => {
-      const timeline = timelineOf(SHORT_GAME);
-      render(<ReviewBoard timeline={timeline} />);
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
 
       expect(lifecycleEvents).toHaveBeenCalledWith("mount");
       lifecycleEvents.mockClear();
@@ -258,13 +382,12 @@ describe("ReviewBoard", () => {
     });
 
     it("does not change timeline or currentPly when flipped", () => {
-      const timeline = timelineOf(SHORT_GAME);
-      render(<ReviewBoard timeline={timeline} />);
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Flip board" }));
       expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          timeline,
+          timeline: expect.any(Object),
           currentPly: 0,
         })
       );
@@ -303,8 +426,7 @@ describe("ReviewBoard", () => {
     });
 
     it("renders the move list with exact button count and accessible names", () => {
-      const timeline = timelineOf(SHORT_GAME);
-      render(<ReviewBoard timeline={timeline} />);
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
       expect(screen.getByTestId("review-ply-status")).toBeInTheDocument();
       const moveButtons = screen.getAllByRole("button", { name: /1\. e4|1\.\.\. e5|2\. Nf3|2\.\.\. Nc6/ });
       expect(moveButtons).toHaveLength(4);
@@ -313,8 +435,7 @@ describe("ReviewBoard", () => {
     });
 
     it("exposes the move list container with accessible name", () => {
-      const timeline = timelineOf(SHORT_GAME);
-      render(<ReviewBoard timeline={timeline} />);
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
       const list = screen.getByRole("list", { name: "Move list" });
       expect(list).toBeInTheDocument();
       const items = list.querySelectorAll("li");
@@ -322,8 +443,7 @@ describe("ReviewBoard", () => {
     });
 
     it("clicking a move in the list navigates to that ply", () => {
-      const timeline = timelineOf(SHORT_GAME);
-      render(<ReviewBoard timeline={timeline} />);
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
       const nf3Button = screen.getByRole("button", { name: "2. Nf3" });
       fireEvent.click(nf3Button);
       expect(screen.getByTestId("review-ply-status")).toHaveTextContent("Nf3");
@@ -331,8 +451,7 @@ describe("ReviewBoard", () => {
     });
 
     it("preserves the review-ply-status element after integrating the move list", () => {
-      const timeline = timelineOf(SHORT_GAME);
-      render(<ReviewBoard timeline={timeline} />);
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
       expect(screen.getByTestId("review-ply-status")).toHaveTextContent("e4");
       expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(1 / 4)");

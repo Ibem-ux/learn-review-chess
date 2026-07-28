@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Chessboard } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
+import { useQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
 import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
 import { MoveList } from "@/features/chess/move-list";
 import type { EngineAnalysisLimit } from "@/features/chess/engine";
@@ -38,6 +39,8 @@ export default function ReviewBoard({
     setLastIdentity(identity);
     setPly(0);
   }
+  const analysisState = useQuickPassAnalysis();
+
   const result = getTimelineStep(timeline, ply);
   const fen = result.ok ? result.step.fen : timeline.initialFen;
   const currentMove = result.ok ? result.step.move : null;
@@ -148,6 +151,7 @@ export default function ReviewBoard({
           currentPly={ply}
           limit={FULL_GAME_ANALYSIS_LIMIT}
           multiPv={3}
+          analysisState={analysisState}
         />
       </div>
     </div>

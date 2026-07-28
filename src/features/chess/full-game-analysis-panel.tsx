@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EngineAnalysisLimit, EngineScore } from "./engine";
 import type { ReviewTimeline } from "./timeline";
-import { useQuickPassAnalysis } from "./use-quick-pass-analysis";
+import type { UseQuickPassAnalysis } from "./use-quick-pass-analysis";
 
 type FullGameAnalysisPanelProps = {
   readonly timeline: ReviewTimeline;
   readonly currentPly: number;
   readonly limit: EngineAnalysisLimit;
   readonly multiPv?: number;
+  readonly analysisState: UseQuickPassAnalysis;
 };
 
 function timelineIdentity(timeline: ReviewTimeline): string {
@@ -32,6 +33,12 @@ type DisplayState = {
   readonly results: readonly QuickPassResult[];
 };
 
+const defaultDisplayState: DisplayState = {
+  status: "loading",
+  error: null,
+  results: [],
+};
+
 type QuickPassResult = {
   readonly job: { readonly ply: number };
   readonly info: { readonly depth?: number; readonly nodes?: number; readonly timeMs?: number; readonly score?: EngineScore; readonly pv?: readonly string[] } | null;
@@ -39,22 +46,18 @@ type QuickPassResult = {
   readonly candidateLines: readonly { readonly rank: number; readonly info: { readonly depth?: number; readonly score?: EngineScore; readonly nodes?: number; readonly timeMs?: number; readonly pv?: readonly string[] } }[];
 };
 
-const defaultDisplayState: DisplayState = {
-  status: "loading",
-  error: null,
-  results: [],
-};
-
 function FullGameAnalysisPanelEligible({
   timeline,
   currentPly,
   limit,
   multiPv,
+  analysisState,
 }: {
   readonly timeline: ReviewTimeline;
   readonly currentPly: number;
   readonly limit: EngineAnalysisLimit;
   readonly multiPv: number;
+  readonly analysisState: UseQuickPassAnalysis;
 }) {
   const {
     status,
@@ -65,7 +68,7 @@ function FullGameAnalysisPanelEligible({
     results,
     start,
     cancel,
-  } = useQuickPassAnalysis();
+  } = analysisState;
 
   const startedTimelineRef = useRef<string | null>(null);
   const [displayState, setDisplayState] = useState<DisplayState>(defaultDisplayState);
@@ -74,7 +77,7 @@ function FullGameAnalysisPanelEligible({
 
   useEffect(() => {
     if (startedTimelineRef.current === timelineId) {
-      setDisplayState({ status, error, results: results as readonly QuickPassResult[] });
+      setDisplayState({ status, error, results });
     } else {
       const effectiveStatus =
         status === "running" ||
@@ -256,6 +259,7 @@ export default function FullGameAnalysisPanel({
   currentPly,
   limit,
   multiPv = 3,
+  analysisState,
 }: FullGameAnalysisPanelProps) {
   if (!timeline.analysisEligible) {
     return (
@@ -275,6 +279,7 @@ export default function FullGameAnalysisPanel({
       currentPly={currentPly}
       limit={limit}
       multiPv={multiPv}
+      analysisState={analysisState}
     />
   );
 }
