@@ -301,5 +301,41 @@ describe("ReviewBoard", () => {
         screen.queryByRole("button", { name: "Analyze full game" })
       ).not.toBeInTheDocument();
     });
+
+    it("renders the move list with exact button count and accessible names", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+      expect(screen.getByTestId("review-ply-status")).toBeInTheDocument();
+      const moveButtons = screen.getAllByRole("button", { name: /1\. e4|1\.\.\. e5|2\. Nf3|2\.\.\. Nc6/ });
+      expect(moveButtons).toHaveLength(4);
+      expect(moveButtons[0]).toHaveAccessibleName("1. e4");
+      expect(moveButtons[3]).toHaveAccessibleName("2... Nc6");
+    });
+
+    it("exposes the move list container with accessible name", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+      const list = screen.getByRole("list", { name: "Move list" });
+      expect(list).toBeInTheDocument();
+      const items = list.querySelectorAll("li");
+      expect(items).toHaveLength(4);
+    });
+
+    it("clicking a move in the list navigates to that ply", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+      const nf3Button = screen.getByRole("button", { name: "2. Nf3" });
+      fireEvent.click(nf3Button);
+      expect(screen.getByTestId("review-ply-status")).toHaveTextContent("Nf3");
+      expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(3 / 4)");
+    });
+
+    it("preserves the review-ply-status element after integrating the move list", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      expect(screen.getByTestId("review-ply-status")).toHaveTextContent("e4");
+      expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(1 / 4)");
+    });
   });
 });

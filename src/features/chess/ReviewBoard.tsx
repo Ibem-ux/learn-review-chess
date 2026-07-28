@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Chessboard } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
 import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
+import { MoveList } from "@/features/chess/move-list";
 import type { EngineAnalysisLimit } from "@/features/chess/engine";
 
 const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
@@ -76,6 +77,8 @@ export default function ReviewBoard({
           ({ply} / {timeline.totalPlies})
         </span>
       </div>
+
+      <MoveList timeline={timeline} currentPly={ply} onSelectPly={goTo} />
 
       <div
         role="group"

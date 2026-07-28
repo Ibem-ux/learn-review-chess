@@ -1,0 +1,55 @@
+import type { ReviewTimeline } from "./timeline";
+
+export type MoveListProps = {
+  readonly timeline: ReviewTimeline;
+  readonly currentPly: number;
+  readonly onSelectPly: (ply: number) => void;
+};
+
+export function MoveList({
+  timeline,
+  currentPly,
+  onSelectPly,
+}: MoveListProps): React.ReactElement | null {
+  const moves: { readonly ply: number; readonly label: string; readonly isCurrent: boolean }[] = [];
+
+  for (const step of timeline.steps) {
+    if (step.move === null) {
+      continue;
+    }
+    const moveNumber = Math.floor((step.ply - 1) / 2) + 1;
+    const isWhite = step.ply % 2 === 1;
+    const label = `${moveNumber}${isWhite ? "." : "..."} ${step.move.san}`;
+    moves.push({
+      ply: step.ply,
+      label,
+      isCurrent: step.ply === currentPly,
+    });
+  }
+
+  if (moves.length === 0) {
+    return null;
+  }
+
+  return (
+    <ol className="flex flex-wrap gap-2" aria-label="Move list">
+      {moves.map(({ ply, label, isCurrent }) => (
+        <li key={ply}>
+          <button
+            type="button"
+            data-ply={ply}
+            aria-current={isCurrent ? "true" : undefined}
+            onClick={() => onSelectPly(ply)}
+            className={`inline-flex items-center rounded px-1.5 py-0.5 text-sm transition-colors ${
+              isCurrent
+                ? "bg-black font-medium text-white dark:bg-white dark:text-black"
+                : "text-black hover:bg-black/[.06] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            }`}
+          >
+            {label}
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+}
