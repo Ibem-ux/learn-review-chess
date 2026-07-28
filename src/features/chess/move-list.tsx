@@ -1,15 +1,29 @@
 import type { ReviewTimeline } from "./timeline";
+import type { MoveClassification } from "./move-classification";
+import { ClassificationIcon } from "./classification-icon";
+
+const LABELS: Record<MoveClassification, string> = {
+  best: "Best move",
+  excellent: "Excellent move",
+  good: "Good move",
+  inaccuracy: "Inaccuracy",
+  mistake: "Mistake",
+  blunder: "Blunder",
+  unclassified: "Unclassified",
+};
 
 export type MoveListProps = {
   readonly timeline: ReviewTimeline;
   readonly currentPly: number;
   readonly onSelectPly: (ply: number) => void;
+  readonly classifications?: ReadonlyMap<number, MoveClassification>;
 };
 
 export function MoveList({
   timeline,
   currentPly,
   onSelectPly,
+  classifications,
 }: MoveListProps): React.ReactElement | null {
   const moves: { readonly ply: number; readonly label: string; readonly isCurrent: boolean }[] = [];
 
@@ -47,6 +61,16 @@ export function MoveList({
             }`}
           >
             {label}
+          {(() => {
+            const classification = classifications?.get(ply);
+            if (!classification) return null;
+            return (
+              <>
+                <ClassificationIcon classification={classification} />
+                <span className="sr-only">{LABELS[classification]}</span>
+              </>
+            );
+          })()}
           </button>
         </li>
       ))}

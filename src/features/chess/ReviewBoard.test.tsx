@@ -1,8 +1,12 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewTimeline } from "@/features/chess/timeline";
+import type { EngineScore, EngineInfo } from "@/features/chess/engine";
+import type { QuickPassCompletedJob } from "@/features/chess/quick-pass-runner";
+import type { QuickPassJob } from "@/features/chess/quick-pass-planner";
 import { parsePgn } from "@/features/chess/pgn";
 import { buildTimeline } from "@/features/chess/timeline";
+import { buildClassificationMap } from "@/features/chess/ReviewBoard";
 import ReviewBoard from "@/features/chess/ReviewBoard";
 
 vi.mock("react-chessboard", () => import("@/features/chess/__mocks__/react-chessboard"));
@@ -455,6 +459,130 @@ describe("ReviewBoard", () => {
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
       expect(screen.getByTestId("review-ply-status")).toHaveTextContent("e4");
       expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(1 / 4)");
+    });
+  });
+
+  describe("buildClassificationMap", () => {
+    const INITIAL = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
+    const AFTER_E5 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2";
+    const AFTER_NF3 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
+    const AFTER_NC6 = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKBNR w KQkq - 2 3";
+
+    function makeJob(ply: number, fen: string): QuickPassJob {
+      return {
+        id: `qp-${ply}`,
+        phase: "quick-pass",
+        ply,
+        fen,
+        limit: { kind: "depth", value: 14 },
+      };
+    }
+
+    function makeResult(
+      job: QuickPassJob,
+      info: EngineInfo | null,
+    ): QuickPassCompletedJob {
+      return {
+        job,
+        info,
+        bestMove: info ? { move: "e2e4", ponder: null } : null,
+        candidateLines: info ? [{ rank: 1, info }] : [],
+      };
+    }
+
+    function makeScore(value: number): EngineScore {
+      return { type: "cp", value, perspective: "white" };
+    }
+
+    function shortGameTimeline(): ReviewTimeline {
+      return {
+        steps: [
+          { ply: 0, fen: INITIAL, move: null },
+          { ply: 1, fen: AFTER_E4, move: { san: "e4", color: "w", from: "e2", to: "e4", before: INITIAL, after: AFTER_E4 } },
+          { ply: 2, fen: AFTER_E5, move: { san: "e5", color: "b", from: "e7", to: "e5", before: AFTER_E4, after: AFTER_E5 } },
+          { ply: 3, fen: AFTER_NF3, move: { san: "Nf3", color: "w", from: "g1", to: "f3", before: AFTER_E5, after: AFTER_NF3 } },
+          { ply: 4, fen: AFTER_NC6, move: { san: "Nc6", color: "b", from: "b8", to: "c6", before: AFTER_NF3, after: AFTER_NC6 } },
+        ],
+        totalPlies: 4,
+        initialFen: INITIAL,
+        finalFen: AFTER_NC6,
+        analysisEligible: true,
+      };
+    }
+
+    function resultsFor(
+      timeline: ReviewTimeline,
+      scores: Array<{ ply: number; score: EngineScore }>,
+    ): QuickPassCompletedJob[] {
+      return scores.map((s) => {
+        const job = makeJob(s.ply, timeline.steps[s.ply].fen);
+        return makeResult(job, {
+          depth: 14,
+          score: s.score,
+          pv: ["e2e4"],
+        });
+      });
+    }
+
+    it("returns an empty map when given empty results", () => {
+      const map = buildClassificationMap(shortGameTimeline(), []);
+      expect(map.size).toBe(0);
+    });
+
+    it("returns a map keyed by ply with at least two exact classification pairs", () => {
+      const timeline = shortGameTimeline();
+      const results = resultsFor(timeline, [
+        { ply: 0, score: makeScore(100) },
+        { ply: 1, score: makeScore(100) },
+        { ply: 2, score: makeScore(150) },
+        { ply: 3, score: makeScore(130) },
+        { ply: 4, score: makeScore(130) },
+      ]);
+      const map = buildClassificationMap(timeline, results);
+      expect(map.get(1)).toBe("best");
+      expect(map.get(2)).toBe("good");
+      expect(map.get(3)).toBe("excellent");
+      expect(map.get(4)).toBe("best");
+      expect(map.size).toBe(4);
+    });
+
+    it("returns an empty map when buildMoveAssessments fails", () => {
+      const timeline: ReviewTimeline = {
+        steps: [
+          { ply: 0, fen: INITIAL, move: null },
+          { ply: 1, fen: AFTER_E4, move: null },
+        ],
+        totalPlies: 1,
+        initialFen: INITIAL,
+        finalFen: AFTER_E4,
+        analysisEligible: true,
+      };
+      const results = [
+        makeResult(
+          makeJob(1, AFTER_E4),
+          { depth: 14, score: { type: "cp", value: 100, perspective: "white" }, pv: ["e2e4"] }
+        ),
+      ];
+      const map = buildClassificationMap(timeline, results);
+      expect(map.size).toBe(0);
+    });
+
+    it("excludes entries classified as unclassified from the map", () => {
+      const timeline = shortGameTimeline();
+      const results = resultsFor(timeline, [
+        { ply: 0, score: { type: "mate", value: 5, perspective: "side-to-move" } },
+        { ply: 1, score: makeScore(100) },
+        { ply: 2, score: makeScore(100) },
+        { ply: 3, score: makeScore(100) },
+        { ply: 4, score: makeScore(100) },
+      ]);
+      const map = buildClassificationMap(timeline, results);
+      expect(map.has(1)).toBe(false);
+      expect(map.has(2)).toBe(true);
+      expect(map.has(3)).toBe(true);
+      expect(map.has(4)).toBe(true);
+      expect(map.size).toBe(3);
     });
   });
 });

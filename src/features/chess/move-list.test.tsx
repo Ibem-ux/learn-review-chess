@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import { MoveList } from "@/features/chess/move-list";
 import type { ReviewTimeline } from "@/features/chess/timeline";
+import type { MoveClassification } from "@/features/chess/move-classification";
 
 const SHORT_GAME_TIMELINE: ReviewTimeline = {
   steps: [
@@ -33,8 +34,25 @@ const ITALIAN_GAME_TIMELINE: ReviewTimeline = {
   analysisEligible: true,
 };
 
-function renderList(timeline: ReviewTimeline, currentPly = 0) {
-  return render(<MoveList timeline={timeline} currentPly={currentPly} onSelectPly={vi.fn()} />);
+function classificationMap(
+  entries: Array<[number, MoveClassification]>
+): Map<number, MoveClassification> {
+  return new Map(entries);
+}
+
+function renderList(
+  timeline: ReviewTimeline,
+  currentPly = 0,
+  classifications?: Map<number, MoveClassification>
+) {
+  return render(
+    <MoveList
+      timeline={timeline}
+      currentPly={currentPly}
+      onSelectPly={vi.fn()}
+      classifications={classifications}
+    />
+  );
 }
 
 describe("MoveList", () => {
@@ -143,5 +161,70 @@ describe("MoveList", () => {
     };
     const { container } = renderList(emptyTimeline);
     expect(container.querySelector('[aria-label="Move list"]')).toBeNull();
+  });
+
+  it("renders one classification icon per classified ply", () => {
+    const { container } = renderList(
+      SHORT_GAME_TIMELINE,
+      0,
+      classificationMap([[2, "blunder"], [4, "best"]])
+    );
+    const icons = container.querySelectorAll('[data-classification]');
+    expect(icons).toHaveLength(2);
+  });
+
+  it("matches data-classification to the expected classification for each ply", () => {
+    const { container } = renderList(
+      SHORT_GAME_TIMELINE,
+      0,
+      classificationMap([[2, "blunder"], [4, "best"]])
+    );
+    expect(container.querySelector('[data-classification="blunder"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-classification="best"]')).toBeInTheDocument();
+  });
+
+  it("renders zero classification icons when no classifications are supplied", () => {
+    const { container } = renderList(SHORT_GAME_TIMELINE);
+    const icons = container.querySelectorAll('[data-classification]');
+    expect(icons).toHaveLength(0);
+  });
+
+  it("calls onSelectPly with the correct ply when icons are present", () => {
+    const onSelect = vi.fn();
+    const { container } = render(
+      <MoveList
+        timeline={SHORT_GAME_TIMELINE}
+        currentPly={0}
+        onSelectPly={onSelect}
+        classifications={classificationMap([[3, "mistake"]])}
+      />
+    );
+    const buttons = container.querySelectorAll('button[data-ply]');
+    expect(buttons).toHaveLength(4);
+    fireEvent.click(buttons[2]!);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(3);
+  });
+
+  it("renders a visually-hidden label for a classified move", () => {
+    const { container } = renderList(
+      SHORT_GAME_TIMELINE,
+      0,
+      classificationMap([[2, "blunder"]])
+    );
+    const labels = container.querySelectorAll(".sr-only");
+    expect(labels).toHaveLength(1);
+    expect(labels[0]).toHaveTextContent("Blunder");
+  });
+
+  it("renders the same button count with or without classifications", () => {
+    const { container: without } = renderList(SHORT_GAME_TIMELINE);
+    const { container: withClass } = renderList(
+      SHORT_GAME_TIMELINE,
+      0,
+      classificationMap([[1, "best"]])
+    );
+    expect(without.querySelectorAll('button[data-ply]')).toHaveLength(4);
+    expect(withClass.querySelectorAll('button[data-ply]')).toHaveLength(4);
   });
 });
