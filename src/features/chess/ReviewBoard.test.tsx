@@ -296,8 +296,11 @@ describe("ReviewBoard", () => {
     );
   });
 
-  it("mounts exactly one EngineController", () => {
-    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+  it("mount creates zero controllers and creates one after analyzing", () => {
+    const eligibleTimeline = { ...timelineOf(SHORT_GAME), analysisEligible: true };
+    render(<ReviewBoard timeline={eligibleTimeline} />);
+    expect(EngineControllerSpy).toHaveBeenCalledTimes(0);
+    fireEvent.click(screen.getByTestId("analyze-button"));
     expect(EngineControllerSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -320,9 +323,11 @@ describe("ReviewBoard", () => {
   });
 
   it("rendering ReviewBoard with eligible timeline then ineligible does not create second EngineController", () => {
-    const timeline = timelineOf(SHORT_GAME);
+    const timeline = { ...timelineOf(SHORT_GAME), analysisEligible: true };
     const ineligibleTimeline = { ...timeline, analysisEligible: false };
     const { rerender } = render(<ReviewBoard timeline={timeline} />);
+    expect(EngineControllerSpy).toHaveBeenCalledTimes(0);
+    fireEvent.click(screen.getByTestId("analyze-button"));
     expect(EngineControllerSpy).toHaveBeenCalledTimes(1);
     EngineControllerSpy.mockClear();
     rerender(<ReviewBoard timeline={ineligibleTimeline} />);

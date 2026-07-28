@@ -272,4 +272,43 @@ test.describe("Stockfish browser smoke test", () => {
     expect(consoleErrors, `Material console issues: ${consoleErrors.join(", ")}`).toEqual([]);
     expect(pageErrors, `Uncaught page errors: ${pageErrors.join(", ")}`).toEqual([]);
   });
+
+  test("completed analysis renders classification icons in the move list", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByLabel("Paste a completed PGN game").fill(COMPLETED_PGN);
+    await page.getByRole("button", { name: "Load game" }).click();
+
+    await expect(page.getByTestId("review-ply-status")).toBeVisible();
+    await expect(page.getByLabel("Full-game analysis")).toBeVisible();
+
+    const analysisStatus = page.getByLabel("Full-game analysis").getByRole("status");
+    const analyzeButton = page.getByRole("button", { name: "Analyze full game" });
+    await expect(analyzeButton).toBeEnabled({ timeout: 60000 });
+
+    await analyzeButton.click();
+
+    await expect(analysisStatus).toHaveText(/Analyzing position/);
+
+    const results = page.getByTestId("current-ply-result");
+    await expect(results).toContainText(/Depth:|Nodes:|Time:|Score:|Engine line:/);
+    await expect(page.getByText("Best move:")).toBeVisible({ timeout: 120000 });
+    await expect(analysisStatus).toHaveText("Analysis complete.");
+
+    const moveList = page.getByRole("list", { name: "Move list" });
+    const classifiedIcon = moveList.locator("[data-classification]").first();
+    await expect(classifiedIcon).toBeVisible();
+
+    const classificationButton = moveList.locator("button:has([data-classification])").first();
+    await expect(classificationButton).toBeVisible();
+
+    const accessibleName = await classificationButton.textContent();
+    expect(accessibleName).toBeTruthy();
+    expect(accessibleName).toMatch(/Best move|Excellent move|Good move|Inaccuracy|Mistake|Blunder/);
+
+    const initialPlyCount = await page.getByTestId("review-ply-count").textContent();
+    await classificationButton.click();
+    const newPlyCount = await page.getByTestId("review-ply-count").textContent();
+    expect(newPlyCount).not.toBe(initialPlyCount);
+  });
 });

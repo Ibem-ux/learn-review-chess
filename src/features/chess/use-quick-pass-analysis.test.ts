@@ -100,6 +100,16 @@ type FakeRunner = {
   readonly unsubCalls: Set<() => void>;
 };
 
+function minimalTimeline(analysisEligible: boolean): ReviewTimeline {
+  return {
+    analysisEligible,
+    steps: [],
+    totalPlies: 0,
+    initialFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    finalFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  };
+}
+
 function createFakeRunner(): FakeRunner {
   const listeners = new Set<(state: { status: string; totalJobs: number; completedJobs: number; currentJobId: string | null; results: unknown[]; error: string | null }) => void>();
   const unsubCalls = new Set<() => void>();
@@ -213,11 +223,18 @@ describe("use-quick-pass-analysis", () => {
       }));
     });
 
-    it("creates exactly one controller and initializes it on mount", async () => {
+    it("first start() creates exactly one factory, controller, and initializes it", async () => {
       const mod = await import("@/features/chess/use-quick-pass-analysis");
       const { useQuickPassAnalysis } = mod;
 
-      renderHook(() => useQuickPassAnalysis());
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
 
       expect(WorkerSpy).toHaveBeenCalledTimes(1);
       expect(EngineControllerSpy).toHaveBeenCalledTimes(1);
@@ -225,11 +242,18 @@ describe("use-quick-pass-analysis", () => {
       expect(fakeController.subscribe).toHaveBeenCalledTimes(1);
     });
 
-    it("re-renders do not reconstruct or reinitialize the controller", async () => {
+    it("re-renders after start do not reconstruct or reinitialize the controller", async () => {
       const mod = await import("@/features/chess/use-quick-pass-analysis");
       const { useQuickPassAnalysis } = mod;
 
-      const { rerender } = renderHook(() => useQuickPassAnalysis());
+      const { result, rerender } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
 
       expect(WorkerSpy).toHaveBeenCalledTimes(1);
       expect(fakeController.initialize).toHaveBeenCalledTimes(1);
@@ -246,6 +270,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
+      expect(result.current.status).toBe("idle");
+
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
+
       expect(result.current.status).toBe("loading");
 
       act(() => {
@@ -255,17 +288,20 @@ describe("use-quick-pass-analysis", () => {
       expect(result.current.status).toBe("ready");
     });
 
-    it("start before ready is rejected", async () => {
+    it("start while loading is rejected", async () => {
       const mod = await import("@/features/chess/use-quick-pass-analysis");
       const { useQuickPassAnalysis } = mod;
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
-      const accepted = result.current.start(timeline, limit);
-      expect(accepted).toBe(false);
+      const first = result.current.start(timeline, limit);
+      expect(first).toBe(true);
+
+      const second = result.current.start(timeline, limit);
+      expect(second).toBe(false);
       expect(QuickPassRunnerSpy).not.toHaveBeenCalled();
     });
 
@@ -275,22 +311,64 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
+      const timeline = minimalTimeline(false);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       planQuickPassSpy.mockReturnValue({ ok: false, reason: "Timeline is not eligible.", jobs: [] });
-
-      const timeline = { analysisEligible: false, steps: [] } as ReviewTimeline;
-      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
       });
 
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
       expect(result.current.status).toBe("error");
       expect(result.current.error).toBe("Timeline is not eligible.");
       expect(QuickPassRunnerSpy).not.toHaveBeenCalled();
+    });
+
+    it("ineligible timeline passed to start() creates zero factories and zero controllers, and sets status error", async () => {
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(false);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      planQuickPassSpy.mockReturnValue({ ok: false, reason: "Timeline is not eligible.", jobs: [] });
+
+      act(() => {
+        const accepted = result.current.start(timeline, limit);
+        expect(accepted).toBe(false);
+      });
+
+      expect(WorkerSpy).not.toHaveBeenCalled();
+      expect(EngineControllerSpy).not.toHaveBeenCalled();
+      expect(result.current.status).toBe("error");
+      expect(result.current.error).toBe("Timeline is not eligible.");
+    });
+
+    it("invalid multiPv passed to start() creates zero factories and zero controllers, and sets status error", async () => {
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      act(() => {
+        const accepted = result.current.start(timeline, limit, 0);
+        expect(accepted).toBe(false);
+      });
+
+      expect(WorkerSpy).not.toHaveBeenCalled();
+      expect(EngineControllerSpy).not.toHaveBeenCalled();
+      expect(result.current.status).toBe("error");
+      expect(result.current.error).toBe("multiPv must be a positive integer.");
     });
 
     it("ready eligible start creates one fresh runner", async () => {
@@ -299,15 +377,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       expect(QuickPassRunnerSpy).toHaveBeenCalledTimes(1);
@@ -320,15 +398,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit, 3);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       const runnerCall = (QuickPassRunnerSpy as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -341,15 +419,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       const runnerCall = (QuickPassRunnerSpy as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -362,15 +440,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit, 0);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       expect(result.current.status).toBe("error");
@@ -384,15 +462,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -418,15 +496,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       const mockResult = {
@@ -458,15 +536,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       const mockResult = {
@@ -514,15 +592,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -541,15 +619,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -577,17 +655,16 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
       });
-      expect(QuickPassRunnerSpy).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
 
       act(() => {
         fakeRunner.emitState({
@@ -606,7 +683,7 @@ describe("use-quick-pass-analysis", () => {
       fakeRunner.start.mockClear();
       QuickPassRunnerSpy.mockClear();
 
-      const newTimeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const newTimeline = minimalTimeline(true);
       act(() => {
         result.current.start(newTimeline, limit, 2);
       });
@@ -622,15 +699,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -654,6 +731,13 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
+
       act(() => {
         fakeController.emit({ type: "error", requestId: "init-1", message: "Controller failure." });
       });
@@ -662,7 +746,7 @@ describe("use-quick-pass-analysis", () => {
       expect(result.current.error).toBe("Controller failure.");
     });
 
-    it("factory failure is contained and exposes error state", async () => {
+    it("factory failure during start exposes error state", async () => {
       const failingFactory = vi.fn(() => {
         throw new Error("Web Workers are not available.");
       });
@@ -681,7 +765,7 @@ describe("use-quick-pass-analysis", () => {
       }));
 
       vi.doMock("@/features/chess/quick-pass-planner", () => ({
-        planQuickPass: vi.fn(),
+        planQuickPass: vi.fn(() => ({ ok: true, jobs: [] })),
       }));
 
       vi.doMock("@/features/chess/quick-pass-runner", () => ({
@@ -693,6 +777,16 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
+      expect(result.current.status).toBe("idle");
+
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      act(() => {
+        const accepted = result.current.start(timeline, limit);
+        expect(accepted).toBe(false);
+      });
+
       expect(result.current.status).toBe("error");
       expect(result.current.error).toBe("Web Workers are not available.");
     });
@@ -703,15 +797,26 @@ describe("use-quick-pass-analysis", () => {
 
       const { result, unmount } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        fakeRunner.emitState({
+          status: "completed",
+          totalJobs: 1,
+          completedJobs: 1,
+          currentJobId: null,
+          results: [],
+          error: null,
+        });
       });
 
       expect(fakeController.subscribe).toHaveBeenCalledTimes(1);
@@ -728,8 +833,11 @@ describe("use-quick-pass-analysis", () => {
 
       const { result, unmount } = renderHook(() => useQuickPassAnalysis());
 
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
       act(() => {
-        fakeController.emit({ type: "loading", requestId: "init-1" });
+        result.current.start(timeline, limit);
       });
 
       expect(result.current.status).toBe("loading");
@@ -749,15 +857,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result, unmount } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       unmount();
@@ -776,7 +884,7 @@ describe("use-quick-pass-analysis", () => {
       expect(result.current.status).toBe("ready");
     });
 
-    it("subscription failure during setup disposes controller once", async () => {
+    it("subscription failure during start disposes controller once", async () => {
       const failingSubscribe = vi.fn(() => {
         throw new Error("subscribe failed");
       });
@@ -786,12 +894,19 @@ describe("use-quick-pass-analysis", () => {
       const mod = await import("@/features/chess/use-quick-pass-analysis");
       const { useQuickPassAnalysis } = mod;
 
-      renderHook(() => useQuickPassAnalysis());
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
 
       expect(fakeController.dispose).toHaveBeenCalledTimes(1);
     });
 
-    it("initialization failure during setup disposes controller once", async () => {
+    it("initialization failure during start disposes controller once", async () => {
       fakeController = createFakeController(fakeWorker);
       (fakeController.initialize as ReturnType<typeof vi.fn>).mockImplementation(() => {
         throw new Error("initialize failed");
@@ -800,7 +915,14 @@ describe("use-quick-pass-analysis", () => {
       const mod = await import("@/features/chess/use-quick-pass-analysis");
       const { useQuickPassAnalysis } = mod;
 
-      renderHook(() => useQuickPassAnalysis());
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
 
       expect(fakeController.dispose).toHaveBeenCalledTimes(1);
     });
@@ -811,15 +933,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       expect(fakeRunner.subscribe).toHaveBeenCalledTimes(1);
@@ -845,15 +967,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       expect(fakeRunner.subscribe).toHaveBeenCalledTimes(1);
@@ -894,15 +1016,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       expect(fakeRunner.subscribe).toHaveBeenCalledTimes(1);
@@ -928,15 +1050,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -972,15 +1094,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -1044,15 +1166,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       expect(result.current.status).toBe("error");
@@ -1066,15 +1188,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -1109,15 +1231,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       const partialResult = {
@@ -1165,15 +1287,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result, unmount } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -1203,15 +1325,15 @@ describe("use-quick-pass-analysis", () => {
 
       const { result, unmount } = renderHook(() => useQuickPassAnalysis());
 
-      act(() => {
-        fakeController.emit({ type: "ready", requestId: "init-1" });
-      });
-
-      const timeline = { analysisEligible: true, steps: [] } as ReviewTimeline;
+      const timeline = minimalTimeline(true);
       const limit = { kind: "depth", value: 14 } as EngineAnalysisLimit;
 
       act(() => {
         result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
       });
 
       act(() => {
@@ -1235,3 +1357,4 @@ describe("use-quick-pass-analysis", () => {
     });
   });
 });
+
