@@ -45,3 +45,11 @@ next-env.d.ts
 playwright-report/
 test-results/
 blob-report/
+
+# Markdown: ignore new docs by default, keep load-bearing ones
+*.md
+!README.md
+!AGENTS.md
+!CLAUDE.md
+!PROJECT_CONTEXT.md
+!THIRD_PARTY_NOTICES.md
