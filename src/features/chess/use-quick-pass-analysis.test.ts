@@ -667,6 +667,11 @@ describe("use-quick-pass-analysis", () => {
         throw new Error("Web Workers are not available.");
       });
 
+      vi.doUnmock("@/features/chess/engine-worker-factory");
+      vi.doUnmock("@/features/chess/engine-controller");
+      vi.doUnmock("@/features/chess/quick-pass-planner");
+      vi.doUnmock("@/features/chess/quick-pass-runner");
+
       vi.doMock("@/features/chess/engine-worker-factory", () => ({
         createStockfishWorkerFactory: failingFactory,
       }));
