@@ -68,7 +68,7 @@ describe("EvaluationGraph", () => {
     expect(segments.length).toBe(3);
   });
 
-  it("an isolated evaluated point between two gaps renders one dot and zero polylines", () => {
+  it("an isolated evaluated point between two gaps renders one marker and zero polylines", () => {
     const points = [
       makePoint(0, 0, { hasValue: false }),
       makePoint(1, 0.5),
@@ -76,9 +76,9 @@ describe("EvaluationGraph", () => {
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const segments = container.querySelectorAll('[data-testid="evaluation-graph-segment"]');
-    const dots = container.querySelectorAll('[data-testid="evaluation-graph-dot"]');
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
     expect(segments.length).toBe(0);
-    expect(dots.length).toBe(1);
+    expect(markers.length).toBe(1);
   });
 
   it("a polyline's points attribute contains the exact expected coordinate string for a known small series", () => {
@@ -141,7 +141,7 @@ describe("EvaluationGraph", () => {
       makePoint(2, 0.6),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
-    const buttons = container.querySelectorAll('[data-ply]');
+    const buttons = container.querySelectorAll('button[data-ply]');
     expect(buttons.length).toBe(3);
     expect(buttons[0].getAttribute("data-ply")).toBe("0");
     expect(buttons[1].getAttribute("data-ply")).toBe("1");
@@ -155,7 +155,7 @@ describe("EvaluationGraph", () => {
       makePoint(1, 0.6),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={onSelectPly} />);
-    const buttons = container.querySelectorAll('[data-ply]');
+    const buttons = container.querySelectorAll('button[data-ply]');
     fireEvent.click(buttons[1] as HTMLElement);
     expect(onSelectPly).toHaveBeenCalledWith(1);
   });
@@ -166,7 +166,7 @@ describe("EvaluationGraph", () => {
       makePoint(1, 0.6),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={1} onSelectPly={() => {}} />);
-    const buttons = container.querySelectorAll('[data-ply]');
+    const buttons = container.querySelectorAll('button[data-ply]');
     expect(buttons[1].getAttribute("aria-current")).toBe("true");
     expect(buttons[0].getAttribute("aria-current")).toBeNull();
   });
@@ -174,10 +174,10 @@ describe("EvaluationGraph", () => {
   it("a single-point series does not produce NaN in any attribute", () => {
     const points = [makePoint(0, 0.5)];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
-    const dot = container.querySelector('[data-testid="evaluation-graph-dot"]');
-    expect(dot).not.toBeNull();
-    expect(dot?.getAttribute("cx")).toBe("0.0");
-    expect(dot?.getAttribute("cy")).toBe("20.0");
+    const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
+    expect(marker).not.toBeNull();
+    expect(marker?.getAttribute("cx")).toBe("0.0");
+    expect(marker?.getAttribute("cy")).toBe("20.0");
     const cursor = container.querySelector('[data-testid="evaluation-graph-cursor"]');
     expect(cursor?.getAttribute("x1")).toBe("0.0");
     expect(cursor?.getAttribute("x2")).toBe("0.0");
@@ -191,7 +191,7 @@ describe("EvaluationGraph", () => {
       makePoint(2, 0.7),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={onSelectPly} />);
-    const buttons = container.querySelectorAll('[data-ply]');
+    const buttons = container.querySelectorAll('button[data-ply]');
     fireEvent.click(buttons[2] as HTMLElement);
     expect(onSelectPly).toHaveBeenCalledWith(2);
   });
@@ -207,5 +207,61 @@ describe("EvaluationGraph", () => {
     const lastButton = buttons[buttons.length - 1];
     expect(lastButton.getAttribute("style")).toBeNull();
     expect(lastButton.getAttribute("class")).toContain("flex-1");
+  });
+
+  it("a fully evaluated series of 5 renders exactly 5 markers", () => {
+    const points = [
+      makePoint(0, 0.5),
+      makePoint(1, 0.6),
+      makePoint(2, 0.7),
+      makePoint(3, 0.8),
+      makePoint(4, 0.9),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
+    expect(markers.length).toBe(5);
+  });
+
+  it("a series with one gap renders markers only for evaluated points", () => {
+    const points = [
+      makePoint(0, 0.5),
+      makePoint(1, 0.6),
+      makePoint(2, 0, { hasValue: false }),
+      makePoint(3, 0.7),
+      makePoint(4, 0.8),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
+    expect(markers.length).toBe(4);
+  });
+
+  it("a marker for a point with san renders a title whose text content is exactly that san", () => {
+    const points = [
+      makePoint(0, 0.5, { san: "e4" }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
+    const title = marker?.querySelector("title");
+    expect(title?.textContent).toBe("e4");
+  });
+
+  it("a marker for a point with san null renders no title element", () => {
+    const points = [
+      makePoint(0, 0.5, { san: null }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
+    expect(marker?.querySelector("title")).toBeNull();
+  });
+
+  it("an overlay button for a point with san has aria-label including the san, and one with san null does not", () => {
+    const points = [
+      makePoint(0, 0.5, { san: null }),
+      makePoint(3, 0.6, { san: "Nf3" }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const buttons = container.querySelectorAll('button[data-ply]');
+    expect(buttons[0].getAttribute("aria-label")).toBe("Go to ply 0");
+    expect(buttons[1].getAttribute("aria-label")).toBe("Go to ply 3, Nf3");
   });
 });

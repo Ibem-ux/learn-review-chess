@@ -24,6 +24,7 @@ export function EvaluationGraph({
 
   const segments: { x: number; y: number; ply: number }[][] = [];
   let currentSegment: { x: number; y: number; ply: number }[] = [];
+  const markers: { x: number; y: number; ply: number; san: string | null }[] = [];
 
   for (let i = 0; i < points.length; i++) {
     const point = points[i];
@@ -38,6 +39,7 @@ export function EvaluationGraph({
     const x = points.length === 1 ? 0 : (i / (points.length - 1)) * width;
     const y = (1 - point.advantage) * height;
     currentSegment.push({ x, y, ply: point.ply });
+    markers.push({ x, y, ply: point.ply, san: point.san });
   }
 
   if (currentSegment.length > 0) {
@@ -88,19 +90,22 @@ export function EvaluationGraph({
               />
             );
           }
-
-          const point = segment[0];
-          return (
-            <circle
-              key={`dot-${point.ply}`}
-              data-testid="evaluation-graph-dot"
-              cx={point.x.toFixed(1)}
-              cy={point.y.toFixed(1)}
-              r="1"
-              fill="currentColor"
-            />
-          );
+          return null;
         })}
+
+        {markers.map((marker) => (
+          <circle
+            key={`marker-${marker.ply}`}
+            data-testid="evaluation-graph-marker"
+            data-ply={marker.ply}
+            cx={marker.x.toFixed(1)}
+            cy={marker.y.toFixed(1)}
+            r="1"
+            fill="currentColor"
+          >
+            {marker.san !== null && <title>{marker.san}</title>}
+          </circle>
+        ))}
 
         {cursorX !== null && (
           <line
@@ -122,7 +127,7 @@ export function EvaluationGraph({
             key={point.ply}
             type="button"
             data-ply={point.ply}
-            aria-label={`Go to ply ${point.ply}`}
+            aria-label={`Go to ply ${point.ply}${point.san ? `, ${point.san}` : ""}`}
             aria-current={point.ply === currentPly ? "true" : undefined}
             className="flex-1 h-full"
             onClick={() => onSelectPly(point.ply)}

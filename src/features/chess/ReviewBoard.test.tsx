@@ -702,7 +702,7 @@ describe("ReviewBoard", () => {
       render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
       expect(screen.getByTestId("evaluation-graph")).toBeInTheDocument();
       expect(screen.queryAllByTestId("evaluation-graph-segment")).toHaveLength(0);
-      expect(screen.queryAllByTestId("evaluation-graph-dot")).toHaveLength(0);
+      expect(screen.queryAllByTestId("evaluation-graph-marker")).toHaveLength(0);
       expect(screen.queryByTestId("evaluation-graph-empty")).not.toBeInTheDocument();
     });
 
@@ -723,9 +723,9 @@ describe("ReviewBoard", () => {
 
       render(<ReviewBoard timeline={timeline} />);
       const segments = screen.queryAllByTestId("evaluation-graph-segment");
-      const dots = screen.queryAllByTestId("evaluation-graph-dot");
+      const markers = screen.queryAllByTestId("evaluation-graph-marker");
       expect(segments).toHaveLength(1);
-      expect(dots).toHaveLength(0);
+      expect(markers).toHaveLength(2);
     });
 
     it("clicking graph overlay button with data-ply 2 navigates the board", () => {
