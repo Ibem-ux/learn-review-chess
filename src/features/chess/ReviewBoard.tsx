@@ -75,7 +75,7 @@ export default function ReviewBoard({
   const graphPoints = useMemo(() => {
     const series = buildQuickPassEvaluationSeries(timeline, analysisState.results);
     if (series.ok) {
-      return buildEvaluationGraphPoints(series.points);
+      return buildEvaluationGraphPoints(series.points, timeline);
     }
     return [];
   }, [timeline, analysisState.results]);

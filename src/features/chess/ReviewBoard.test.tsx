@@ -752,7 +752,7 @@ describe("ReviewBoard", () => {
       mockAnalysisState.results = results;
 
       render(<ReviewBoard timeline={timeline} />);
-      fireEvent.click(screen.getByLabelText("Go to ply 2"));
+      fireEvent.click(screen.getByLabelText("Go to ply 2, e5"));
       expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(2 / 4)");
     });
 
@@ -803,6 +803,52 @@ describe("ReviewBoard", () => {
         "aria-label",
         "Evaluation: White ahead by 1.0 pawns"
       );
+    });
+
+    it("overlay button for ply 1 includes the move san", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      const results = [
+        makeResult(
+          makeJob(0, timeline.steps[0].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(0), pv: [] }
+        ),
+        makeResult(
+          makeJob(1, timeline.steps[1].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(100), pv: ["e2e4"] }
+        ),
+        makeResult(
+          makeJob(2, timeline.steps[2].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(200), pv: ["e7e5"] }
+        ),
+        makeResult(
+          makeJob(3, timeline.steps[3].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(150), pv: ["g1f3"] }
+        ),
+      ];
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = results;
+
+      render(<ReviewBoard timeline={timeline} />);
+      expect(screen.getByLabelText("Go to ply 1, e4")).toBeInTheDocument();
+    });
+
+    it("overlay button for ply 0 has no san suffix", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      const results = [
+        makeResult(
+          makeJob(0, timeline.steps[0].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(0), pv: [] }
+        ),
+        makeResult(
+          makeJob(1, timeline.steps[1].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(100), pv: ["e2e4"] }
+        ),
+      ];
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = results;
+
+      render(<ReviewBoard timeline={timeline} />);
+      expect(screen.getByLabelText("Go to ply 0")).toBeInTheDocument();
     });
   });
 });
