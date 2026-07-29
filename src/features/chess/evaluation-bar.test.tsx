@@ -10,6 +10,7 @@ const POINT_WHITE_ADVANTAGE: GraphPoint = {
   clampedCp: 150,
   advantage: 0.575,
   isMate: false,
+  san: null,
 };
 
 const POINT_BLACK_ADVANTAGE: GraphPoint = {
@@ -18,6 +19,7 @@ const POINT_BLACK_ADVANTAGE: GraphPoint = {
   clampedCp: -150,
   advantage: 0.425,
   isMate: false,
+  san: null,
 };
 
 const POINT_EQUAL: GraphPoint = {
@@ -26,6 +28,7 @@ const POINT_EQUAL: GraphPoint = {
   clampedCp: 0,
   advantage: 0.5,
   isMate: false,
+  san: null,
 };
 
 const POINT_MATE_WHITE: GraphPoint = {
@@ -34,6 +37,7 @@ const POINT_MATE_WHITE: GraphPoint = {
   clampedCp: 1000,
   advantage: 1,
   isMate: true,
+  san: null,
 };
 
 const POINT_MATE_BLACK: GraphPoint = {
@@ -42,6 +46,7 @@ const POINT_MATE_BLACK: GraphPoint = {
   clampedCp: -1000,
   advantage: 0,
   isMate: true,
+  san: null,
 };
 
 describe("EvaluationBar", () => {
@@ -57,6 +62,7 @@ describe("EvaluationBar", () => {
       clampedCp: null,
       advantage: null,
       isMate: false,
+      san: null,
     };
     const { getByTestId } = render(<EvaluationBar point={point} orientation="white" />);
     expect(getByTestId("evaluation-bar").getAttribute("aria-label")).toBe("Evaluation unavailable");
@@ -94,6 +100,7 @@ describe("EvaluationBar", () => {
       clampedCp: EVAL_CLAMP_CP,
       advantage: 1,
       isMate: true,
+      san: null,
     };
     const blackMate: GraphPoint = {
       ply: 0,
@@ -101,6 +108,7 @@ describe("EvaluationBar", () => {
       clampedCp: -EVAL_CLAMP_CP,
       advantage: 0,
       isMate: true,
+      san: null,
     };
 
     const whiteResult = render(<EvaluationBar point={whiteMate} orientation="white" />);

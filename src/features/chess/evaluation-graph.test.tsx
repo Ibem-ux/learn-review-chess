@@ -14,6 +14,7 @@ function makePoint(
     clampedCp: Math.round((advantage - 0.5) * 2000),
     advantage,
     isMate: false,
+    san: null,
     ...overrides,
   };
 }

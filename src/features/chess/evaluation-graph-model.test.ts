@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvaluationPoint } from "./quick-pass-evaluation";
+import type { ReviewTimeline } from "./timeline";
 import { buildEvaluationGraphPoints, EVAL_CLAMP_CP } from "./evaluation-graph-model";
 
 function makePoint(
@@ -228,5 +229,88 @@ describe("buildEvaluationGraphPoints", () => {
     expect(result[1].hasValue).toBe(false);
     expect(result[2].hasValue).toBe(true);
     expect(result[3].hasValue).toBe(true);
+  });
+
+  const ITALIAN_GAME_TIMELINE: ReviewTimeline = {
+    steps: [
+      { ply: 0, fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", move: null },
+      { ply: 1, fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1", move: { san: "e4", color: "w", from: "e2", to: "e4", before: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", after: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1" } },
+      { ply: 2, fen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2", move: { san: "e5", color: "b", from: "e7", to: "e5", before: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1", after: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2" } },
+      { ply: 3, fen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", move: { san: "Nf3", color: "w", from: "g1", to: "f3", before: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2", after: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2" } },
+      { ply: 4, fen: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", move: { san: "Nc6", color: "b", from: "b8", to: "c6", before: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", after: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3" } },
+    ],
+    totalPlies: 4,
+    initialFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    finalFen: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    analysisEligible: true,
+  };
+
+  it("called with no timeline, san is null on every point", () => {
+    const points = [
+      makePoint(0, { completed: true, score: { type: "cp", value: 100, perspective: "white" } }),
+      makePoint(1, { completed: true, score: { type: "cp", value: 200, perspective: "white" } }),
+    ];
+    const result = buildEvaluationGraphPoints(points);
+    expect(result).toHaveLength(2);
+    expect(result[0].san).toBeNull();
+    expect(result[1].san).toBeNull();
+  });
+
+  it("with a timeline, ply 0 has san null", () => {
+    const points = [
+      makePoint(0, { completed: true, score: { type: "cp", value: 100, perspective: "white" } }),
+    ];
+    const result = buildEvaluationGraphPoints(points, ITALIAN_GAME_TIMELINE);
+    expect(result).toHaveLength(1);
+    expect(result[0].san).toBeNull();
+  });
+
+  it("with a timeline, ply 1 has the exact expected san string", () => {
+    const points = [
+      makePoint(1, { completed: true, score: { type: "cp", value: 100, perspective: "white" } }),
+    ];
+    const result = buildEvaluationGraphPoints(points, ITALIAN_GAME_TIMELINE);
+    expect(result).toHaveLength(1);
+    expect(result[0].san).toBe("e4");
+  });
+
+  it("a point whose ply has no matching timeline step has san null", () => {
+    const points = [
+      makePoint(5, { completed: true, score: { type: "cp", value: 100, perspective: "white" } }),
+    ];
+    const result = buildEvaluationGraphPoints(points, ITALIAN_GAME_TIMELINE);
+    expect(result).toHaveLength(1);
+    expect(result[0].san).toBeNull();
+  });
+
+  it("a point with hasValue false still receives its san", () => {
+    const points = [
+      makePoint(2, { completed: false, score: null }),
+    ];
+    const result = buildEvaluationGraphPoints(points, ITALIAN_GAME_TIMELINE);
+    expect(result).toHaveLength(1);
+    expect(result[0].hasValue).toBe(false);
+    expect(result[0].san).toBe("e5");
+  });
+
+  it("a step whose move is null yields san null", () => {
+    const timeline: ReviewTimeline = {
+      steps: [
+        { ply: 0, fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", move: null },
+        { ply: 1, fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", move: null },
+      ],
+      totalPlies: 1,
+      initialFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      finalFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      analysisEligible: true,
+    };
+    const points = [
+      makePoint(0, { completed: true, score: { type: "cp", value: 100, perspective: "white" } }),
+      makePoint(1, { completed: true, score: { type: "cp", value: 200, perspective: "white" } }),
+    ];
+    const result = buildEvaluationGraphPoints(points, timeline);
+    expect(result).toHaveLength(2);
+    expect(result[0].san).toBeNull();
+    expect(result[1].san).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
 import type { EvaluationPoint } from "./quick-pass-evaluation";
+import type { ReviewTimeline, TimelinePly } from "./timeline";
 
 export const EVAL_CLAMP_CP = 1000;
 
@@ -8,14 +9,27 @@ export type GraphPoint = {
   readonly clampedCp: number | null;
   readonly advantage: number | null;
   readonly isMate: boolean;
+  readonly san: string | null;
 };
 
 export function buildEvaluationGraphPoints(
   points: readonly EvaluationPoint[],
+  timeline?: ReviewTimeline,
 ): readonly GraphPoint[] {
+  const timelineByPly = timeline
+    ? new Map<number, TimelinePly>(timeline.steps.map((step) => [step.ply, step]))
+    : null;
+
   const result: GraphPoint[] = [];
   for (let i = 0; i < points.length; i++) {
     const point = points[i];
+    const san = (() => {
+      if (!timelineByPly) return null;
+      const step = timelineByPly.get(point.ply);
+      if (!step || step.move === null) return null;
+      return step.move.san;
+    })();
+
     if (!point.completed || point.score === null) {
       result.push({
         ply: point.ply,
@@ -23,6 +37,7 @@ export function buildEvaluationGraphPoints(
         clampedCp: null,
         advantage: null,
         isMate: false,
+        san,
       });
       continue;
     }
@@ -38,6 +53,7 @@ export function buildEvaluationGraphPoints(
         clampedCp,
         advantage,
         isMate: true,
+        san,
       });
       continue;
     }
@@ -50,6 +66,7 @@ export function buildEvaluationGraphPoints(
         clampedCp: null,
         advantage: null,
         isMate: false,
+        san,
       });
       continue;
     }
@@ -62,6 +79,7 @@ export function buildEvaluationGraphPoints(
       clampedCp,
       advantage,
       isMate: false,
+      san,
     });
   }
   return result;
