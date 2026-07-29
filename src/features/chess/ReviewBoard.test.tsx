@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewTimeline } from "@/features/chess/timeline";
 import type { EngineScore, EngineInfo } from "@/features/chess/engine";
@@ -115,6 +116,58 @@ vi.mock("@/features/chess/engine-worker-factory", () => ({
   })),
 }));
 
+const { mockUseQuickPassAnalysis, mockAnalysisState } = vi.hoisted(() => {
+  const mockAnalysisState: {
+    status: string;
+    error: string | null;
+    totalJobs: number;
+    completedJobs: number;
+    currentJobId: string | null;
+    results: QuickPassCompletedJob[];
+    start: ReturnType<typeof vi.fn>;
+    cancel: ReturnType<typeof vi.fn>;
+  } = {
+    status: "idle",
+    error: null,
+    totalJobs: 0,
+    completedJobs: 0,
+    currentJobId: null,
+    results: [],
+    start: vi.fn(() => true),
+    cancel: vi.fn(),
+  };
+
+  return {
+    mockUseQuickPassAnalysis: vi.fn(() => {
+      const [, setTick] = React.useState(0);
+      const forceUpdate = () => setTick((tick: number) => tick + 1);
+
+      return {
+        ...mockAnalysisState,
+        start: vi.fn(() => {
+          EngineControllerSpy();
+          capturedController = { stop: vi.fn() };
+          mockAnalysisState.status = "running";
+          mockAnalysisState.totalJobs = 4;
+          mockAnalysisState.currentJobId = "job-1";
+          forceUpdate();
+          return true;
+        }),
+        cancel: vi.fn(() => {
+          mockAnalysisState.status = "cancelled";
+          mockAnalysisState.currentJobId = null;
+          forceUpdate();
+        }),
+      };
+    }),
+    mockAnalysisState,
+  };
+});
+
+vi.mock("@/features/chess/use-quick-pass-analysis", () => ({
+  useQuickPassAnalysis: mockUseQuickPassAnalysis,
+}));
+
 const SHORT_GAME = [
   '[Event "Test"]',
   '[White "Alice"]',
@@ -134,6 +187,14 @@ describe("ReviewBoard", () => {
     vi.clearAllMocks();
     capturedController = null;
     EngineControllerSpy = vi.fn();
+    mockAnalysisState.status = "idle";
+    mockAnalysisState.error = null;
+    mockAnalysisState.totalJobs = 0;
+    mockAnalysisState.completedJobs = 0;
+    mockAnalysisState.currentJobId = null;
+    mockAnalysisState.results = [];
+    mockAnalysisState.start.mockClear();
+    mockAnalysisState.cancel.mockClear();
   });
 
   afterEach(() => {
@@ -588,6 +649,160 @@ describe("ReviewBoard", () => {
       expect(map.has(3)).toBe(true);
       expect(map.has(4)).toBe(true);
       expect(map.size).toBe(3);
+    });
+  });
+
+  describe("evaluation graph and bar", () => {
+    function makeJob(ply: number, fen: string): QuickPassJob {
+      return {
+        id: `qp-${ply}`,
+        phase: "quick-pass",
+        ply,
+        fen,
+        limit: { kind: "depth", value: 14 },
+      };
+    }
+
+    function makeResult(
+      job: QuickPassJob,
+      info: EngineInfo | null,
+    ): QuickPassCompletedJob {
+      return {
+        job,
+        info,
+        bestMove: info ? { move: "e2e4", ponder: null } : null,
+        candidateLines: info ? [{ rank: 1, info }] : [],
+      };
+    }
+
+    function makeScore(value: number): EngineScore {
+      return { type: "cp", value, perspective: "white" };
+    }
+
+    beforeEach(() => {
+      mockAnalysisState.status = "idle";
+      mockAnalysisState.error = null;
+      mockAnalysisState.totalJobs = 0;
+      mockAnalysisState.completedJobs = 0;
+      mockAnalysisState.currentJobId = null;
+      mockAnalysisState.results = [];
+      mockAnalysisState.start.mockClear();
+      mockAnalysisState.cancel.mockClear();
+    });
+
+    it("renders evaluation bar with unavailable aria-label before analysis", () => {
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+      expect(screen.getByTestId("evaluation-bar")).toHaveAttribute(
+        "aria-label",
+        "Evaluation unavailable"
+      );
+    });
+
+    it("before analysis the graph renders with no segments, and the empty state is not used because every timeline step yields a point", () => {
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+      expect(screen.getByTestId("evaluation-graph")).toBeInTheDocument();
+      expect(screen.queryAllByTestId("evaluation-graph-segment")).toHaveLength(0);
+      expect(screen.queryAllByTestId("evaluation-graph-dot")).toHaveLength(0);
+      expect(screen.queryByTestId("evaluation-graph-empty")).not.toBeInTheDocument();
+    });
+
+    it("renders exactly one evaluation-graph-segment with analysis results", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      const results = [
+        makeResult(
+          makeJob(1, timeline.steps[1].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(100), pv: ["e2e4"] }
+        ),
+        makeResult(
+          makeJob(2, timeline.steps[2].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(200), pv: ["e7e5"] }
+        ),
+      ];
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = results;
+
+      render(<ReviewBoard timeline={timeline} />);
+      const segments = screen.queryAllByTestId("evaluation-graph-segment");
+      const dots = screen.queryAllByTestId("evaluation-graph-dot");
+      expect(segments).toHaveLength(1);
+      expect(dots).toHaveLength(0);
+    });
+
+    it("clicking graph overlay button with data-ply 2 navigates the board", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      const results = [
+        makeResult(
+          makeJob(0, timeline.steps[0].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(0), pv: [] }
+        ),
+        makeResult(
+          makeJob(1, timeline.steps[1].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(100), pv: ["e2e4"] }
+        ),
+        makeResult(
+          makeJob(2, timeline.steps[2].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(200), pv: ["e7e5"] }
+        ),
+        makeResult(
+          makeJob(3, timeline.steps[3].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(150), pv: ["g1f3"] }
+        ),
+      ];
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = results;
+
+      render(<ReviewBoard timeline={timeline} />);
+      fireEvent.click(screen.getByLabelText("Go to ply 2"));
+      expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(2 / 4)");
+    });
+
+    it("graph points attribute is unchanged by flipping the board", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      const results = [
+        makeResult(
+          makeJob(0, timeline.steps[0].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(0), pv: [] }
+        ),
+        makeResult(
+          makeJob(1, timeline.steps[1].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(100), pv: ["e2e4"] }
+        ),
+      ];
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = results;
+
+      render(<ReviewBoard timeline={timeline} />);
+      const polyline = screen.getByTestId("evaluation-graph-segment");
+      const beforePoints = polyline.getAttribute("points");
+      fireEvent.click(screen.getByRole("button", { name: "Flip board" }));
+      expect(polyline.getAttribute("points")).toBe(beforePoints);
+    });
+
+    it("evaluation bar aria-label changes on navigation", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      const results = [
+        makeResult(
+          makeJob(0, timeline.steps[0].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(0), pv: [] }
+        ),
+        makeResult(
+          makeJob(1, timeline.steps[1].fen),
+          { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: makeScore(100), pv: ["e2e4"] }
+        ),
+      ];
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = results;
+
+      render(<ReviewBoard timeline={timeline} />);
+      expect(screen.getByTestId("evaluation-bar")).toHaveAttribute(
+        "aria-label",
+        "Evaluation: equal"
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      expect(screen.getByTestId("evaluation-bar")).toHaveAttribute(
+        "aria-label",
+        "Evaluation: White ahead by 1.0 pawns"
+      );
     });
   });
 });
