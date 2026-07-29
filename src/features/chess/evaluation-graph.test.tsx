@@ -264,4 +264,22 @@ describe("EvaluationGraph", () => {
     expect(buttons[0].getAttribute("aria-label")).toBe("Go to ply 0");
     expect(buttons[1].getAttribute("aria-label")).toBe("Go to ply 3, Nf3");
   });
+
+  it("an overlay button for a point with san has a title attribute matching that san", () => {
+    const points = [
+      makePoint(0, 0.5, { san: "Nf3" }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const button = container.querySelector('button[data-ply="0"]');
+    expect(button?.getAttribute("title")).toBe("Nf3");
+  });
+
+  it("an overlay button for a point with san null has no title attribute", () => {
+    const points = [
+      makePoint(0, 0.5, { san: null }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const button = container.querySelector('button[data-ply="0"]');
+    expect(button?.getAttribute("title")).toBeNull();
+  });
 });

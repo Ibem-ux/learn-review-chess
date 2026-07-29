@@ -54,7 +54,7 @@ export function EvaluationBar({
       data-testid="evaluation-bar"
       role="img"
       aria-label={label}
-      className="relative h-full w-6 overflow-hidden rounded border border-black/[.15] dark:border-white/[.2] bg-black dark:bg-zinc-900"
+      className="relative w-7 self-stretch min-h-32 overflow-hidden rounded border border-black/[.15] dark:border-white/[.2] bg-black dark:bg-zinc-900"
     >
       <div
         data-testid="evaluation-bar-fill"

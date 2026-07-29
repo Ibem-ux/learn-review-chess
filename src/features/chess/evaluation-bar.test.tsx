@@ -144,4 +144,11 @@ describe("EvaluationBar", () => {
     const { getByTestId } = render(<EvaluationBar point={POINT_EQUAL} orientation="white" />);
     expect(getByTestId("evaluation-bar").getAttribute("role")).toBe("img");
   });
+
+  it("root className contains self-stretch and does not contain h-full", () => {
+    const { getByTestId } = render(<EvaluationBar point={POINT_EQUAL} orientation="white" />);
+    const root = getByTestId("evaluation-bar");
+    expect(root.className).toContain("self-stretch");
+    expect(root.className).not.toContain("h-full");
+  });
 });

@@ -58,7 +58,7 @@ export function EvaluationGraph({
     segment.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
 
   return (
-    <div data-testid="evaluation-graph" className="relative w-full">
+    <div data-testid="evaluation-graph" className="relative w-full text-black dark:text-zinc-100">
       <svg
         viewBox="0 0 100 40"
         preserveAspectRatio="none"
@@ -86,7 +86,7 @@ export function EvaluationGraph({
                 points={polylinePoints(segment)}
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1"
+                strokeWidth="1.5"
               />
             );
           }
@@ -130,6 +130,7 @@ export function EvaluationGraph({
             aria-label={`Go to ply ${point.ply}${point.san ? `, ${point.san}` : ""}`}
             aria-current={point.ply === currentPly ? "true" : undefined}
             className="flex-1 h-full"
+            title={point.san ?? undefined}
             onClick={() => onSelectPly(point.ply)}
           />
         ))}
