@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Chessboard } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
 import { useQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
@@ -57,6 +57,10 @@ export default function ReviewBoard({
 }) {
   const [ply, setPly] = useState(0);
   const [orientation, setOrientation] = useState<"white" | "black">("white");
+  const [controlsHost, setControlsHost] = useState<HTMLDivElement | null>(null);
+  const setControlsHostRef = useCallback((node: HTMLDivElement | null) => {
+    setControlsHost(node);
+  }, []);
   const [lastIdentity, setLastIdentity] = useState(() =>
     timelineIdentity(timeline)
   );
@@ -170,6 +174,11 @@ export default function ReviewBoard({
         >
           Flip board
         </button>
+        <div
+          className="contents"
+          data-testid="analysis-controls-host"
+          ref={setControlsHostRef}
+        />
       </div>
 
       <div className="flex w-full max-w-2xl items-stretch gap-3">
@@ -201,6 +210,7 @@ export default function ReviewBoard({
           limit={FULL_GAME_ANALYSIS_LIMIT}
           multiPv={3}
           analysisState={analysisState}
+          controlsHost={controlsHost}
         />
       </div>
     </div>

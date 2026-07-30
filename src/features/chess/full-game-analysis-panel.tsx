@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { EngineAnalysisLimit, EngineScore } from "./engine";
 import type { ReviewTimeline } from "./timeline";
 import type { UseQuickPassAnalysis } from "./use-quick-pass-analysis";
@@ -11,6 +12,7 @@ type FullGameAnalysisPanelProps = {
   readonly limit: EngineAnalysisLimit;
   readonly multiPv?: number;
   readonly analysisState: UseQuickPassAnalysis;
+  readonly controlsHost?: HTMLElement | null;
 };
 
 function timelineIdentity(timeline: ReviewTimeline): string {
@@ -52,12 +54,14 @@ function FullGameAnalysisPanelEligible({
   limit,
   multiPv,
   analysisState,
+  controlsHost,
 }: {
   readonly timeline: ReviewTimeline;
   readonly currentPly: number;
   readonly limit: EngineAnalysisLimit;
   readonly multiPv: number;
   readonly analysisState: UseQuickPassAnalysis;
+  readonly controlsHost?: HTMLElement | null;
 }) {
   const {
     status,
@@ -118,6 +122,29 @@ function FullGameAnalysisPanelEligible({
   const isRunning = displayState.status === "running";
   const canStart = !isRunning && displayState.status !== "loading";
 
+  const analysisControls = (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={handleStart}
+        disabled={!canStart}
+        className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+      >
+        Analyze full game
+      </button>
+
+      {isRunning && (
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+        >
+          Cancel
+        </button>
+      )}
+    </div>
+  );
+
   const currentResult = displayState.results.find(
     (result) => result.job.ply === currentPly
   );
@@ -140,26 +167,7 @@ function FullGameAnalysisPanelEligible({
         {progressText}
       </div>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleStart}
-          disabled={!canStart}
-          className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
-        >
-          Analyze full game
-        </button>
-
-        {isRunning && (
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
+      {controlsHost ? createPortal(analysisControls, controlsHost) : analysisControls}
 
       {currentResult && (
         <div data-testid="current-ply-result" className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -260,6 +268,7 @@ export default function FullGameAnalysisPanel({
   limit,
   multiPv = 3,
   analysisState,
+  controlsHost,
 }: FullGameAnalysisPanelProps) {
   if (!timeline.analysisEligible) {
     return (
@@ -280,6 +289,7 @@ export default function FullGameAnalysisPanel({
       limit={limit}
       multiPv={multiPv}
       analysisState={analysisState}
+      controlsHost={controlsHost}
     />
   );
 }

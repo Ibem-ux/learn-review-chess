@@ -851,4 +851,32 @@ describe("ReviewBoard", () => {
       expect(screen.getByLabelText("Go to ply 0")).toBeInTheDocument();
     });
   });
+
+  describe("analysis controls host", () => {
+    it("renders analysis-controls-host inside Timeline navigation", () => {
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+      const host = screen.getByTestId("analysis-controls-host");
+      expect(host).toBeInTheDocument();
+      expect(host.closest('[role="group"]')).toHaveAttribute("aria-label", "Timeline navigation");
+    });
+
+    it("analysis-controls-host is rendered after the Flip board button", () => {
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+      const group = screen.getByRole("group", { name: "Timeline navigation" });
+      const children = Array.from(group.children);
+      const flipIndex = children.findIndex((child) => child.textContent?.trim() === "Flip board");
+      const hostIndex = children.findIndex((child) => child.getAttribute("data-testid") === "analysis-controls-host");
+      expect(flipIndex).toBeGreaterThanOrEqual(0);
+      expect(hostIndex).toBeGreaterThan(flipIndex);
+    });
+
+    it("passes controlsHost to FullGameAnalysisPanel", () => {
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+      expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          controlsHost: expect.any(HTMLDivElement),
+        })
+      );
+    });
+  });
 });
