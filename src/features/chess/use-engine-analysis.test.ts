@@ -105,6 +105,9 @@ let fakeWorker: FakeWorker;
 describe("use-engine-analysis", () => {
   afterEach(() => {
     vi.resetModules();
+    vi.doUnmock("@/features/chess/engine-worker-factory");
+    vi.doUnmock("@/features/chess/engine-controller");
+    vi.restoreAllMocks();
   });
 
   it("does not construct a Worker or EngineController on module import", async () => {
