@@ -265,21 +265,50 @@ describe("EvaluationGraph", () => {
     expect(buttons[1].getAttribute("aria-label")).toBe("Go to ply 3, Nf3");
   });
 
-  it("an overlay button for a point with san has a title attribute matching that san", () => {
+  it("an overlay button for a point with san renders an evaluation-graph-label whose text content is exactly that san", () => {
     const points = [
       makePoint(0, 0.5, { san: "Nf3" }),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const button = container.querySelector('button[data-ply="0"]');
-    expect(button?.getAttribute("title")).toBe("Nf3");
+    const label = button?.querySelector('[data-testid="evaluation-graph-label"]');
+    expect(label?.textContent).toBe("Nf3");
   });
 
-  it("an overlay button for a point with san null has no title attribute", () => {
+  it("an overlay button for a point with san null renders no evaluation-graph-label element", () => {
     const points = [
       makePoint(0, 0.5, { san: null }),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const button = container.querySelector('button[data-ply="0"]');
-    expect(button?.getAttribute("title")).toBeNull();
+    const labels = button?.querySelectorAll('[data-testid="evaluation-graph-label"]');
+    expect(labels?.length).toBe(0);
+  });
+
+  it("a marker for a point with san has r exactly 1.6", () => {
+    const points = [
+      makePoint(0, 0.5, { san: "e4" }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
+    expect(marker?.getAttribute("r")).toBe("1.6");
+  });
+
+  it("an overlay button's className is exactly flex-1 h-full group relative", () => {
+    const points = [
+      makePoint(0, 0.5, { san: "Nf3" }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const button = container.querySelector('button[data-ply="0"]');
+    expect(button?.getAttribute("class")).toBe("flex-1 h-full group relative");
+  });
+
+  it("a marker circle has strokeWidth exactly 0.5", () => {
+    const points = [
+      makePoint(0, 0.5, { san: "e4" }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
+    expect(marker?.getAttribute("stroke-width")).toBe("0.5");
   });
 });

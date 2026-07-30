@@ -1,4 +1,5 @@
 import type { GraphPoint } from "./evaluation-graph-model";
+import type { ReactElement } from "react";
 
 export type EvaluationGraphProps = {
   readonly points: readonly GraphPoint[];
@@ -10,7 +11,7 @@ export function EvaluationGraph({
   points,
   currentPly,
   onSelectPly,
-}: EvaluationGraphProps): React.ReactElement {
+}: EvaluationGraphProps): ReactElement {
   if (points.length === 0) {
     return (
       <div data-testid="evaluation-graph-empty" className="text-sm text-black dark:text-zinc-50">
@@ -100,8 +101,10 @@ export function EvaluationGraph({
             data-ply={marker.ply}
             cx={marker.x.toFixed(1)}
             cy={marker.y.toFixed(1)}
-            r="1"
+            r="1.6"
             fill="currentColor"
+            className="stroke-white dark:stroke-zinc-900"
+            strokeWidth="0.5"
           >
             {marker.san !== null && <title>{marker.san}</title>}
           </circle>
@@ -129,10 +132,18 @@ export function EvaluationGraph({
             data-ply={point.ply}
             aria-label={`Go to ply ${point.ply}${point.san ? `, ${point.san}` : ""}`}
             aria-current={point.ply === currentPly ? "true" : undefined}
-            className="flex-1 h-full"
-            title={point.san ?? undefined}
+            className="flex-1 h-full group relative"
             onClick={() => onSelectPly(point.ply)}
-          />
+          >
+            {point.san !== null && (
+              <span
+                data-testid="evaluation-graph-label"
+                className="pointer-events-none absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded bg-black px-1.5 py-0.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100 dark:bg-zinc-100 dark:text-black"
+              >
+                {point.san}
+              </span>
+            )}
+          </button>
         ))}
       </div>
     </div>
