@@ -311,4 +311,58 @@ test.describe("Stockfish browser smoke test", () => {
     const newPlyCount = await page.getByTestId("review-ply-count").textContent();
     expect(newPlyCount).not.toBe(initialPlyCount);
   });
+
+  test("evaluation bar is visible after analysis", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByLabel("Paste a completed PGN game").fill(COMPLETED_PGN);
+    await page.getByRole("button", { name: "Load game" }).click();
+
+    await expect(page.getByTestId("review-ply-status")).toBeVisible();
+    await expect(page.getByLabel("Full-game analysis")).toBeVisible();
+
+    const analysisStatus = page.getByLabel("Full-game analysis").getByRole("status");
+    const analyzeButton = page.getByRole("button", { name: "Analyze full game" });
+    await expect(analyzeButton).toBeEnabled({ timeout: 60000 });
+
+    const evalBarBefore = page.getByRole("img", { name: "Evaluation unavailable" });
+    await expect(evalBarBefore).toHaveAttribute("aria-label", "Evaluation unavailable");
+
+    await analyzeButton.click();
+
+    await expect(analysisStatus).toHaveText(/Analyzing position/);
+
+    await expect(page.getByText("Best move:")).toBeVisible({ timeout: 120000 });
+    await expect(analysisStatus).toHaveText("Analysis complete.");
+
+    const evalBarAfter = page.getByRole("img", { name: /Evaluation:/ });
+    await expect(evalBarAfter).toHaveAttribute("aria-label", /^Evaluation:/);
+  });
+
+  test("graph overlay buttons are present and focusable after analysis", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByLabel("Paste a completed PGN game").fill(COMPLETED_PGN);
+    await page.getByRole("button", { name: "Load game" }).click();
+
+    await expect(page.getByTestId("review-ply-status")).toBeVisible();
+    await expect(page.getByLabel("Full-game analysis")).toBeVisible();
+
+    const analysisStatus = page.getByLabel("Full-game analysis").getByRole("status");
+    const analyzeButton = page.getByRole("button", { name: "Analyze full game" });
+    await expect(analyzeButton).toBeEnabled({ timeout: 60000 });
+
+    await analyzeButton.click();
+
+    await expect(analysisStatus).toHaveText(/Analyzing position/);
+
+    await expect(page.getByText("Best move:")).toBeVisible({ timeout: 120000 });
+    await expect(analysisStatus).toHaveText("Analysis complete.");
+
+    const goToPlyButtons = page.getByRole("button", { name: /Go to ply \d+/ });
+    await expect(await goToPlyButtons.count()).toBeGreaterThanOrEqual(1);
+
+    await goToPlyButtons.first().focus();
+    await expect(goToPlyButtons.first()).toBeFocused();
+  });
 });

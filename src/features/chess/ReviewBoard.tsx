@@ -10,6 +10,10 @@ import { buildMoveAssessments } from "@/features/chess/move-assessment";
 import { classifyMoves, type MoveClassification } from "@/features/chess/move-classification";
 import type { EngineAnalysisLimit } from "@/features/chess/engine";
 import type { QuickPassCompletedJob } from "@/features/chess/quick-pass-runner";
+import { buildQuickPassEvaluationSeries } from "./quick-pass-evaluation";
+import { buildEvaluationGraphPoints } from "./evaluation-graph-model";
+import { EvaluationBar } from "./evaluation-bar";
+import { EvaluationGraph } from "./evaluation-graph";
 
 const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
 
@@ -67,6 +71,18 @@ export default function ReviewBoard({
     () => buildClassificationMap(timeline, analysisState.results),
     [timeline, analysisState.results]
   );
+
+  const graphPoints = useMemo(() => {
+    const series = buildQuickPassEvaluationSeries(timeline, analysisState.results);
+    if (series.ok) {
+      return buildEvaluationGraphPoints(series.points, timeline);
+    }
+    return [];
+  }, [timeline, analysisState.results]);
+
+  const currentGraphPoint = useMemo(() => {
+    return graphPoints.find((point) => point.ply === ply) ?? null;
+  }, [graphPoints, ply]);
 
   const result = getTimelineStep(timeline, ply);
   const fen = result.ok ? result.step.fen : timeline.initialFen;
@@ -156,22 +172,28 @@ export default function ReviewBoard({
         </button>
       </div>
 
-      <div
-        className="aspect-square w-full max-w-2xl overflow-hidden rounded-lg border border-black/[.15] dark:border-white/[.2]"
-      >
-        <section aria-label="Review chessboard" className="h-full w-full">
-          <Chessboard
-            options={{
-              id: "review",
-              position: fen,
-              boardOrientation: orientation,
-              allowDragging: false,
-              animationDurationInMs: 150,
-            }}
-          />
-        </section>
+      <div className="flex w-full max-w-2xl items-stretch gap-3">
+        <div
+          className="aspect-square w-full max-w-2xl overflow-hidden rounded-lg border border-black/[.15] dark:border-white/[.2]"
+        >
+          <section aria-label="Review chessboard" className="h-full w-full">
+            <Chessboard
+              options={{
+                id: "review",
+                position: fen,
+                boardOrientation: orientation,
+                allowDragging: false,
+                animationDurationInMs: 150,
+              }}
+            />
+          </section>
+        </div>
+        <EvaluationBar point={currentGraphPoint} orientation={orientation} />
       </div>
 
+      <div className="w-full max-w-2xl">
+        <EvaluationGraph points={graphPoints} currentPly={ply} onSelectPly={goTo} />
+      </div>
       <div className="w-full max-w-2xl">
         <FullGameAnalysisPanel
           timeline={timeline}
