@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}", "scripts/**/*.test.{js,mjs}"],
+    maxWorkers: "50%",
+    testTimeout: 15000,
+    hookTimeout: 15000,
   },
   resolve: {
     alias: {
