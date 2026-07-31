@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { EngineWorkerEvent, EngineAnalysisLimit } from "@/features/chess/engine";
 import type { ReviewTimeline } from "@/features/chess/timeline";
@@ -142,6 +142,11 @@ let fakeRunner: FakeRunner;
 describe("use-quick-pass-analysis", () => {
   afterEach(() => {
     vi.resetModules();
+  });
+
+  beforeEach(async () => {
+    const { resetEngineOwnership } = await import("@/features/chess/engine-ownership");
+    resetEngineOwnership();
   });
 
   it("does not construct a Worker or EngineController on module import", async () => {
@@ -1354,6 +1359,136 @@ describe("use-quick-pass-analysis", () => {
       expect(fakeRunner.unsubCalls.size).toBe(1);
       expect(fakeRunner.dispose).toHaveBeenCalledTimes(1);
       expect(fakeController.dispose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("engine ownership", () => {
+    let EngineControllerMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(async () => {
+      vi.resetModules();
+
+      fakeWorker = createFakeWorker();
+      fakeController = createFakeController(fakeWorker);
+      fakeRunner = createFakeRunner();
+
+      EngineControllerMock = vi.fn(function MockEngineController() {
+        return fakeController;
+      });
+
+      vi.doMock("@/features/chess/engine-worker-factory", () => ({
+        createStockfishWorkerFactory: vi.fn(() => {
+          return () => fakeWorker;
+        }),
+      }));
+
+      vi.doMock("@/features/chess/engine-controller", () => ({
+        EngineController: EngineControllerMock,
+      }));
+
+      vi.doMock("@/features/chess/quick-pass-planner", () => ({
+        planQuickPass: vi.fn(() => ({ ok: true, jobs: [] })),
+      }));
+
+      vi.doMock("@/features/chess/quick-pass-runner", () => ({
+        QuickPassRunner: vi.fn(function MockQuickPassRunner() {
+          return fakeRunner;
+        }),
+      }));
+    });
+
+    it("on mount before start, getEngineOwnerId returns null", async () => {
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+      const { getEngineOwnerId } = await import("@/features/chess/engine-ownership");
+
+      renderHook(() => useQuickPassAnalysis());
+
+      expect(getEngineOwnerId()).toBeNull();
+    });
+
+    it("after start, getEngineOwnerId returns a string starting with quick-pass-", async () => {
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+      const { getEngineOwnerId } = await import("@/features/chess/engine-ownership");
+
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit: EngineAnalysisLimit = { kind: "depth", value: 14 };
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
+
+      const ownerId = getEngineOwnerId();
+      expect(ownerId).not.toBeNull();
+      expect(ownerId?.startsWith("quick-pass-")).toBe(true);
+    });
+
+    it("after unmount following a start, getEngineOwnerId returns null", async () => {
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+      const { getEngineOwnerId } = await import("@/features/chess/engine-ownership");
+
+      const { result, unmount } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit: EngineAnalysisLimit = { kind: "depth", value: 14 };
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
+
+      expect(getEngineOwnerId()).not.toBeNull();
+
+      unmount();
+
+      expect(getEngineOwnerId()).toBeNull();
+    });
+
+    it("when another owner acquires after start, runner cancel and controller dispose are each called exactly once", async () => {
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+      const { acquireEngine } = await import("@/features/chess/engine-ownership");
+
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit: EngineAnalysisLimit = { kind: "depth", value: 14 };
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      expect(fakeRunner.cancel).toHaveBeenCalledTimes(0);
+      expect(fakeController.dispose).toHaveBeenCalledTimes(0);
+
+      acquireEngine({ id: "other", onRevoked: () => {} });
+
+      expect(fakeRunner.cancel).toHaveBeenCalledTimes(1);
+      expect(fakeRunner.dispose).toHaveBeenCalledTimes(1);
+      expect(fakeController.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it("when another owner acquires before start, no controller is created and no dispose occurs", async () => {
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+      const { acquireEngine } = await import("@/features/chess/engine-ownership");
+
+      renderHook(() => useQuickPassAnalysis());
+
+      expect(EngineControllerMock).toHaveBeenCalledTimes(0);
+      expect(fakeController.dispose).not.toHaveBeenCalled();
+
+      acquireEngine({ id: "other", onRevoked: () => {} });
+
+      expect(EngineControllerMock).toHaveBeenCalledTimes(0);
+      expect(fakeController.dispose).not.toHaveBeenCalled();
     });
   });
 });

@@ -7,6 +7,9 @@ import { planQuickPass } from "./quick-pass-planner";
 import { QuickPassRunner, type QuickPassCompletedJob, type QuickPassRunnerState } from "./quick-pass-runner";
 import { EngineController } from "./engine-controller";
 import { createStockfishWorkerFactory } from "./engine-worker-factory";
+import { acquireEngine, releaseEngine } from "./engine-ownership";
+
+let quickPassOwnerCounter = 0;
 
 type HookStatus = "idle" | "loading" | "ready" | "running" | "completed" | "cancelled" | "error";
 
@@ -49,6 +52,7 @@ export function useQuickPassAnalysis(
   options?: UseQuickPassAnalysisOptions
 ): UseQuickPassAnalysis {
   const controllerRef = useRef<EngineController | null>(null);
+  const ownerIdRef = useRef<string | null>(null);
   const controllerUnsubRef = useRef<(() => void) | null>(null);
   const runnerRef = useRef<QuickPassRunner | null>(null);
   const runnerUnsubRef = useRef<(() => void) | null>(null);
@@ -243,6 +247,11 @@ export function useQuickPassAnalysis(
         } catch {}
         controllerRef.current = null;
       }
+
+      if (ownerIdRef.current !== null) {
+        releaseEngine(ownerIdRef.current);
+      }
+      ownerIdRef.current = null;
     };
   }, [setSafeState]);
 
@@ -298,6 +307,49 @@ export function useQuickPassAnalysis(
 
       if (!controllerRef.current) {
         try {
+          const ownerId = `quick-pass-${quickPassOwnerCounter++}`;
+          ownerIdRef.current = ownerId;
+          // onRevoked must not set React state; it runs synchronously during another component's acquireEngine call.
+          acquireEngine({
+            id: ownerId,
+            onRevoked: () => {
+              try {
+                runnerUnsubRef.current?.();
+              } catch {
+                // swallow
+              }
+              runnerUnsubRef.current = null;
+
+              try {
+                runnerRef.current?.cancel();
+              } catch {
+                // swallow
+              }
+
+              try {
+                runnerRef.current?.dispose();
+              } catch {
+                // swallow
+              }
+              runnerRef.current = null;
+
+              try {
+                controllerUnsubRef.current?.();
+              } catch {
+                // swallow
+              }
+              controllerUnsubRef.current = null;
+
+              try {
+                controllerRef.current?.dispose();
+              } catch {
+                // swallow
+              }
+              controllerRef.current = null;
+
+              initializedRef.current = false;
+            },
+          });
           const factory = createStockfishWorkerFactory();
           const controller = new EngineController(factory);
           controllerRef.current = controller;

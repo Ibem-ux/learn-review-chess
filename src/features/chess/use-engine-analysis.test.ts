@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import type { EngineWorkerEvent, EngineAnalysisLimit } from "@/features/chess/engine";
 
@@ -108,6 +108,11 @@ describe("use-engine-analysis", () => {
     vi.doUnmock("@/features/chess/engine-worker-factory");
     vi.doUnmock("@/features/chess/engine-controller");
     vi.restoreAllMocks();
+  });
+
+  beforeEach(async () => {
+    const { resetEngineOwnership } = await import("@/features/chess/engine-ownership");
+    resetEngineOwnership();
   });
 
   it("does not construct a Worker or EngineController on module import", async () => {
@@ -729,6 +734,86 @@ describe("use-engine-analysis", () => {
 
       expect(result.current.lastInfoRequestId).toBe(id);
       expect(result.current.bestMoveRequestId).toBe(id);
+    });
+  });
+
+  describe("engine ownership", () => {
+    beforeEach(async () => {
+      vi.resetModules();
+
+      fakeWorker = createFakeWorker();
+      fakeController = createFakeController(fakeWorker);
+
+      vi.doMock("@/features/chess/engine-worker-factory", () => ({
+        createStockfishWorkerFactory: vi.fn(() => {
+          return () => fakeWorker;
+        }),
+      }));
+
+      vi.doMock("@/features/chess/engine-controller", () => ({
+        EngineController: vi.fn(function MockEngineController() {
+          return fakeController;
+        }),
+      }));
+    });
+    it("claims engine ownership with id starting with engine-analysis-", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+      const { getEngineOwnerId } = await import("@/features/chess/engine-ownership");
+
+      renderHook(() => useEngineAnalysis());
+
+      const ownerId = getEngineOwnerId();
+      expect(ownerId).not.toBeNull();
+      expect(ownerId?.startsWith("engine-analysis-")).toBe(true);
+    });
+
+    it("releases engine ownership on unmount", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+      const { getEngineOwnerId } = await import("@/features/chess/engine-ownership");
+
+      const { unmount } = renderHook(() => useEngineAnalysis());
+
+      expect(getEngineOwnerId()).not.toBeNull();
+
+      unmount();
+
+      expect(getEngineOwnerId()).toBeNull();
+    });
+
+    it("disposes controller when another owner revokes it", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+      const { acquireEngine } = await import("@/features/chess/engine-ownership");
+
+      renderHook(() => useEngineAnalysis());
+
+      expect(fakeController.dispose).not.toHaveBeenCalled();
+
+      acquireEngine({ id: "other", onRevoked: () => {} });
+
+      expect(fakeController.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it("two hook instances produce different owner ids", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+      const { getEngineOwnerId } = await import("@/features/chess/engine-ownership");
+
+      const { unmount: unmountA } = renderHook(() => useEngineAnalysis());
+      const idA = getEngineOwnerId();
+
+      unmountA();
+
+      const { unmount: unmountB } = renderHook(() => useEngineAnalysis());
+      const idB = getEngineOwnerId();
+
+      expect(idA).not.toBeNull();
+      expect(idB).not.toBeNull();
+      expect(idA).not.toEqual(idB);
+
+      unmountB();
     });
   });
 });

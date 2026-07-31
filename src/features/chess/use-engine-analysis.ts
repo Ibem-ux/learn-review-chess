@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { EngineAnalysisLimit, EngineConfiguration, EngineInfo, EngineStatus, EngineWorkerEvent } from "./engine";
 import { EngineController } from "./engine-controller";
 import { createStockfishWorkerFactory } from "./engine-worker-factory";
+import { acquireEngine, releaseEngine } from "./engine-ownership";
+
+let engineOwnerCounter = 0;
 
 type AnalysisState = {
   status: EngineStatus;
@@ -42,6 +45,7 @@ export function useEngineAnalysis(
   options?: UseEngineAnalysisOptions
 ): UseEngineAnalysis {
   const controllerRef = useRef<EngineController | null>(null);
+  const ownerIdRef = useRef<string | null>(null);
   const initializedRef = useRef(false);
   const unsubRef = useRef<(() => void) | null>(null);
   const optionsRef = useRef(options);
@@ -83,9 +87,28 @@ export function useEngineAnalysis(
         } catch {}
         controllerRef.current = null;
       }
+
+      if (ownerIdRef.current !== null) {
+        releaseEngine(ownerIdRef.current);
+      }
+      ownerIdRef.current = null;
     };
 
     try {
+      const ownerId = `engine-analysis-${engineOwnerCounter++}`;
+      ownerIdRef.current = ownerId;
+      // onRevoked must not set React state; it runs synchronously during another component's acquireEngine call.
+      acquireEngine({
+        id: ownerId,
+        onRevoked: () => {
+          try {
+            controllerRef.current?.dispose();
+          } catch {
+            // swallow
+          }
+          controllerRef.current = null;
+        },
+      });
       const factory = createStockfishWorkerFactory();
       controller = new EngineController(factory);
       controllerRef.current = controller;
