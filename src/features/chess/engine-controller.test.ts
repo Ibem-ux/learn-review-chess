@@ -824,3 +824,79 @@ describe("EngineController - MultiPV", () => {
     expect(commands).not.toContain("setoption name MultiPV value 3");
   });
 });
+
+describe("EngineController - infinite analysis", () => {
+  it("sends position fen then go infinite on analyze", () => {
+    const { controller, fake } = createController(createFakeWorker());
+    subscribe(controller);
+    controller.initialize();
+    fake.emitMessage("uciok");
+    fake.emitMessage("readyok");
+
+    controller.analyze("req-1", {
+      fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      limit: { kind: "infinite" },
+    });
+
+    const commands = fake.getPostedCommands();
+    expect(commands).toContain("position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1");
+    expect(commands).toContain("go infinite");
+    expect(commands.indexOf("position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")).toBe(commands.indexOf("go infinite") - 1);
+    expect(controller.status).toBe("analyzing");
+  });
+
+  it("stop during infinite search sends stop and stays analyzing until bestmove", () => {
+    const { controller, fake } = createController(createFakeWorker());
+    subscribe(controller);
+    controller.initialize();
+    fake.emitMessage("uciok");
+    fake.emitMessage("readyok");
+
+    controller.analyze("req-1", {
+      fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      limit: { kind: "infinite" },
+    });
+
+    controller.stop();
+
+    const stopCount = fake.getPostedCommands().filter((c) => c === "stop").length;
+    expect(stopCount).toBe(1);
+    expect(controller.status).toBe("analyzing");
+
+    fake.emitMessage("bestmove e2e4");
+
+    expect(controller.status).toBe("ready");
+  });
+
+  it("second analyze during infinite search sends stop then the new go command after bestmove", () => {
+    const { controller, fake } = createController(createFakeWorker());
+    const spy = subscribe(controller);
+    controller.initialize();
+    fake.emitMessage("uciok");
+    fake.emitMessage("readyok");
+
+    controller.analyze("req-1", {
+      fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      limit: { kind: "infinite" },
+    });
+
+    controller.analyze("req-2", {
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      limit: { kind: "infinite" },
+    });
+
+    const stopCount = fake.getPostedCommands().filter((c) => c === "stop").length;
+    expect(stopCount).toBe(1);
+
+    fake.emitMessage("bestmove e2e4");
+
+    expect(spy.calls.filter((e) => e.type === "stopped" && e.requestId === "req-1")).toHaveLength(1);
+
+    const commands = fake.getPostedCommands();
+    const goInfiniteCount = commands.filter((c) => c === "go infinite").length;
+    expect(goInfiniteCount).toBe(2);
+    expect(commands.indexOf("position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")).toBeGreaterThan(commands.indexOf("stop"));
+    expect(commands).toContain("position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    expect(commands).toContain("go infinite");
+  });
+});

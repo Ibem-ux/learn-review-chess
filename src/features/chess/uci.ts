@@ -41,6 +41,10 @@ export function goMovetime(movetime: number): CommandResult {
   return goLimit("movetime", movetime);
 }
 
+export function goInfinite(): CommandResult {
+  return { ok: true, command: "go infinite" };
+}
+
 export type ParsedInfo = {
   depth?: number;
   seldepth?: number;

@@ -54,7 +54,8 @@ export type EngineConfiguration = {
 export type EngineAnalysisLimit =
   | { readonly kind: "depth"; readonly value: number }
   | { readonly kind: "nodes"; readonly value: number }
-  | { readonly kind: "movetime"; readonly value: number };
+  | { readonly kind: "movetime"; readonly value: number }
+  | { readonly kind: "infinite" };
 
 export type EngineWorkerRequest =
   | {

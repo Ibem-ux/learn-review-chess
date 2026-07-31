@@ -17,6 +17,7 @@ import {
   goDepth,
   goNodes,
   goMovetime,
+  goInfinite,
   parseUciLine,
   type CommandResult,
 } from "./uci";
@@ -419,6 +420,8 @@ export class EngineController {
         return goNodes(limit.value);
       case "movetime":
         return goMovetime(limit.value);
+      case "infinite":
+        return goInfinite();
     }
   }
 

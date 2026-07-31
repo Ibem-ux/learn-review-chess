@@ -128,9 +128,7 @@ describe("planQuickPass", () => {
 
     expect(plan.ok).toBe(true);
     for (const job of plan.jobs) {
-      expect(job.limit).toBe(limit);
-      expect(job.limit.kind).toBe("depth");
-      expect(job.limit.value).toBe(14);
+      expect(job.limit).toEqual({ kind: "depth", value: 14 });
     }
   });
 
@@ -141,9 +139,7 @@ describe("planQuickPass", () => {
 
     expect(plan.ok).toBe(true);
     for (const job of plan.jobs) {
-      expect(job.limit).toBe(limit);
-      expect(job.limit.kind).toBe("nodes");
-      expect(job.limit.value).toBe(50000);
+      expect(job.limit).toEqual({ kind: "nodes", value: 50000 });
     }
   });
 
@@ -154,9 +150,7 @@ describe("planQuickPass", () => {
 
     expect(plan.ok).toBe(true);
     for (const job of plan.jobs) {
-      expect(job.limit).toBe(limit);
-      expect(job.limit.kind).toBe("movetime");
-      expect(job.limit.value).toBe(1000);
+      expect(job.limit).toEqual({ kind: "movetime", value: 1000 });
     }
   });
 
@@ -175,7 +169,6 @@ describe("planQuickPass", () => {
     expect(timeline.initialFen).toBe(originalInitialFen);
     expect(timeline.finalFen).toBe(originalFinalFen);
     expect(plan.ok).toBe(true);
-    expect(limit.kind).toBe("depth");
-    expect(limit.value).toBe(14);
+    expect(limit).toEqual({ kind: "depth", value: 14 });
   });
 });

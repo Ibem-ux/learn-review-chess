@@ -3,6 +3,7 @@ import {
   goDepth,
   goMovetime,
   goNodes,
+  goInfinite,
   ISREADY,
   parseUciLine,
   positionFen,
@@ -119,6 +120,16 @@ describe("go command formatters", () => {
 
   it("rejects Infinity", () => {
     expect(goNodes(Infinity).ok).toBe(false);
+  });
+
+  it("returns go infinite with no argument", () => {
+    expect(goInfinite()).toEqual({ ok: true, command: "go infinite" });
+  });
+
+  it("succeeds without validation unlike bounded go commands", () => {
+    expect(goInfinite()).toEqual({ ok: true, command: "go infinite" });
+    expect(goDepth(0).ok).toBe(false);
+    expect(goDepth(-1).ok).toBe(false);
   });
 });
 
