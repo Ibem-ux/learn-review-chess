@@ -15,6 +15,7 @@ type AnalysisState = {
   lastInfoRequestId: string | null;
   bestMove: { move: string | null; ponder: string | null } | null;
   bestMoveRequestId: string | null;
+  lines: readonly EngineInfo[];
 };
 
 const initialState: AnalysisState = {
@@ -24,6 +25,7 @@ const initialState: AnalysisState = {
   lastInfoRequestId: null,
   bestMove: null,
   bestMoveRequestId: null,
+  lines: [],
 };
 
 export type UseEngineAnalysisOptions = {
@@ -37,6 +39,7 @@ export type UseEngineAnalysis = {
   readonly lastInfoRequestId: string | null;
   readonly bestMove: { move: string | null; ponder: string | null } | null;
   readonly bestMoveRequestId: string | null;
+  readonly lines: readonly EngineInfo[];
   readonly analyze: (fen: string, limit: EngineAnalysisLimit, multiPv?: number) => string | null;
   readonly stop: () => void;
 };
@@ -50,6 +53,7 @@ export function useEngineAnalysis(
   const unsubRef = useRef<(() => void) | null>(null);
   const optionsRef = useRef(options);
   const mountedRef = useRef(true);
+  const linesMapRef = useRef<Map<number, EngineInfo>>(new Map());
 
   useEffect(() => {
     optionsRef.current = options;
@@ -123,9 +127,22 @@ export function useEngineAnalysis(
           case "ready":
             setSafeState((prev) => ({ ...prev, status: "ready" }));
             break;
-          case "analysis-info":
-            setSafeState((prev) => ({ ...prev, lastInfo: event.info, lastInfoRequestId: event.requestId }));
+          case "analysis-info": {
+            const multipv = event.info.multipv ?? 1;
+            const newMap = new Map(linesMapRef.current);
+            newMap.set(multipv, event.info);
+            linesMapRef.current = newMap;
+            const sortedLines = Array.from(newMap.entries())
+              .sort(([a], [b]) => a - b)
+              .map(([, info]) => info);
+            setSafeState((prev) => ({
+              ...prev,
+              lastInfo: event.info,
+              lastInfoRequestId: event.requestId,
+              lines: sortedLines,
+            }));
             break;
+          }
           case "best-move":
             setSafeState((prev) => ({
               ...prev,
@@ -172,13 +189,13 @@ export function useEngineAnalysis(
       if (!controller || !initializedRef.current) return null;
 
       const requestId = `req-${Date.now()}-${Math.random()}`;
+      linesMapRef.current = new Map();
+      setSafeState((prev) => ({ ...prev, status: controller.status, lines: [] }));
       controller.analyze(requestId, {
         fen,
         limit,
         multiPv,
       });
-
-      setSafeState((prev) => ({ ...prev, status: controller.status }));
       return requestId;
     },
     [setSafeState]
@@ -198,6 +215,7 @@ export function useEngineAnalysis(
     lastInfoRequestId: state.lastInfoRequestId,
     bestMove: state.bestMove,
     bestMoveRequestId: state.bestMoveRequestId,
+    lines: state.lines,
     analyze,
     stop,
   };

@@ -737,6 +737,333 @@ describe("use-engine-analysis", () => {
       expect(result.current.lastInfoRequestId).toBe(id);
       expect(result.current.bestMoveRequestId).toBe(id);
     });
+
+    it("lines is an empty array before any analysis", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      expect(result.current.lines).toEqual([]);
+    });
+
+    it("a single analysis-info with multipv 1 produces one line", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, multipv: 1, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+      expect(result.current.lines[0]).toEqual({ depth: 10, multipv: 1, nodes: 1000, timeMs: 50 });
+    });
+
+    it("an analysis-info with NO multipv is treated as index 1", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+      expect(result.current.lines[0]).toEqual({ depth: 10, nodes: 1000, timeMs: 50 });
+    });
+
+    it("three analysis-info events with multipv 1, 2 and 3 produce three lines", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, multipv: 1, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 12, multipv: 2, nodes: 2000, timeMs: 60 },
+        });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 14, multipv: 3, nodes: 3000, timeMs: 70 },
+        });
+      });
+
+      expect(result.current.lines).toHaveLength(3);
+      expect(result.current.lines.map((l) => l.multipv)).toEqual([1, 2, 3]);
+    });
+
+    it("lines are sorted ascending by multipv when emitted out of order", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, multipv: 3, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 12, multipv: 1, nodes: 2000, timeMs: 60 },
+        });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 14, multipv: 2, nodes: 3000, timeMs: 70 },
+        });
+      });
+
+      expect(result.current.lines.map((l) => l.multipv)).toEqual([1, 2, 3]);
+    });
+
+    it("a later analysis-info with the same multipv replaces the earlier one rather than appending", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, multipv: 1, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 20, multipv: 1, nodes: 2000, timeMs: 60 },
+        });
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+      expect(result.current.lines[0]).toEqual({ depth: 20, multipv: 1, nodes: 2000, timeMs: 60 });
+    });
+
+    it("calling analyze clears previously recorded lines", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, multipv: 1, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+
+      act(() => {
+        result.current.analyze("fen2", { kind: "depth", value: 10 });
+      });
+
+      expect(result.current.lines).toEqual([]);
+    });
+
+    it("lines recorded after a new analyze are the new ones only", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, multipv: 1, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      act(() => {
+        result.current.analyze("fen2", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-2",
+          info: { depth: 20, multipv: 2, nodes: 2000, timeMs: 60 },
+        });
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+      expect(result.current.lines[0].multipv).toBe(2);
+    });
+
+    it("calling stop does not clear the lines", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, multipv: 1, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+
+      act(() => {
+        result.current.stop();
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+      expect(result.current.lines[0]).toEqual({ depth: 10, multipv: 1, nodes: 1000, timeMs: 50 });
+    });
+
+    it("lastInfo still reflects the most recent info event regardless of multipv", async () => {
+      const mod = await import("@/features/chess/use-engine-analysis");
+      const { useEngineAnalysis } = mod;
+
+      const { result } = renderHook(() => useEngineAnalysis());
+
+      await waitFor(() => expect(fakeController.initialize).toHaveBeenCalledTimes(1));
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      act(() => {
+        result.current.analyze("fen", { kind: "depth", value: 10 });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 10, multipv: 1, nodes: 1000, timeMs: 50 },
+        });
+      });
+
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-2",
+          info: { depth: 20, multipv: 2, nodes: 2000, timeMs: 60 },
+        });
+      });
+
+      expect(result.current.lastInfo).toEqual({ depth: 20, multipv: 2, nodes: 2000, timeMs: 60 });
+      expect(result.current.lines).toHaveLength(2);
+    });
   });
 
   describe("engine ownership", () => {
