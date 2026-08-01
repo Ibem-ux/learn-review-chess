@@ -444,6 +444,8 @@ describe("use-engine-analysis", () => {
     });
 
     it("unmount after factory failure is safe and does not cause an additional disposal", async () => {
+      vi.resetModules();
+
       const failingFactory = vi.fn(() => {
         throw new Error("Web Workers are not available in this environment.");
       });
