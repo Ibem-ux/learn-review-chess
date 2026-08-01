@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Chessboard } from "react-chessboard";
+import { Chessboard, type PieceDropHandlerArgs } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
 import { useQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
 import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
@@ -14,6 +14,15 @@ import { buildQuickPassEvaluationSeries } from "./quick-pass-evaluation";
 import { buildEvaluationGraphPoints } from "./evaluation-graph-model";
 import { EvaluationBar } from "./evaluation-bar";
 import { EvaluationGraph } from "./evaluation-graph";
+import {
+  type ExplorerStack,
+  createExplorerStack,
+  pushExplorerPosition,
+  popExplorerPosition,
+  currentExplorerFen,
+} from "./explorer-position-stack";
+import { ExplorerPanel } from "./explorer-panel";
+import { applyExplorerMove } from "./explorer-move";
 
 const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
 
@@ -58,6 +67,7 @@ export default function ReviewBoard({
   const [ply, setPly] = useState(0);
   const [orientation, setOrientation] = useState<"white" | "black">("white");
   const [controlsHost, setControlsHost] = useState<HTMLDivElement | null>(null);
+  const [explorer, setExplorer] = useState<ExplorerStack | null>(null);
   const setControlsHostRef = useCallback((node: HTMLDivElement | null) => {
     setControlsHost(node);
   }, []);
@@ -90,13 +100,49 @@ export default function ReviewBoard({
 
   const result = getTimelineStep(timeline, ply);
   const fen = result.ok ? result.step.fen : timeline.initialFen;
+  const displayedFen = explorer !== null ? currentExplorerFen(explorer) : fen;
   const currentMove = result.ok ? result.step.move : null;
 
   const { atStart, atEnd } = isDisabled(ply, timeline.totalPlies);
 
+  const handlePieceDrop = useCallback(
+    (args: PieceDropHandlerArgs) => {
+      const { sourceSquare, targetSquare } = args;
+      if (sourceSquare === null || targetSquare === null) {
+        return false;
+      }
+      const currentFen = explorer !== null ? currentExplorerFen(explorer) : fen;
+      const result = applyExplorerMove(currentFen, {
+        from: sourceSquare,
+        to: targetSquare,
+        promotion: "q",
+      });
+      if (!result.ok) {
+        return false;
+      }
+      if (explorer === null) {
+        setExplorer(
+          pushExplorerPosition(createExplorerStack({ ply, fen }), {
+            fen: result.fen,
+            san: result.san,
+          })
+        );
+      } else {
+        setExplorer(
+          pushExplorerPosition(explorer, { fen: result.fen, san: result.san })
+        );
+      }
+      return true;
+    },
+    [explorer, fen, ply]
+  );
+
   const goTo = (next: number) => {
     const step = getTimelineStep(timeline, next);
-    if (step.ok) setPly(next);
+    if (step.ok) {
+      setPly(next);
+      setExplorer(null);
+    }
   };
 
   const handleStart = () => goTo(0);
@@ -189,9 +235,10 @@ export default function ReviewBoard({
             <Chessboard
               options={{
                 id: "review",
-                position: fen,
+                position: displayedFen,
                 boardOrientation: orientation,
-                allowDragging: false,
+                allowDragging: true,
+                onPieceDrop: handlePieceDrop,
                 animationDurationInMs: 150,
               }}
             />
@@ -199,6 +246,16 @@ export default function ReviewBoard({
         </div>
         <EvaluationBar point={currentGraphPoint} orientation={orientation} />
       </div>
+
+      <ExplorerPanel
+        stack={explorer ?? createExplorerStack({ ply, fen })}
+        onBack={() =>
+          setExplorer((prev) =>
+            prev === null ? null : popExplorerPosition(prev)
+          )
+        }
+        onReset={() => setExplorer(null)}
+      />
 
       <div className="w-full max-w-2xl">
         <EvaluationGraph points={graphPoints} currentPly={ply} onSelectPly={goTo} />

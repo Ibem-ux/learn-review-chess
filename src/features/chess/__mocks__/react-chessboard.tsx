@@ -33,6 +33,7 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
       data-board-id={id}
       data-position={position}
       data-orientation={orientation}
+      data-allow-dragging={String(allowDragging)}
     >
       {allowDragging && (
         <>

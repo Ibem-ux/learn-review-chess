@@ -294,9 +294,9 @@ describe("ReviewBoard", () => {
     expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(1 / 4)");
   });
 
-  it("does not accept or persist user moves", () => {
+  it("accepts user moves", () => {
     render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
-    expect(screen.queryByTestId("simulate-drop")).not.toBeInTheDocument();
+    expect(screen.getByTestId("simulate-drop")).toBeInTheDocument();
     expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
       "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     );
@@ -493,6 +493,15 @@ describe("ReviewBoard", () => {
       expect(
         screen.queryByRole("button", { name: "Analyze full game" })
       ).not.toBeInTheDocument();
+    });
+
+    it("passes controlsHost to FullGameAnalysisPanel", () => {
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+      expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          controlsHost: expect.any(HTMLDivElement),
+        })
+      );
     });
 
     it("renders the move list with exact button count and accessible names", () => {
@@ -870,13 +879,85 @@ describe("ReviewBoard", () => {
       expect(hostIndex).toBeGreaterThan(flipIndex);
     });
 
-    it("passes controlsHost to FullGameAnalysisPanel", () => {
-      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
-      expect(mockFullGameAnalysisPanel).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          controlsHost: expect.any(HTMLDivElement),
-        })
-      );
-    });
+  it("the board shows the game position when not exploring", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    );
   });
+
+  it("allowDragging is true on the board", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    expect(screen.getByTestId("simulate-drop")).toBeInTheDocument();
+    expect(screen.getByTestId("chessboard")).toHaveAttribute(
+      "data-allow-dragging",
+      "true"
+    );
+  });
+
+  it("a legal drop changes the board position to the resulting fen", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
+      "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    );
+  });
+
+  it("a legal drop shows that san in the explorer breadcrumb", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    expect(screen.getByTestId("explorer-breadcrumb")).toHaveTextContent("e4");
+  });
+
+  it("an illegal drop leaves the board position unchanged", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    const before = screen.getByTestId("chessboard").getAttribute("data-position");
+    fireEvent.click(screen.getByTestId("simulate-illegal-drop"));
+    expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(before);
+  });
+
+  it("an illegal drop leaves the explorer depth at 0", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    fireEvent.click(screen.getByTestId("simulate-illegal-drop"));
+    expect(screen.getByTestId("explorer-depth")).toHaveTextContent("0");
+  });
+
+  it("two legal drops show both sans in the breadcrumb in order", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    fireEvent.click(screen.getByTestId("simulate-second-drop"));
+    expect(screen.getByTestId("explorer-breadcrumb")).toHaveTextContent("e4 e5");
+  });
+
+  it("clicking Back returns the board to the previous position", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
+      "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    );
+  });
+
+  it("clicking Return to game restores the game position", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    fireEvent.click(screen.getByRole("button", { name: "Return to game" }));
+    expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    );
+  });
+
+  it("navigating with the Next control while exploring restores the game position", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    fireEvent.click(screen.getByTestId("simulate-drop"));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByTestId("explorer-depth")).toHaveTextContent("0");
+    expect(screen.getByTestId("explorer-breadcrumb")).toHaveTextContent(
+      "Exploring from the game position"
+    );
+  });
+});
 });
