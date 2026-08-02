@@ -130,7 +130,7 @@ describe("use-position-analysis", () => {
     const { usePositionAnalysis } = mod;
 
     const cache = buildCache([]);
-    const { result } = renderHook(() => usePositionAnalysis({ fen: null, cache, enabled: true }));
+    const { result } = renderHook(() => usePositionAnalysis({ ply: 0, fen: null, cache, enabled: true }));
 
     expect(result.current.point).toBeNull();
     expect(result.current.arrows).toEqual([]);
@@ -156,7 +156,7 @@ describe("use-position-analysis", () => {
     const { usePositionAnalysis } = mod;
 
     const cache = buildCache([]);
-    const { result } = renderHook(() => usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: false }));
+    const { result } = renderHook(() => usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: false }));
 
     expect(result.current.point).toBeNull();
     expect(result.current.arrows).toEqual([]);
@@ -188,7 +188,7 @@ describe("use-position-analysis", () => {
       lines: [],
     };
     const cache = buildCache([[CACHED_FEN, cachedAnalysis]]);
-    const { result } = renderHook(() => usePositionAnalysis({ fen: CACHED_FEN, cache, enabled: false }));
+    const { result } = renderHook(() => usePositionAnalysis({ ply: 0, fen: CACHED_FEN, cache, enabled: false }));
 
     expect(result.current.point).toEqual({
       ply: 0,
@@ -226,7 +226,7 @@ describe("use-position-analysis", () => {
       lines: [],
     };
     const cache = buildCache([[CACHED_FEN, cachedAnalysis]]);
-    const { result } = renderHook(() => usePositionAnalysis({ fen: CACHED_FEN, cache, enabled: true }));
+    const { result } = renderHook(() => usePositionAnalysis({ ply: 0, fen: CACHED_FEN, cache, enabled: true }));
 
     expect(result.current.point).toEqual({
       ply: 0,
@@ -264,7 +264,7 @@ describe("use-position-analysis", () => {
       lines: [],
     };
     const cache = buildCache([[CACHED_FEN, cachedAnalysis]]);
-    const { result } = renderHook(() => usePositionAnalysis({ fen: CACHED_FEN, cache, enabled: true }));
+    const { result } = renderHook(() => usePositionAnalysis({ ply: 0, fen: CACHED_FEN, cache, enabled: true }));
 
     expect(result.current.point).not.toBeNull();
     expect(fakeController.analyze).not.toHaveBeenCalled();
@@ -290,7 +290,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     expect(result.current.isAnalyzing).toBe(false);
@@ -357,7 +357,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     expect(result.current.isAnalyzing).toBe(false);
@@ -415,7 +415,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { rerender } = renderHook(
-      ({ fen }) => usePositionAnalysis({ fen, cache, enabled: true, debounceMs: 300 }),
+      ({ fen }) => usePositionAnalysis({ ply: 0, fen, cache, enabled: true, debounceMs: 300 }),
       { initialProps: { fen: UNCACHED_FEN } }
     );
 
@@ -473,7 +473,7 @@ describe("use-position-analysis", () => {
     };
     const cache = buildCache([[CACHED_FEN, cachedAnalysis]]);
     const { result, rerender } = renderHook(
-      ({ fen }) => usePositionAnalysis({ fen, cache, enabled: true, debounceMs: 300 }),
+      ({ fen }) => usePositionAnalysis({ ply: 0, fen, cache, enabled: true, debounceMs: 300 }),
       { initialProps: { fen: UNCACHED_FEN } }
     );
 
@@ -526,7 +526,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { unmount } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     act(() => {
@@ -570,7 +570,7 @@ describe("use-position-analysis", () => {
     };
     const cache = buildCache([[CACHED_FEN, cachedAnalysis]]);
     const { result, rerender } = renderHook(
-      ({ fen }) => usePositionAnalysis({ fen, cache, enabled: true, debounceMs: 300 }),
+      ({ fen }) => usePositionAnalysis({ ply: 0, fen, cache, enabled: true, debounceMs: 300 }),
       { initialProps: { fen: CACHED_FEN } }
     );
 
@@ -632,7 +632,7 @@ describe("use-position-analysis", () => {
     };
     const cache = buildCache([[CACHED_FEN, cachedAnalysis]]);
     const { result, rerender } = renderHook(
-      ({ fen }) => usePositionAnalysis({ fen, cache, enabled: true, debounceMs: 300 }),
+      ({ fen }) => usePositionAnalysis({ ply: 0, fen, cache, enabled: true, debounceMs: 300 }),
       { initialProps: { fen: UNCACHED_FEN } }
     );
 
@@ -683,7 +683,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     act(() => {
@@ -733,7 +733,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     act(() => {
@@ -809,7 +809,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     act(() => {
@@ -847,7 +847,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     act(() => {
@@ -914,7 +914,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: CACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: CACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     act(() => {
@@ -981,7 +981,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: CACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: CACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     act(() => {
@@ -1048,7 +1048,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { rerender } = renderHook(
-      ({ fen }) => usePositionAnalysis({ fen, cache, enabled: true, debounceMs: 300 }),
+      ({ fen }) => usePositionAnalysis({ ply: 0, fen, cache, enabled: true, debounceMs: 300 }),
       { initialProps: { fen: UNCACHED_FEN } }
     );
 
@@ -1103,7 +1103,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { rerender } = renderHook(
-      ({ debounceMs }) => usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs }),
+      ({ debounceMs }) => usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs }),
       { initialProps: { debounceMs: 300 } }
     );
 
@@ -1142,7 +1142,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { result } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     expect(result.current.isAnalyzing).toBe(false);
@@ -1188,7 +1188,7 @@ describe("use-position-analysis", () => {
     const capturedResultRef: { current: UsePositionAnalysis | null } = { current: null };
 
     function TestComponent() {
-      capturedResultRef.current = usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 });
+      capturedResultRef.current = usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 });
       return null;
     }
 
@@ -1282,7 +1282,7 @@ describe("use-position-analysis", () => {
 
     const cache = buildCache([]);
     const { unmount } = renderHook(() =>
-      usePositionAnalysis({ fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
+      usePositionAnalysis({ ply: 0, fen: UNCACHED_FEN, cache, enabled: true, debounceMs: 300 })
     );
 
     act(() => {
@@ -1321,7 +1321,7 @@ describe("use-position-analysis", () => {
     const { usePositionAnalysis } = mod;
 
     const cache = buildCache([]);
-    const { unmount } = renderHook(() => usePositionAnalysis({ fen: null, cache, enabled: true }));
+    const { unmount } = renderHook(() => usePositionAnalysis({ ply: 0, fen: null, cache, enabled: true }));
 
     const { getEngineOwnerId } = await import("@/features/chess/engine-ownership");
     expect(getEngineOwnerId()).toBeNull();
@@ -1354,7 +1354,7 @@ describe("use-position-analysis", () => {
       lines: [],
     };
     const cache = buildCache([[CACHED_FEN, cachedAnalysis]]);
-    const { unmount } = renderHook(() => usePositionAnalysis({ fen: CACHED_FEN, cache, enabled: true }));
+    const { unmount } = renderHook(() => usePositionAnalysis({ ply: 0, fen: CACHED_FEN, cache, enabled: true }));
 
     const { getEngineOwnerId } = await import("@/features/chess/engine-ownership");
     expect(getEngineOwnerId()).toBeNull();
@@ -1362,4 +1362,36 @@ describe("use-position-analysis", () => {
     unmount();
     expect(getEngineOwnerId()).toBeNull();
   });
+
+  it("point carries the ply it was given", async () => {
+    fakeWorker = createFakeWorker();
+    fakeController = createFakeController(fakeWorker);
+
+    vi.doMock("@/features/chess/engine-worker-factory", () => ({
+      createStockfishWorkerFactory: vi.fn(() => () => fakeWorker),
+    }));
+
+    vi.doMock("@/features/chess/engine-controller", () => ({
+      EngineController: vi.fn(function MockEngineController() {
+        return fakeController;
+      }),
+    }));
+
+    const mod = await import("@/features/chess/use-position-analysis");
+    const { usePositionAnalysis } = mod;
+
+    const cachedAnalysis: CachedAnalysis = {
+      fen: CACHED_FEN,
+      score: { type: "cp", value: 50, perspective: "white" },
+      depth: 10,
+      lines: [],
+    };
+    const cache = buildCache([[CACHED_FEN, cachedAnalysis]]);
+    const { result } = renderHook(() => usePositionAnalysis({ fen: CACHED_FEN, cache, enabled: true, ply: 7 }));
+
+    expect(result.current.point).not.toBeNull();
+    expect(result.current.point?.ply).toBe(7);
+    expect(fakeController.analyze).not.toHaveBeenCalled();
+  });
 });
+

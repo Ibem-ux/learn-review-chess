@@ -36,9 +36,10 @@ export function usePositionAnalysis(args: {
   fen: string | null;
   cache: AnalysisCache;
   enabled: boolean;
+  ply: number;
   debounceMs?: number;
 }): UsePositionAnalysis {
-  const { fen, cache, enabled, debounceMs = 300 } = args;
+  const { fen, cache, enabled, ply, debounceMs = 300 } = args;
 
   const controllerRef = useRef<EngineController | null>(null);
   const ownerIdRef = useRef<string | null>(null);
@@ -250,7 +251,7 @@ export function usePositionAnalysis(args: {
 
     const cached = cache.get(fen) ?? null;
     if (cached !== null) {
-      const point = cachedAnalysisToGraphPoint(cached, 0);
+      const point = cachedAnalysisToGraphPoint(cached, ply);
       const arrows = buildEngineArrows(cached);
       setSafeState(() => ({ point, arrows, isAnalyzing: false }));
       return;
@@ -270,7 +271,7 @@ export function usePositionAnalysis(args: {
     }, debounceMs);
 
     timerRef.current = timer;
-  }, [fen, cache, enabled, debounceMs, clearTimer, setSafeState, dispatchAnalysis, ensureEngine]);
+  }, [fen, cache, enabled, ply, debounceMs, clearTimer, setSafeState, dispatchAnalysis, ensureEngine]);
 
   return {
     point: state.point,

@@ -113,6 +113,7 @@ export default function ReviewBoard({
     fen: displayedFen,
     cache: analysisCache,
     enabled: analysisState.status !== "running" && analysisState.results.length > 0,
+    ply,
   });
   const currentMove = result.ok ? result.step.move : null;
 
