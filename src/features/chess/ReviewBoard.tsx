@@ -111,7 +111,7 @@ export default function ReviewBoard({
   const positionAnalysis = usePositionAnalysis({
     fen: displayedFen,
     cache: analysisCache,
-    enabled: analysisState.status !== "running" && typeof globalThis.Worker !== "undefined",
+    enabled: analysisState.status !== "running" && analysisState.results.length > 0,
   });
   const currentMove = result.ok ? result.step.move : null;
 
