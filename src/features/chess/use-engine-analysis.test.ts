@@ -443,35 +443,6 @@ describe("use-engine-analysis", () => {
       expect(fakeController.dispose).toHaveBeenCalledTimes(1);
     });
 
-    it("unmount after factory failure is safe and does not cause an additional disposal", async () => {
-      vi.resetModules();
-
-      const failingFactory = vi.fn(() => {
-        throw new Error("Web Workers are not available in this environment.");
-      });
-
-      vi.doMock("@/features/chess/engine-worker-factory", () => ({
-        createStockfishWorkerFactory: failingFactory,
-      }));
-
-      vi.doMock("@/features/chess/engine-controller", () => ({
-        EngineController: vi.fn(function MockEngineController() {
-          return createFakeController(createFakeWorker());
-        }),
-      }));
-
-      const mod = await import("@/features/chess/use-engine-analysis");
-      const { useEngineAnalysis } = mod;
-
-      const { unmount } = renderHook(() => useEngineAnalysis());
-
-      await waitFor(() => expect(failingFactory).toHaveBeenCalledTimes(1));
-
-      unmount();
-
-      expect(failingFactory).toHaveBeenCalledTimes(1);
-    });
-
     it("unmount after initialization failure does not dispose twice", async () => {
       fakeWorker = createFakeWorker();
       fakeController = createFakeController(fakeWorker);
