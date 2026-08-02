@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import { Chessboard, type PieceDropHandlerArgs } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
 import { useQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
+import { usePositionAnalysis } from "./use-position-analysis";
+import { buildAnalysisCache } from "./analysis-cache";
 import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
 import { MoveList } from "@/features/chess/move-list";
 import { buildMoveAssessments } from "@/features/chess/move-assessment";
@@ -94,6 +96,11 @@ export default function ReviewBoard({
     return [];
   }, [timeline, analysisState.results]);
 
+  const analysisCache = useMemo(
+    () => buildAnalysisCache(analysisState.results),
+    [analysisState.results]
+  );
+
   const currentGraphPoint = useMemo(() => {
     return graphPoints.find((point) => point.ply === ply) ?? null;
   }, [graphPoints, ply]);
@@ -101,6 +108,11 @@ export default function ReviewBoard({
   const result = getTimelineStep(timeline, ply);
   const fen = result.ok ? result.step.fen : timeline.initialFen;
   const displayedFen = explorer !== null ? currentExplorerFen(explorer) : fen;
+  const positionAnalysis = usePositionAnalysis({
+    fen: displayedFen,
+    cache: analysisCache,
+    enabled: analysisState.status !== "running" && typeof globalThis.Worker !== "undefined",
+  });
   const currentMove = result.ok ? result.step.move : null;
 
   const { atStart, atEnd } = isDisabled(ply, timeline.totalPlies);
@@ -232,13 +244,15 @@ export default function ReviewBoard({
           className="aspect-square w-full max-w-2xl overflow-hidden rounded-lg border border-black/[.15] dark:border-white/[.2]"
         >
           <section aria-label="Review chessboard" className="h-full w-full">
-            <Chessboard
+             <Chessboard
               options={{
                 id: "review",
                 position: displayedFen,
                 boardOrientation: orientation,
                 allowDragging: true,
                 onPieceDrop: handlePieceDrop,
+                arrows: [...positionAnalysis.arrows],
+                clearArrowsOnPositionChange: true,
                 animationDurationInMs: 150,
               }}
             />

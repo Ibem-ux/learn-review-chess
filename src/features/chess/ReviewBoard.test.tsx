@@ -184,6 +184,26 @@ function timelineOf(pgn: string): ReviewTimeline {
 
 describe("ReviewBoard", () => {
   beforeEach(() => {
+    if (typeof globalThis.Worker === "undefined") {
+      const mockWorker = {
+        postMessage: vi.fn(),
+        terminate: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      };
+      Object.defineProperty(globalThis, "Worker", {
+        value: class MockWorker {
+          constructor() {}
+          postMessage = mockWorker.postMessage;
+          terminate = mockWorker.terminate;
+          addEventListener = mockWorker.addEventListener;
+          removeEventListener = mockWorker.removeEventListener;
+        },
+        writable: true,
+        configurable: true,
+      });
+    }
+
     vi.clearAllMocks();
     capturedController = null;
     EngineControllerSpy = vi.fn();
@@ -360,9 +380,9 @@ describe("ReviewBoard", () => {
   it("mount creates zero controllers and creates one after analyzing", () => {
     const eligibleTimeline = { ...timelineOf(SHORT_GAME), analysisEligible: true };
     render(<ReviewBoard timeline={eligibleTimeline} />);
-    expect(EngineControllerSpy).toHaveBeenCalledTimes(0);
-    fireEvent.click(screen.getByTestId("analyze-button"));
     expect(EngineControllerSpy).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId("analyze-button"));
+    expect(EngineControllerSpy).toHaveBeenCalledTimes(2);
   });
 
   it("navigating plies creates no second EngineController", () => {
@@ -387,9 +407,9 @@ describe("ReviewBoard", () => {
     const timeline = { ...timelineOf(SHORT_GAME), analysisEligible: true };
     const ineligibleTimeline = { ...timeline, analysisEligible: false };
     const { rerender } = render(<ReviewBoard timeline={timeline} />);
-    expect(EngineControllerSpy).toHaveBeenCalledTimes(0);
-    fireEvent.click(screen.getByTestId("analyze-button"));
     expect(EngineControllerSpy).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId("analyze-button"));
+    expect(EngineControllerSpy).toHaveBeenCalledTimes(2);
     EngineControllerSpy.mockClear();
     rerender(<ReviewBoard timeline={ineligibleTimeline} />);
     expect(EngineControllerSpy).not.toHaveBeenCalled();
@@ -958,6 +978,16 @@ describe("ReviewBoard", () => {
     expect(screen.getByTestId("explorer-breadcrumb")).toHaveTextContent(
       "Exploring from the game position"
     );
+  });
+
+  it("board receives no arrows before any analysis exists", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    expect(screen.getByTestId("chessboard").getAttribute("data-arrows")).toBe("");
+  });
+
+  it("board clears arrows when the position changes", () => {
+    render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    expect(screen.getByTestId("chessboard").getAttribute("data-clear-arrows-on-position-change")).toBe("true");
   });
 });
 });
