@@ -991,5 +991,33 @@ describe("ReviewBoard", () => {
       render(<ReviewBoard timeline={timeline} />);
       expect(screen.getByTestId("chessboard").getAttribute("data-arrows")).toBe("e2>e4:#22c55e,d2>d4:#3b82f6");
     });
+
+    it("legend is hidden before any analysis exists", () => {
+      render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+      expect(screen.queryByTestId("arrow-legend")).toBeNull();
+    });
+
+    it("legend labels each engine suggestion", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      const info1 = { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: { type: "cp", value: 100, perspective: "white" } as const, pv: ["e2e4"] };
+      const info2 = { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: { type: "cp", value: 100, perspective: "white" } as const, pv: ["d2d4"] };
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [
+        {
+          job: { id: `qp-0`, phase: "quick-pass", ply: 0, fen: timeline.initialFen, limit: { kind: "depth", value: 14 } },
+          info: info1,
+          bestMove: { move: "e2e4", ponder: null },
+          candidateLines: [
+            { rank: 1, info: info1 },
+            { rank: 2, info: info2 },
+          ],
+        },
+      ];
+      render(<ReviewBoard timeline={timeline} />);
+      const items = screen.getAllByTestId("arrow-legend-item");
+      expect(items).toHaveLength(2);
+      expect(items[0]).toHaveTextContent("Best");
+      expect(items[1]).toHaveTextContent("2nd best");
+    });
   });
 });

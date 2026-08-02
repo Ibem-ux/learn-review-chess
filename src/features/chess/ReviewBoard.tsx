@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Chessboard, type PieceDropHandlerArgs } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
 import { useQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
+import { ARROW_COLORS } from "@/features/chess/engine-arrows";
 import { usePositionAnalysis } from "./use-position-analysis";
 import { buildAnalysisCache } from "./analysis-cache";
 import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
@@ -260,6 +261,44 @@ export default function ReviewBoard({
         </div>
         <EvaluationBar point={currentGraphPoint} orientation={orientation} />
       </div>
+
+      {positionAnalysis.arrows.length > 0 && (
+        <div
+          data-testid="arrow-legend"
+          aria-label="Engine suggestion legend"
+          className="flex flex-wrap gap-3 text-sm font-medium text-black dark:text-zinc-50"
+        >
+          {positionAnalysis.arrows.slice(0, 3).map((arrow, index) => {
+            const label =
+              index === 0
+                ? "Best"
+                : index === 1
+                  ? "2nd best"
+                  : "3rd best";
+            const swatchColor =
+              index === 0
+                ? ARROW_COLORS.first
+                : index === 1
+                  ? ARROW_COLORS.second
+                  : ARROW_COLORS.third;
+
+            return (
+              <div
+                key={index}
+                data-testid="arrow-legend-item"
+                className="flex items-center gap-2"
+              >
+                <span
+                  aria-hidden
+                  className="inline-block h-3 w-3 rounded-sm"
+                  style={{ backgroundColor: swatchColor }}
+                />
+                {label}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <ExplorerPanel
         stack={explorer ?? createExplorerStack({ ply, fen })}
