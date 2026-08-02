@@ -802,8 +802,18 @@ describe("use-engine-analysis", () => {
         });
       });
 
+      act(() => {
+        fakeController.emit({
+          type: "analysis-info",
+          requestId: "req-1",
+          info: { depth: 11, nodes: 2000, timeMs: 60, multipv: 1 },
+        });
+      });
+
       expect(result.current.lines).toHaveLength(1);
-      expect(result.current.lines[0]).toEqual({ depth: 10, nodes: 1000, timeMs: 50 });
+      expect(result.current.lines[0]).toEqual({
+        depth: 11, nodes: 2000, timeMs: 60, multipv: 1,
+      });
     });
 
     it("three analysis-info events with multipv 1, 2 and 3 produce three lines", async () => {
