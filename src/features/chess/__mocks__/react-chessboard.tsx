@@ -7,14 +7,15 @@ type MockArrow = {
 };
 
 function isMockArrow(value: unknown): value is MockArrow {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
   return (
-    typeof candidate.startSquare === "string" &&
-    typeof candidate.endSquare === "string" &&
-    typeof candidate.color === "string"
+    typeof value === "object" &&
+    value !== null &&
+    "startSquare" in value &&
+    typeof value.startSquare === "string" &&
+    "endSquare" in value &&
+    typeof value.endSquare === "string" &&
+    "color" in value &&
+    typeof value.color === "string"
   );
 }
 
