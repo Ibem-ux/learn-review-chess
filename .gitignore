@@ -54,3 +54,8 @@ blob-report/
 !PROJECT_CONTEXT.md
 !THIRD_PARTY_NOTICES.md
 CONTEXT.md
+
+# local agent notes, not part of the project
+CLAUDE.md
+AGENTS.md
+PROJECT_CONTEXT.md
