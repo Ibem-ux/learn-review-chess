@@ -1,5 +1,23 @@
 import { type PieceDropHandlerArgs } from "react-chessboard";
 
+type MockArrow = {
+  startSquare: string;
+  endSquare: string;
+  color: string;
+};
+
+function isMockArrow(value: unknown): value is MockArrow {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.startSquare === "string" &&
+    typeof candidate.endSquare === "string" &&
+    typeof candidate.color === "string"
+  );
+}
+
 export function Chessboard(props: { options?: Record<string, unknown> }) {
   const options = props.options ?? {};
   const position = typeof options.position === "string" ? options.position : "";
@@ -10,6 +28,16 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
   const onPieceDrop = options.onPieceDrop as
     | ((args: PieceDropHandlerArgs) => boolean)
     | undefined;
+
+  const rawArrows = Array.isArray(options.arrows) ? options.arrows : [];
+  const arrowsValue = rawArrows
+    .filter(isMockArrow)
+    .map((arrow) => `${arrow.startSquare}>${arrow.endSquare}:${arrow.color}`)
+    .join(",");
+  const clearArrowsOnPositionChange =
+    options.clearArrowsOnPositionChange !== undefined
+      ? String(options.clearArrowsOnPositionChange)
+      : "undefined";
 
   const legalDrop: PieceDropHandlerArgs = {
     piece: { isSparePiece: false, position: "e2", pieceType: "wP" },
@@ -34,6 +62,8 @@ export function Chessboard(props: { options?: Record<string, unknown> }) {
       data-position={position}
       data-orientation={orientation}
       data-allow-dragging={String(allowDragging)}
+      data-arrows={arrowsValue}
+      data-clear-arrows-on-position-change={clearArrowsOnPositionChange}
     >
       {allowDragging && (
         <>
