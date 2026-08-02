@@ -959,6 +959,26 @@ describe("ReviewBoard", () => {
       "Exploring from the game position"
     );
   });
+
+  it("board shows engine arrows for the analysed position", () => {
+    const timeline = timelineOf(SHORT_GAME);
+    const info1 = { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: { type: "cp", value: 100, perspective: "white" }, pv: ["e2e4"] };
+    const info2 = { depth: 14, multipv: 1, nodes: 1000, timeMs: 100, score: { type: "cp", value: 100, perspective: "white" }, pv: ["d2d4"] };
+    mockAnalysisState.status = "completed";
+    mockAnalysisState.results = [
+      {
+        job: { id: `qp-0`, phase: "quick-pass", ply: 0, fen: timeline.initialFen, limit: { kind: "depth", value: 14 } },
+        info: info1,
+        bestMove: { move: "e2e4", ponder: null },
+        candidateLines: [
+          { rank: 1, info: info1 },
+          { rank: 2, info: info2 },
+        ],
+      },
+    ];
+    render(<ReviewBoard timeline={timeline} />);
+    expect(screen.getByTestId("chessboard").getAttribute("data-arrows")).toBe("e2>e4:#22c55e,d2>d4:#3b82f6");
+  });
 });
 
   it("board receives no arrows before any analysis exists", () => {
