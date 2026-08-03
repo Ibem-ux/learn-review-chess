@@ -1,6 +1,6 @@
 import type { CachedAnalysis } from "./analysis-cache";
 import type { GraphPoint } from "./evaluation-graph-model";
-import { EVAL_CLAMP_CP } from "./evaluation-graph-model";
+import { scoreToGraphValues } from "./evaluation-graph-model";
 import { normalizeScore, parseSideToMove } from "./quick-pass-evaluation";
 
 export function cachedAnalysisToGraphPoint(
@@ -47,22 +47,8 @@ export function cachedAnalysisToGraphPoint(
     };
   }
 
-  if (normalized.type === "mate") {
-    const isPositiveMate = normalized.value > 0;
-    const clampedCp = isPositiveMate ? EVAL_CLAMP_CP : -EVAL_CLAMP_CP;
-    const advantage = (clampedCp / (2 * EVAL_CLAMP_CP)) + 0.5;
-    return {
-      ply,
-      hasValue: true,
-      clampedCp,
-      advantage,
-      isMate: true,
-      san: null,
-    };
-  }
-
-  const rawCp = normalized.value;
-  if (!Number.isFinite(rawCp)) {
+  const graphValues = scoreToGraphValues(normalized.type, normalized.value);
+  if (!graphValues.hasValue) {
     return {
       ply,
       hasValue: false,
@@ -73,14 +59,12 @@ export function cachedAnalysisToGraphPoint(
     };
   }
 
-  const clampedCp = Math.max(-EVAL_CLAMP_CP, Math.min(EVAL_CLAMP_CP, rawCp));
-  const advantage = (clampedCp / (2 * EVAL_CLAMP_CP)) + 0.5;
   return {
     ply,
     hasValue: true,
-    clampedCp,
-    advantage,
-    isMate: false,
+    clampedCp: graphValues.clampedCp,
+    advantage: graphValues.advantage,
+    isMate: graphValues.isMate,
     san: null,
   };
 }

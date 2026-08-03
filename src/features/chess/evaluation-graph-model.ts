@@ -12,6 +12,35 @@ export type GraphPoint = {
   readonly san: string | null;
 };
 
+export type GraphScoreValues =
+  | { readonly hasValue: false }
+  | {
+      readonly hasValue: true;
+      readonly clampedCp: number;
+      readonly advantage: number;
+      readonly isMate: boolean;
+    };
+
+export function scoreToGraphValues(
+  type: "mate" | "cp",
+  value: number
+): GraphScoreValues {
+  if (type === "mate") {
+    const isPositiveMate = value > 0;
+    const clampedCp = isPositiveMate ? EVAL_CLAMP_CP : -EVAL_CLAMP_CP;
+    const advantage = (clampedCp / (2 * EVAL_CLAMP_CP)) + 0.5;
+    return { hasValue: true, clampedCp, advantage, isMate: true };
+  }
+
+  if (!Number.isFinite(value)) {
+    return { hasValue: false };
+  }
+
+  const clampedCp = Math.max(-EVAL_CLAMP_CP, Math.min(EVAL_CLAMP_CP, value));
+  const advantage = (clampedCp / (2 * EVAL_CLAMP_CP)) + 0.5;
+  return { hasValue: true, clampedCp, advantage, isMate: false };
+}
+
 export function buildEvaluationGraphPoints(
   points: readonly EvaluationPoint[],
   timeline?: ReviewTimeline,
@@ -43,23 +72,8 @@ export function buildEvaluationGraphPoints(
     }
 
     const score = point.score;
-    if (score.type === "mate") {
-      const isPositiveMate = score.value > 0;
-      const clampedCp = isPositiveMate ? EVAL_CLAMP_CP : -EVAL_CLAMP_CP;
-      const advantage = (clampedCp / (2 * EVAL_CLAMP_CP)) + 0.5;
-      result.push({
-        ply: point.ply,
-        hasValue: true,
-        clampedCp,
-        advantage,
-        isMate: true,
-        san,
-      });
-      continue;
-    }
-
-    const rawCp = score.value;
-    if (!Number.isFinite(rawCp)) {
+    const graphValues = scoreToGraphValues(score.type, score.value);
+    if (!graphValues.hasValue) {
       result.push({
         ply: point.ply,
         hasValue: false,
@@ -71,14 +85,12 @@ export function buildEvaluationGraphPoints(
       continue;
     }
 
-    const clampedCp = Math.max(-EVAL_CLAMP_CP, Math.min(EVAL_CLAMP_CP, rawCp));
-    const advantage = (clampedCp / (2 * EVAL_CLAMP_CP)) + 0.5;
     result.push({
       ply: point.ply,
       hasValue: true,
-      clampedCp,
-      advantage,
-      isMate: false,
+      clampedCp: graphValues.clampedCp,
+      advantage: graphValues.advantage,
+      isMate: graphValues.isMate,
       san,
     });
   }

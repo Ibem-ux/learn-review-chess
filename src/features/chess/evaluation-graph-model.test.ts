@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { EvaluationPoint } from "./quick-pass-evaluation";
 import type { ReviewTimeline } from "./timeline";
-import { buildEvaluationGraphPoints, EVAL_CLAMP_CP } from "./evaluation-graph-model";
+import {
+  buildEvaluationGraphPoints,
+  EVAL_CLAMP_CP,
+  scoreToGraphValues,
+} from "./evaluation-graph-model";
 
 function makePoint(
   ply: number,
@@ -312,5 +316,27 @@ describe("buildEvaluationGraphPoints", () => {
     expect(result).toHaveLength(2);
     expect(result[0].san).toBeNull();
     expect(result[1].san).toBeNull();
+  });
+});
+
+describe("scoreToGraphValues", () => {
+  it("a cp value inside the clamp keeps its value and advantage", () => {
+    const result = scoreToGraphValues("cp", 500);
+    expect(result).toEqual({ hasValue: true, clampedCp: 500, advantage: 0.75, isMate: false });
+  });
+
+  it("a cp value beyond the clamp saturates", () => {
+    const result = scoreToGraphValues("cp", 1500);
+    expect(result).toEqual({ hasValue: true, clampedCp: EVAL_CLAMP_CP, advantage: 1, isMate: false });
+  });
+
+  it("a positive mate gives clampedCp EVAL_CLAMP_CP and isMate true", () => {
+    const result = scoreToGraphValues("mate", 3);
+    expect(result).toEqual({ hasValue: true, clampedCp: EVAL_CLAMP_CP, advantage: 1, isMate: true });
+  });
+
+  it("a mate value of exactly 0 gives clampedCp -EVAL_CLAMP_CP", () => {
+    const result = scoreToGraphValues("mate", 0);
+    expect(result).toEqual({ hasValue: true, clampedCp: -EVAL_CLAMP_CP, advantage: 0, isMate: true });
   });
 });
