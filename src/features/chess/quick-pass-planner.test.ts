@@ -41,6 +41,7 @@ describe("planQuickPass", () => {
     const plan = planQuickPass(timeline, { kind: "depth", value: 14 });
 
     expect(plan.ok).toBe(false);
+    if (plan.ok) throw new Error("expected an ineligible plan");
     expect(plan.reason).toBe("Timeline is not eligible for analysis.");
     expect(collectJobs(plan)).toHaveLength(0);
   });
@@ -123,7 +124,7 @@ describe("planQuickPass", () => {
 
   it("preserves the depth limit exactly", () => {
     const timeline = completedTimeline();
-    const limit = { kind: "depth", value: 14 };
+    const limit = { kind: "depth", value: 14 } as const;
     const plan = planQuickPass(timeline, limit);
 
     expect(plan.ok).toBe(true);
@@ -134,7 +135,7 @@ describe("planQuickPass", () => {
 
   it("preserves the nodes limit exactly", () => {
     const timeline = completedTimeline();
-    const limit = { kind: "nodes", value: 50000 };
+    const limit = { kind: "nodes", value: 50000 } as const;
     const plan = planQuickPass(timeline, limit);
 
     expect(plan.ok).toBe(true);
@@ -145,7 +146,7 @@ describe("planQuickPass", () => {
 
   it("preserves the movetime limit exactly", () => {
     const timeline = completedTimeline();
-    const limit = { kind: "movetime", value: 1000 };
+    const limit = { kind: "movetime", value: 1000 } as const;
     const plan = planQuickPass(timeline, limit);
 
     expect(plan.ok).toBe(true);
@@ -161,7 +162,7 @@ describe("planQuickPass", () => {
     const originalInitialFen = timeline.initialFen;
     const originalFinalFen = timeline.finalFen;
 
-    const limit = { kind: "depth", value: 14 };
+    const limit = { kind: "depth", value: 14 } as const;
     const plan = planQuickPass(timeline, limit);
 
     expect(timeline.steps.length).toBe(originalStepsLength);
