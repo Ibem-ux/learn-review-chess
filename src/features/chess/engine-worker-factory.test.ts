@@ -31,34 +31,42 @@ describe("engine-worker-factory", () => {
 
   describe("when Worker is available", () => {
     let WorkerSpy: ReturnType<typeof vi.fn>;
-    let workerInstances: Array<{ postMessage: ReturnType<typeof vi.fn>; terminate: ReturnType<typeof vi.fn> }>;
+    let workerInstances: Array<{
+      postMessage: ReturnType<typeof vi.fn>;
+      terminate: ReturnType<typeof vi.fn>;
+      dispatch: (data: string) => void;
+      dispatchError: (message: string) => void;
+    }>;
 
     beforeEach(() => {
       workerInstances = [];
       WorkerSpy = vi.fn(function MockWorker() {
-        const listeners: { message: Set<(data: string) => void>; error: Set<(message: string) => void> } = {
+        const listeners: {
+          message: Set<(event: MessageEvent<string>) => void>;
+          error: Set<(event: ErrorEvent) => void>;
+        } = {
           message: new Set(),
           error: new Set(),
         };
         const instance = {
           postMessage: vi.fn(),
           terminate: vi.fn(),
-          addEventListener: vi.fn((type: string, handler: (event: unknown) => void) => {
-            if (type === "message") listeners.message.add(handler as (data: string) => void);
-            if (type === "error") listeners.error.add(handler as (message: string) => void);
+          addEventListener: vi.fn((type: string, handler: (event: MessageEvent<string> | ErrorEvent) => void) => {
+            if (type === "message") listeners.message.add(handler);
+            if (type === "error") listeners.error.add(handler);
           }),
-          removeEventListener: vi.fn((type: string, handler: (event: unknown) => void) => {
-            if (type === "message") listeners.message.delete(handler as (data: string) => void);
-            if (type === "error") listeners.error.delete(handler as (message: string) => void);
+          removeEventListener: vi.fn((type: string, handler: (event: MessageEvent<string> | ErrorEvent) => void) => {
+            if (type === "message") listeners.message.delete(handler);
+            if (type === "error") listeners.error.delete(handler);
           }),
-          dispatch(data: unknown): void {
+          dispatch(data: string): void {
             for (const handler of listeners.message) {
-              handler({ data } as MessageEvent<string>);
+              handler(new MessageEvent("message", { data }));
             }
           },
           dispatchError(message: string): void {
             for (const handler of listeners.error) {
-              handler({ message } as ErrorEvent);
+              handler(new ErrorEvent("error", { message }));
             }
           },
         };
