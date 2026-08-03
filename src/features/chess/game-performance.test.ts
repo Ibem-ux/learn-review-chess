@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { ClassifiedMove } from "@/features/chess/move-classification";
+import type { ClassifiedMove, MoveClassification } from "@/features/chess/move-classification";
 import type { MoveAssessment } from "@/features/chess/move-assessment";
 import { buildGamePerformance } from "@/features/chess/game-performance";
 
 function classified(
   overrides: Partial<MoveAssessment> = {},
-  classification: string = "good",
+  classification: MoveClassification = "good",
 ): ClassifiedMove {
   const assessment: MoveAssessment = {
     ply: 1,
@@ -29,7 +29,7 @@ function classified(
 
   return {
     assessment,
-    classification: classification as ClassifiedMove["classification"],
+    classification,
     basis: "centipawn-loss",
   };
 }
@@ -77,7 +77,7 @@ describe("buildGamePerformance", () => {
 
   it("includes all seven classification keys initialized to zero", () => {
     const result = buildGamePerformance([]);
-    const keys = Object.keys(result.white.counts) as Array<keyof typeof result.white.counts>;
+    const keys: MoveClassification[] = ["best", "excellent", "good", "inaccuracy", "mistake", "blunder", "unclassified"];
     for (const key of keys) {
       expect(result.white.counts[key]).toBe(0);
       expect(result.black.counts[key]).toBe(0);
@@ -140,5 +140,24 @@ describe("buildGamePerformance", () => {
     const result = buildGamePerformance(items);
     expect(result.white.averageCentipawnLoss).toBeNull();
     expect(result.black.averageCentipawnLoss).toBeNull();
+  });
+
+  it("counts each classification under the correct player", () => {
+    const items: ClassifiedMove[] = [
+      classified({ mover: "white" }, "best"),
+      classified({ mover: "white" }, "blunder"),
+      classified({ mover: "white" }, "blunder"),
+      classified({ mover: "black" }, "good"),
+      classified({ mover: "black" }, "mistake"),
+      classified({ mover: "black" }, "unclassified"),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.counts.best).toBe(1);
+    expect(result.white.counts.blunder).toBe(2);
+    expect(result.white.counts.good).toBe(0);
+    expect(result.black.counts.good).toBe(1);
+    expect(result.black.counts.mistake).toBe(1);
+    expect(result.black.counts.unclassified).toBe(1);
+    expect(result.black.counts.blunder).toBe(0);
   });
 });
