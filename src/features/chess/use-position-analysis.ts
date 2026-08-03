@@ -178,6 +178,8 @@ export function usePositionAnalysis(args: {
       return;
     }
 
+    const factory = createStockfishWorkerFactory();
+    const controller = new EngineController(factory);
     const ownerId = `position-analysis-${positionAnalysisOwnerCounter++}`;
     ownerIdRef.current = ownerId;
     acquireEngine({
@@ -191,9 +193,6 @@ export function usePositionAnalysis(args: {
         controllerRef.current = null;
       },
     });
-
-    const factory = createStockfishWorkerFactory();
-    const controller = new EngineController(factory);
     controllerRef.current = controller;
 
     const unsubscribe = controller.subscribe(handleEvent);

@@ -135,4 +135,33 @@ describe("use-engine-analysis factory failure", () => {
 
     expect(failingFactory).toHaveBeenCalledTimes(1);
   });
+
+  it("a factory failure does not revoke the previous engine owner", async () => {
+    vi.resetModules();
+
+    const failingFactory = vi.fn(() => {
+      throw new Error("Web Workers are not available in this environment.");
+    });
+
+    vi.doMock("@/features/chess/engine-worker-factory", () => ({
+      createStockfishWorkerFactory: failingFactory,
+    }));
+
+    vi.doMock("@/features/chess/engine-controller", () => ({
+      EngineController: vi.fn(function MockEngineController() {
+        return createFakeController(createFakeWorker());
+      }),
+    }));
+
+    const { acquireEngine } = await import("@/features/chess/engine-ownership");
+    const priorOnRevoked = vi.fn();
+    acquireEngine({ id: "other", onRevoked: priorOnRevoked });
+
+    const mod = await import("@/features/chess/use-engine-analysis");
+    const { useEngineAnalysis } = mod;
+
+    renderHook(() => useEngineAnalysis());
+
+    expect(priorOnRevoked).toHaveBeenCalledTimes(0);
+  });
 });

@@ -99,6 +99,8 @@ export function useEngineAnalysis(
     };
 
     try {
+      const factory = createStockfishWorkerFactory();
+      controller = new EngineController(factory);
       const ownerId = `engine-analysis-${engineOwnerCounter++}`;
       ownerIdRef.current = ownerId;
       // onRevoked must not set React state; it runs synchronously during another component's acquireEngine call.
@@ -113,8 +115,6 @@ export function useEngineAnalysis(
           controllerRef.current = null;
         },
       });
-      const factory = createStockfishWorkerFactory();
-      controller = new EngineController(factory);
       controllerRef.current = controller;
 
       const listener = (event: EngineWorkerEvent) => {
