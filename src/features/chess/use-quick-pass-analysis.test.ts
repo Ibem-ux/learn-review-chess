@@ -1490,6 +1490,52 @@ describe("use-quick-pass-analysis", () => {
       expect(EngineControllerMock).toHaveBeenCalledTimes(0);
       expect(fakeController.dispose).not.toHaveBeenCalled();
     });
+
+    it("a factory failure during start does not revoke the previous engine owner", async () => {
+      vi.resetModules();
+
+      const failingFactory = vi.fn(() => {
+        throw new Error("Web Workers are not available in this environment.");
+      });
+
+      vi.doMock("@/features/chess/engine-worker-factory", () => ({
+        createStockfishWorkerFactory: failingFactory,
+      }));
+
+      vi.doMock("@/features/chess/engine-controller", () => ({
+        EngineController: vi.fn(function MockEngineController() {
+          return createFakeController(createFakeWorker());
+        }),
+      }));
+
+      vi.doMock("@/features/chess/quick-pass-planner", () => ({
+        planQuickPass: vi.fn(() => ({ ok: true, jobs: [] })),
+      }));
+
+      vi.doMock("@/features/chess/quick-pass-runner", () => ({
+        QuickPassRunner: vi.fn(function MockQuickPassRunner() {
+          return createFakeRunner();
+        }),
+      }));
+
+      const { acquireEngine } = await import("@/features/chess/engine-ownership");
+      const priorOnRevoked = vi.fn();
+      acquireEngine({ id: "other", onRevoked: priorOnRevoked });
+
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit: EngineAnalysisLimit = { kind: "depth", value: 14 };
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
+
+      expect(priorOnRevoked).toHaveBeenCalledTimes(0);
+    });
   });
 });
 

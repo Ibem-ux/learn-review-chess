@@ -307,6 +307,8 @@ export function useQuickPassAnalysis(
 
       if (!controllerRef.current) {
         try {
+          const factory = createStockfishWorkerFactory();
+          const controller = new EngineController(factory);
           const ownerId = `quick-pass-${quickPassOwnerCounter++}`;
           ownerIdRef.current = ownerId;
           // onRevoked must not set React state; it runs synchronously during another component's acquireEngine call.
@@ -350,8 +352,6 @@ export function useQuickPassAnalysis(
               initializedRef.current = false;
             },
           });
-          const factory = createStockfishWorkerFactory();
-          const controller = new EngineController(factory);
           controllerRef.current = controller;
 
           const unsubscribe = controller.subscribe(handleControllerEvent);
