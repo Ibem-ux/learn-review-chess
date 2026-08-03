@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
 import type { EngineAnalysisLimit } from "@/features/chess/engine";
 import type { ReviewTimeline } from "@/features/chess/timeline";
+import type { QuickPassCompletedJob } from "@/features/chess/quick-pass-runner";
 import type { UseQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
 
 type Mutable<T> = {
@@ -27,7 +28,7 @@ function createTimeline(overrides: Partial<ReviewTimeline> = {}): ReviewTimeline
   return {
     steps: [
       { ply: 0, fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", move: null },
-      { ply: 1, fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 0", move: { san: "e4", uci: "e2e4", before: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", after: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 0", color: "w" } },
+      { ply: 1, fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 0", move: { san: "e4", from: "e2", to: "e4", before: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", after: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 0", color: "w" } },
     ],
     totalPlies: 1,
     initialFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
@@ -37,7 +38,7 @@ function createTimeline(overrides: Partial<ReviewTimeline> = {}): ReviewTimeline
   };
 }
 
-function createResult(ply: number) {
+function createResult(ply: number): Mutable<QuickPassCompletedJob> {
   return {
     job: { id: `quick-pass-${ply}`, phase: "quick-pass" as const, ply, fen: `fen-${ply}`, limit: { kind: "depth" as const, value: 14 } },
     info: { depth: 14, multipv: 1, score: { type: "cp" as const, value: 30, perspective: "side-to-move" as const }, nodes: 1000, timeMs: 100, pv: ["e2e4", "e7e5"] },
@@ -49,7 +50,7 @@ function createResult(ply: number) {
   };
 }
 
-function createMinimalResult(ply: number) {
+function createMinimalResult(ply: number): Mutable<QuickPassCompletedJob> {
   return {
     job: { id: `quick-pass-${ply}`, phase: "quick-pass" as const, ply, fen: `fen-${ply}`, limit: { kind: "depth" as const, value: 14 } },
     info: { depth: 14, pv: ["e2e4"] },
@@ -365,7 +366,7 @@ describe("FullGameAnalysisPanel", () => {
       finalFen: "same-fen",
       steps: [
         { ply: 0, fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", move: null },
-        { ply: 1, fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 0", move: { san: "d4", uci: "d2d4", before: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", after: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 0", color: "w" } },
+        { ply: 1, fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 0", move: { san: "d4", from: "d2", to: "d4", before: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", after: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 0", color: "w" } },
       ],
     });
     expect(timelineA.initialFen).toBe(timelineB.initialFen);
