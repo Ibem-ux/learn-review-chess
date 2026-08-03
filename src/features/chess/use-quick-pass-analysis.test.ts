@@ -1475,6 +1475,29 @@ describe("use-quick-pass-analysis", () => {
       expect(fakeController.dispose).toHaveBeenCalledTimes(1);
     });
 
+    it("revocation disposes the runner exactly once", async () => {
+      const mod = await import("@/features/chess/use-quick-pass-analysis");
+      const { useQuickPassAnalysis } = mod;
+      const { acquireEngine } = await import("@/features/chess/engine-ownership");
+
+      const { result } = renderHook(() => useQuickPassAnalysis());
+
+      const timeline = minimalTimeline(true);
+      const limit: EngineAnalysisLimit = { kind: "depth", value: 14 };
+
+      act(() => {
+        result.current.start(timeline, limit);
+      });
+
+      act(() => {
+        fakeController.emit({ type: "ready", requestId: "init-1" });
+      });
+
+      acquireEngine({ id: "other", onRevoked: () => {} });
+
+      expect(fakeRunner.dispose).toHaveBeenCalledTimes(1);
+    });
+
     it("when another owner acquires before start, no controller is created and no dispose occurs", async () => {
       const mod = await import("@/features/chess/use-quick-pass-analysis");
       const { useQuickPassAnalysis } = mod;

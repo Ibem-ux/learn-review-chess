@@ -322,18 +322,19 @@ export function useQuickPassAnalysis(
               }
               runnerUnsubRef.current = null;
 
-              try {
-                runnerRef.current?.cancel();
-              } catch {
-                // swallow
-              }
+              const runner = runnerRef.current;
+              runnerRef.current = null;
 
               try {
-                runnerRef.current?.dispose();
+                runner?.cancel();
               } catch {
                 // swallow
               }
-              runnerRef.current = null;
+              try {
+                runner?.dispose();
+              } catch {
+                // swallow
+              }
 
               try {
                 controllerUnsubRef.current?.();
