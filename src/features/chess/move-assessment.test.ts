@@ -4,6 +4,7 @@ import type { ReviewTimeline } from "@/features/chess/timeline";
 import type { PgnMove } from "@/features/chess/pgn";
 import type { QuickPassCompletedJob, QuickPassCandidateLine } from "@/features/chess/quick-pass-runner";
 import type { QuickPassJob } from "@/features/chess/quick-pass-planner";
+import type { Square } from "chess.js";
 import {
   buildMoveAssessments,
 } from "@/features/chess/move-assessment";
@@ -66,8 +67,8 @@ function makeResult(
 function makePgnMove(
   san: string,
   color: "w" | "b",
-  from: string,
-  to: string,
+  from: Square,
+  to: Square,
   before: string,
   after: string,
   opts?: { promotion?: string },
@@ -372,7 +373,7 @@ describe("buildMoveAssessments", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const a = result.assessments[0];
-      const delta = a.delta as MateTransition | null;
+      const delta = a.delta;
       expect(delta).not.toBeNull();
       if (!delta || delta.kind !== "mate") return;
       expect(delta.beforeMoverScore.type).toBe("cp");
@@ -389,7 +390,7 @@ describe("buildMoveAssessments", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const a = result.assessments[0];
-      const delta = a.delta as MateTransition | null;
+      const delta = a.delta;
       expect(delta).not.toBeNull();
       if (!delta || delta.kind !== "mate") return;
       expect(delta.beforeMoverScore.type).toBe("mate");
@@ -406,7 +407,7 @@ describe("buildMoveAssessments", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const a = result.assessments[0];
-      const delta = a.delta as MateTransition | null;
+      const delta = a.delta;
       expect(delta).not.toBeNull();
       if (!delta || delta.kind !== "mate") return;
       expect(delta.beforeMoverScore.value).toBe(-2);
@@ -423,7 +424,7 @@ describe("buildMoveAssessments", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const a = result.assessments[0];
-      const delta = a.delta as MateTransition | null;
+      const delta = a.delta;
       expect(delta).not.toBeNull();
       if (!delta || delta.kind !== "mate") return;
       expect(delta.beforeMoverScore.value).toBe(3);
