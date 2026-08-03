@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
+import type { Mock } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import type { EngineWorkerEvent, EngineAnalysisLimit } from "@/features/chess/engine";
 
@@ -146,8 +147,8 @@ describe("use-engine-analysis", () => {
   });
 
   describe("when Worker is available", () => {
-    let WorkerSpy: ReturnType<typeof vi.fn>;
-    let EngineControllerSpy: ReturnType<typeof vi.fn>;
+    let WorkerSpy: Mock<() => void>;
+    let EngineControllerSpy: Mock<() => void>;
 
     beforeEach(async () => {
       vi.resetModules();

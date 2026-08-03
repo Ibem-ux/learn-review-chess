@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
+import type { Mock } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { EngineWorkerEvent, EngineAnalysisLimit } from "@/features/chess/engine";
 import type { ReviewTimeline } from "@/features/chess/timeline";
@@ -186,8 +187,8 @@ describe("use-quick-pass-analysis", () => {
   });
 
   describe("when Worker is available", () => {
-    let WorkerSpy: ReturnType<typeof vi.fn>;
-    let EngineControllerSpy: ReturnType<typeof vi.fn>;
+    let WorkerSpy: Mock<() => void>;
+    let EngineControllerSpy: Mock<() => void>;
     let planQuickPassSpy: ReturnType<typeof vi.fn>;
     let QuickPassRunnerSpy: ReturnType<typeof vi.fn>;
 
