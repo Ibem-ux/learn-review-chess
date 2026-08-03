@@ -301,7 +301,7 @@ describe("QuickPassRunner", () => {
       const runner = new QuickPassRunner({ engine });
       runner.start(completedPlan(jobs));
 
-      engine.emit({ type: "stopped", requestId: "quick-pass-0", move: { move: "e2e4", ponder: null } });
+      engine.emit({ type: "stopped", requestId: "quick-pass-0" });
 
       const state = runner.getState();
       expect(state.status).toBe("error");
@@ -322,7 +322,7 @@ describe("QuickPassRunner", () => {
       runner.subscribe((state) => snapshots.push(state));
       runner.start(completedPlan(jobs));
 
-      engine.emit({ type: "stopped", requestId: "quick-pass-0", move: { move: "e2e4", ponder: null } });
+      engine.emit({ type: "stopped", requestId: "quick-pass-0" });
 
       const terminalSnapshots = snapshots.filter((s) => s.status === "error");
       expect(terminalSnapshots).toHaveLength(1);
@@ -337,7 +337,7 @@ describe("QuickPassRunner", () => {
       const runner = new QuickPassRunner({ engine });
       runner.start(completedPlan(jobs));
 
-      engine.emit({ type: "stopped", requestId: "other", move: { move: "e2e4", ponder: null } });
+      engine.emit({ type: "stopped", requestId: "other" });
       engine.emit({ type: "best-move", requestId: "quick-pass-0", move: { move: "e2e4", ponder: null } });
 
       expect(runner.getState().status).toBe("completed");
