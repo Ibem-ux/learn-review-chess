@@ -188,7 +188,7 @@ describe("buildGamePerformance", () => {
     expect(largeResult.white.averageAccuracy).toBeLessThan(60);
   });
 
-  it("counts a mate delta as accuracy-eligible", () => {
+  it("counts a mate delta for accuracy eligibility", () => {
     const items: ClassifiedMove[] = [
       classified({
         mover: "white",
@@ -239,7 +239,7 @@ describe("buildGamePerformance", () => {
     expect(result.black.accuracyMoves).toBe(1);
   });
 
-  it("scores a squandered forced mate as zero accuracy", () => {
+  it("scores a squandered forced mate for zero accuracy", () => {
     const items: ClassifiedMove[] = [
       classified({
         mover: "white",
@@ -252,5 +252,216 @@ describe("buildGamePerformance", () => {
     expect(result.white.accuracyMoves).toBe(1);
     expect(result.white.averageAccuracy).toBe(0);
   });
+
+  it("populates opening phase accuracy and leaves middlegame and endgame null", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        ply: 0,
+        beforeFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 29, perspective: "mover" },
+          signedChange: -1,
+          centipawnLoss: 1,
+        },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.phaseMoves.opening).toBe(1);
+    expect(result.white.phaseMoves.middlegame).toBe(0);
+    expect(result.white.phaseMoves.endgame).toBe(0);
+    expect(result.white.phaseAccuracy.opening).not.toBeNull();
+    expect(result.white.phaseAccuracy.middlegame).toBeNull();
+    expect(result.white.phaseAccuracy.endgame).toBeNull();
+  });
+
+  it("populates only endgame phase accuracy for an endgame move", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        ply: 40,
+        beforeFen: "4k3/pppppppp/8/8/8/8/PPPPPPPP/4K3 w - - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 29, perspective: "mover" },
+          signedChange: -1,
+          centipawnLoss: 1,
+        },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.phaseMoves.opening).toBe(0);
+    expect(result.white.phaseMoves.middlegame).toBe(0);
+    expect(result.white.phaseMoves.endgame).toBe(1);
+    expect(result.white.phaseAccuracy.opening).toBeNull();
+    expect(result.white.phaseAccuracy.middlegame).toBeNull();
+    expect(result.white.phaseAccuracy.endgame).not.toBeNull();
+  });
+
+  it("populates only middlegame phase accuracy for a middlegame move", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        ply: 40,
+        beforeFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 29, perspective: "mover" },
+          signedChange: -1,
+          centipawnLoss: 1,
+        },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.phaseMoves.opening).toBe(0);
+    expect(result.white.phaseMoves.middlegame).toBe(1);
+    expect(result.white.phaseMoves.endgame).toBe(0);
+    expect(result.white.phaseAccuracy.opening).toBeNull();
+    expect(result.white.phaseAccuracy.middlegame).not.toBeNull();
+    expect(result.white.phaseAccuracy.endgame).toBeNull();
+  });
+
+  it("averages moves in different phases separately", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        ply: 0,
+        beforeFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 29, perspective: "mover" },
+          signedChange: -1,
+          centipawnLoss: 1,
+        },
+      }),
+      classified({
+        mover: "white",
+        ply: 40,
+        beforeFen: "4k3/pppppppp/8/8/8/8/PPPPPPPP/4K3 w - - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: -170, perspective: "mover" },
+          signedChange: -200,
+          centipawnLoss: 200,
+        },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.phaseMoves.opening).toBe(1);
+    expect(result.white.phaseMoves.endgame).toBe(1);
+    expect(result.white.phaseMoves.middlegame).toBe(0);
+    expect(result.white.phaseAccuracy.opening).toBeGreaterThan(95);
+    expect(result.white.phaseAccuracy.endgame).toBeLessThan(60);
+    expect(result.white.phaseAccuracy.middlegame).toBeNull();
+  });
+
+  it("does not include bounded deltas in any phase bucket", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        ply: 0,
+        beforeFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        delta: {
+          kind: "bounded",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 20, perspective: "mover" },
+        },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.phaseMoves.opening).toBe(0);
+    expect(result.white.phaseMoves.middlegame).toBe(0);
+    expect(result.white.phaseMoves.endgame).toBe(0);
+    expect(result.white.phaseAccuracy.opening).toBeNull();
+    expect(result.white.phaseAccuracy.middlegame).toBeNull();
+    expect(result.white.phaseAccuracy.endgame).toBeNull();
+  });
+
+  it("tracks phase buckets independently per player", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        ply: 0,
+        beforeFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 29, perspective: "mover" },
+          signedChange: -1,
+          centipawnLoss: 1,
+        },
+      }),
+      classified({
+        mover: "black",
+        ply: 40,
+        beforeFen: "4k3/pppppppp/8/8/8/8/PPPPPPPP/4K3 w - - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 0, perspective: "mover" },
+          signedChange: -30,
+          centipawnLoss: 30,
+        },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.phaseMoves.opening).toBe(1);
+    expect(result.white.phaseMoves.endgame).toBe(0);
+    expect(result.black.phaseMoves.opening).toBe(0);
+    expect(result.black.phaseMoves.endgame).toBe(1);
+  });
+
+  it("sums phaseMoves to equal accuracyMoves", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        ply: 0,
+        beforeFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 29, perspective: "mover" },
+          signedChange: -1,
+          centipawnLoss: 1,
+        },
+      }),
+      classified({
+        mover: "white",
+        ply: 40,
+        beforeFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        delta: {
+          kind: "exact",
+          beforeMoverScore: { type: "cp", value: 30, perspective: "mover" },
+          afterMoverScore: { type: "cp", value: 20, perspective: "mover" },
+          signedChange: -10,
+          centipawnLoss: 10,
+        },
+      }),
+      classified({
+        mover: "white",
+        ply: 40,
+        beforeFen: "4k3/pppppppp/8/8/8/8/PPPPPPPP/4K3 w - - 0 1",
+        delta: {
+          kind: "mate",
+          beforeMoverScore: { type: "mate", value: 2, perspective: "mover" },
+          afterMoverScore: { type: "mate", value: 1, perspective: "mover" },
+        },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    const sum =
+      result.white.phaseMoves.opening +
+      result.white.phaseMoves.middlegame +
+      result.white.phaseMoves.endgame;
+    expect(sum).toBe(result.white.accuracyMoves);
+    expect(sum).toBe(3);
+  });
 });
+
 
