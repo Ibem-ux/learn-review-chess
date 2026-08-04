@@ -3,6 +3,8 @@ import type { MoveClassification } from "./move-classification";
 import { ClassificationIcon } from "./classification-icon";
 
 const LABELS: Record<MoveClassification, string> = {
+  brilliant: "Brilliant move",
+  great: "Great move",
   best: "Best move",
   excellent: "Excellent move",
   good: "Good move",

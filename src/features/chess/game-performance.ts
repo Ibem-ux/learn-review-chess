@@ -32,6 +32,8 @@ export function buildGamePerformance(
   classified: readonly ClassifiedMove[],
 ): GamePerformance {
   const counts: Record<MoveClassification, number> = {
+    brilliant: 0,
+    great: 0,
     best: 0,
     excellent: 0,
     good: 0,

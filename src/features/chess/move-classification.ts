@@ -1,6 +1,8 @@
 import type { MoveAssessment } from "./move-assessment";
 
 export type MoveClassification =
+  | "brilliant"
+  | "great"
   | "best"
   | "excellent"
   | "good"

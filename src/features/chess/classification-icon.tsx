@@ -1,6 +1,8 @@
 import type { MoveClassification } from "./move-classification";
 
 const COLORS: Record<MoveClassification, string> = {
+  brilliant: "#22d3ee",
+  great: "#818cf8",
   best: "#22c55e",
   excellent: "#14b8a6",
   good: "#eab308",
@@ -11,6 +13,8 @@ const COLORS: Record<MoveClassification, string> = {
 };
 
 const LABELS: Record<MoveClassification, string> = {
+  brilliant: "Brilliant move",
+  great: "Great move",
   best: "Best move",
   excellent: "Excellent move",
   good: "Good move",
@@ -25,6 +29,24 @@ function renderGlyph(
   color: string
 ): React.ReactElement {
   switch (classification) {
+    case "brilliant":
+      return (
+        <>
+          <circle cx="8" cy="8" r="7" fill={color} />
+          <rect x="5.25" y="3.5" width="1.5" height="5" fill="white" />
+          <circle cx="6" cy="10.5" r="0.8" fill="white" />
+          <rect x="9.25" y="3.5" width="1.5" height="5" fill="white" />
+          <circle cx="10" cy="10.5" r="0.8" fill="white" />
+        </>
+      );
+    case "great":
+      return (
+        <>
+          <circle cx="8" cy="8" r="7" fill={color} />
+          <rect x="7.25" y="3.5" width="1.5" height="5" fill="white" />
+          <circle cx="8" cy="10.5" r="0.8" fill="white" />
+        </>
+      );
     case "best":
       return (
         <>

@@ -4,6 +4,8 @@ import { ClassificationIcon } from "@/features/chess/classification-icon";
 import type { MoveClassification } from "@/features/chess/move-classification";
 
 const CLASSIFICATIONS: MoveClassification[] = [
+  "brilliant",
+  "great",
   "best",
   "excellent",
   "good",
@@ -121,6 +123,6 @@ describe("ClassificationIcon", () => {
       const inner = svg.innerHTML;
       glyphs.add(inner);
     }
-    expect(glyphs.size).toBe(7);
+    expect(glyphs.size).toBe(CLASSIFICATIONS.length);
   });
 });

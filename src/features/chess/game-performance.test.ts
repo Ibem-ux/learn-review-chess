@@ -79,7 +79,7 @@ describe("buildGamePerformance", () => {
 
   it("includes all seven classification keys initialized to zero", () => {
     const result = buildGamePerformance([]);
-    const keys: MoveClassification[] = ["best", "excellent", "good", "inaccuracy", "mistake", "blunder", "unclassified"];
+    const keys: MoveClassification[] = ["brilliant", "great", "best", "excellent", "good", "inaccuracy", "mistake", "blunder", "unclassified"];
     for (const key of keys) {
       expect(result.white.counts[key]).toBe(0);
       expect(result.black.counts[key]).toBe(0);
