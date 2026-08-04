@@ -942,5 +942,58 @@ describe("buildMoveAssessments", () => {
       expect(a.bestCandidateScore).toEqual({ type: "cp", value: 30, perspective: "mover" });
       expect(a.secondCandidateScore).toEqual({ type: "cp", value: 10, perspective: "mover" });
     });
+
+    it("preserves side-to-move candidate score for a WHITE mover", () => {
+      const timeline = shortGameTimeline();
+      const job0 = makeJob(0, INITIAL);
+      const info0: EngineInfo = { depth: 14, score: { type: "cp", value: 40, perspective: "white" }, pv: ["e2e4"] };
+      const lines: QuickPassCandidateLine[] = [
+        { rank: 1, info: { score: { type: "cp", value: 40, perspective: "side-to-move" }, pv: ["e2e4"] } },
+      ];
+      const result0 = makeResult(job0, info0, lines);
+      const series = buildMoveAssessments(timeline, [result0]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 40, perspective: "mover" });
+    });
+
+    it("preserves side-to-move candidate scores for a BLACK mover", () => {
+      const timeline = shortGameTimeline();
+      const job1 = makeJob(1, AFTER_E4);
+      const info1: EngineInfo = { depth: 14, score: { type: "cp", value: -60, perspective: "white" }, pv: ["e7e5"] };
+      const lines: QuickPassCandidateLine[] = [
+        { rank: 1, info: { score: { type: "cp", value: 60, perspective: "side-to-move" }, pv: ["e7e5"] } },
+        { rank: 2, info: { score: { type: "cp", value: 15, perspective: "side-to-move" }, pv: ["c7c5"] } },
+      ];
+      const result1 = makeResult(job1, info1, lines);
+      const series = buildMoveAssessments(timeline, [result1]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[1];
+      // A side-to-move score is already from the mover's point of view, so the
+      // value must survive the round trip unchanged. A wrong sideToMove argument
+      // would negate it.
+      expect(a.mover).toBe("black");
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 60, perspective: "mover" });
+      expect(a.secondCandidateScore).toEqual({ type: "cp", value: 15, perspective: "mover" });
+    });
+
+    it("carries second candidate score when best candidate is scoreless with side-to-move score", () => {
+      const timeline = shortGameTimeline();
+      const job0 = makeJob(0, INITIAL);
+      const info0: EngineInfo = { depth: 14, score: { type: "cp", value: 25, perspective: "white" }, pv: ["e2e4"] };
+      const lines: QuickPassCandidateLine[] = [
+        { rank: 1, info: { pv: ["e2e4"] } },
+        { rank: 2, info: { score: { type: "cp", value: 25, perspective: "side-to-move" }, pv: ["d2d4"] } },
+      ];
+      const result0 = makeResult(job0, info0, lines);
+      const series = buildMoveAssessments(timeline, [result0]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateScore).toBeNull();
+      expect(a.secondCandidateScore).toEqual({ type: "cp", value: 25, perspective: "mover" });
+    });
   });
 });
