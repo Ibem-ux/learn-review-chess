@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EngineScore, EngineInfo, ScoreBound } from "@/features/chess/engine";
+import type { EngineScore, EngineInfo } from "@/features/chess/engine";
 import type { ReviewTimeline } from "@/features/chess/timeline";
 import type { QuickPassCompletedJob } from "@/features/chess/quick-pass-runner";
 import type { QuickPassJob } from "@/features/chess/quick-pass-planner";
@@ -278,21 +278,21 @@ describe("normalizeScore", () => {
   });
 
   it("preserves already White-perspective cp score regardless of side to move", () => {
-    const score: EngineScore = { type: "cp", value: 40, perspective: "white", bound: "upperbound" as ScoreBound };
+    const score: EngineScore = { type: "cp", value: 40, perspective: "white", bound: "upperbound" };
     expect(normalizeScore(score, "b")).toEqual({
       type: "cp", value: 40, perspective: "white", bound: "upperbound",
     });
   });
 
   it("preserves already White-perspective mate score regardless of side to move", () => {
-    const score: EngineScore = { type: "mate", value: -3, perspective: "white", bound: "lowerbound" as ScoreBound };
+    const score: EngineScore = { type: "mate", value: -3, perspective: "white", bound: "lowerbound" };
     expect(normalizeScore(score, "w")).toEqual({
       type: "mate", value: -3, perspective: "white", bound: "lowerbound",
     });
   });
 
   it("swaps lowerbound to upperbound when inverting side-to-move cp for Black", () => {
-    const score: EngineScore = { type: "cp", value: 20, perspective: "side-to-move", bound: "lowerbound" as ScoreBound };
+    const score: EngineScore = { type: "cp", value: 20, perspective: "side-to-move", bound: "lowerbound" };
     const result = normalizeScore(score, "b");
     expect(result).toEqual({
       type: "cp", value: -20, perspective: "white", bound: "upperbound",
@@ -300,7 +300,7 @@ describe("normalizeScore", () => {
   });
 
   it("swaps upperbound to lowerbound when inverting side-to-move cp for Black", () => {
-    const score: EngineScore = { type: "cp", value: 20, perspective: "side-to-move", bound: "upperbound" as ScoreBound };
+    const score: EngineScore = { type: "cp", value: 20, perspective: "side-to-move", bound: "upperbound" };
     const result = normalizeScore(score, "b");
     expect(result).toEqual({
       type: "cp", value: -20, perspective: "white", bound: "lowerbound",

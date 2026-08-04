@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EngineScore, EngineInfo, ScoreBound } from "@/features/chess/engine";
+import type { EngineScore, EngineInfo } from "@/features/chess/engine";
 import type { ReviewTimeline } from "@/features/chess/timeline";
 import type { PgnMove } from "@/features/chess/pgn";
 import type { QuickPassCompletedJob, QuickPassCandidateLine } from "@/features/chess/quick-pass-runner";
@@ -312,10 +312,11 @@ describe("buildMoveAssessments", () => {
 
     it("returns bounded delta when before score has lowerbound", () => {
       const timeline = shortGameTimeline();
+      const score: EngineScore = { type: "cp", value: 30, perspective: "white", bound: "lowerbound" };
       const results = resultsFor(timeline, [
         {
           ply: 0,
-          score: { type: "cp", value: 30, perspective: "white", bound: "lowerbound" as ScoreBound },
+          score,
         },
         { ply: 1, score: { type: "cp", value: 10, perspective: "white" } },
       ]);
@@ -331,11 +332,12 @@ describe("buildMoveAssessments", () => {
 
     it("returns bounded delta when after score has upperbound", () => {
       const timeline = shortGameTimeline();
+      const score: EngineScore = { type: "cp", value: 10, perspective: "white", bound: "upperbound" };
       const results = resultsFor(timeline, [
         { ply: 0, score: { type: "cp", value: 30, perspective: "white" } },
         {
           ply: 1,
-          score: { type: "cp", value: 10, perspective: "white", bound: "upperbound" as ScoreBound },
+          score,
         },
       ]);
       const result = buildMoveAssessments(timeline, results);
@@ -528,10 +530,11 @@ describe("buildMoveAssessments", () => {
 
     it("black lowerbound becomes upperbound", () => {
       const timeline = shortGameTimeline();
+      const score: EngineScore = { type: "cp", value: -30, perspective: "white", bound: "lowerbound" };
       const results = resultsFor(timeline, [
         {
           ply: 1,
-          score: { type: "cp", value: -30, perspective: "white", bound: "lowerbound" as ScoreBound },
+          score,
         },
         { ply: 2, score: { type: "cp", value: 10, perspective: "white" } },
       ]);
@@ -550,10 +553,11 @@ describe("buildMoveAssessments", () => {
 
     it("black upperbound becomes lowerbound", () => {
       const timeline = shortGameTimeline();
+      const score: EngineScore = { type: "cp", value: -30, perspective: "white", bound: "upperbound" };
       const results = resultsFor(timeline, [
         {
           ply: 1,
-          score: { type: "cp", value: -30, perspective: "white", bound: "upperbound" as ScoreBound },
+          score,
         },
         { ply: 2, score: { type: "cp", value: 10, perspective: "white" } },
       ]);
@@ -572,10 +576,11 @@ describe("buildMoveAssessments", () => {
 
     it("white bounds are unchanged", () => {
       const timeline = shortGameTimeline();
+      const score: EngineScore = { type: "cp", value: 30, perspective: "white", bound: "lowerbound" };
       const results = resultsFor(timeline, [
         {
           ply: 0,
-          score: { type: "cp", value: 30, perspective: "white", bound: "lowerbound" as ScoreBound },
+          score,
         },
         { ply: 1, score: { type: "cp", value: 10, perspective: "white" } },
       ]);
