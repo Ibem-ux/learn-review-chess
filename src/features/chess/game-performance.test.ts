@@ -238,4 +238,19 @@ describe("buildGamePerformance", () => {
     expect(result.white.accuracyMoves).toBe(1);
     expect(result.black.accuracyMoves).toBe(1);
   });
+
+  it("scores a squandered forced mate as zero accuracy", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        delta: { kind: "mate",
+          beforeMoverScore: { type: "mate", value: 2, perspective: "mover" },
+          afterMoverScore: { type: "mate", value: -1, perspective: "mover" } },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.accuracyMoves).toBe(1);
+    expect(result.white.averageAccuracy).toBe(0);
+  });
 });
+

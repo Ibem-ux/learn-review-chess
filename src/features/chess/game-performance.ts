@@ -1,6 +1,5 @@
-import type { Mover } from "./move-assessment";
+import type { Mover, MoverScore } from "./move-assessment";
 import type { ClassifiedMove, MoveClassification } from "./move-classification";
-import type { MoverScore } from "./move-assessment";
 import { winPercentFromCentipawns, winPercentFromMate, moveAccuracyPercent } from "./accuracy-model";
 
 function winPercentFromMoverScore(score: MoverScore): number {
@@ -47,19 +46,17 @@ export function buildGamePerformance(
     const exactLosses = current?.exactLosses ?? [];
     const accuracyValues = current?.accuracyValues ?? [];
 
-    if (item.assessment.delta?.kind === "exact") {
-      exactLosses.push(item.assessment.delta.centipawnLoss);
-      const before = winPercentFromMoverScore(item.assessment.delta.beforeMoverScore);
-      const after = winPercentFromMoverScore(item.assessment.delta.afterMoverScore);
-      accuracyValues.push(moveAccuracyPercent(before, after));
-    } else if (item.assessment.delta?.kind === "mate") {
-      const before = winPercentFromMoverScore(item.assessment.delta.beforeMoverScore);
-      const after = winPercentFromMoverScore(item.assessment.delta.afterMoverScore);
-      accuracyValues.push(moveAccuracyPercent(before, after));
-    }
-
+    const delta = item.assessment.delta;
     // Accuracy counts mate deltas because win probability handles mate,
     // unlike centipawn loss.
+    if (delta?.kind === "exact" || delta?.kind === "mate") {
+      if (delta.kind === "exact") {
+        exactLosses.push(delta.centipawnLoss);
+      }
+      const before = winPercentFromMoverScore(delta.beforeMoverScore);
+      const after = winPercentFromMoverScore(delta.afterMoverScore);
+      accuracyValues.push(moveAccuracyPercent(before, after));
+    }
 
     byMover.set(mover, { totalMoves: nextTotalMoves, exactLosses, accuracyValues });
   }
