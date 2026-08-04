@@ -267,4 +267,31 @@ describe("parsePgn", () => {
       }
     });
   });
+
+  describe("promotion handling", () => {
+    const PROMOTION_PGN = `[Event "Test"]
+[Result "1-0"]
+
+1. e4 d5 2. exd5 c6 3. dxc6 Nf6 4. cxb7 Bg4 5. bxa8=Q 1-0`;
+
+    it("parses promotion move with promotion q and san containing =Q", () => {
+      const parsed = parsePgn(PROMOTION_PGN);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      const lastMove = parsed.value.moves[parsed.value.moves.length - 1];
+      expect(lastMove.promotion).toBe("q");
+      expect(lastMove.san).toContain("=Q");
+    });
+
+    it("leaves promotion undefined for all non-promotion moves", () => {
+      const parsed = parsePgn(PROMOTION_PGN);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      const otherMoves = parsed.value.moves.slice(0, -1);
+      for (const move of otherMoves) {
+        expect(move.promotion).toBeUndefined();
+      }
+    });
+  });
 });
+

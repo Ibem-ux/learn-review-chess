@@ -7,6 +7,7 @@ export type PgnMove = {
   readonly color: Color;
   readonly from: Square;
   readonly to: Square;
+  readonly promotion?: string;
   readonly before: string;
   readonly after: string;
 };
@@ -72,6 +73,7 @@ export function parsePgn(input: string): PgnResult {
     color: move.color,
     from: move.from,
     to: move.to,
+    promotion: move.promotion,
     before: move.before,
     after: move.after,
   }));

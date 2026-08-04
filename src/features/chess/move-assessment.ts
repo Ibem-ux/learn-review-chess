@@ -112,7 +112,7 @@ function toMoverScore(score: NormalizedScore, mover: Mover): MoverScore {
 function toUci(move: TimelinePly["move"]): string {
   if (!move) return "";
   let uci = move.from + move.to;
-  const promotion = (move as { readonly promotion?: "n" | "b" | "r" | "q" }).promotion;
+  const promotion = move.promotion;
   if (promotion) {
     uci += promotion.toLowerCase();
   }
@@ -258,7 +258,7 @@ export function buildMoveAssessments(
         san: move.san,
         from: move.from,
         to: move.to,
-        promotion: (move as { readonly promotion?: string }).promotion,
+        promotion: move.promotion,
         beforeFen: beforePoint.fen,
         afterFen: afterPoint.fen,
         beforeScore: beforePoint.score,
@@ -283,7 +283,7 @@ export function buildMoveAssessments(
         san: move.san,
         from: move.from,
         to: move.to,
-        promotion: (move as { readonly promotion?: string }).promotion,
+        promotion: move.promotion,
         beforeFen: beforePoint.fen,
         afterFen: afterPoint.fen,
         beforeScore: beforePoint.score,
@@ -339,7 +339,7 @@ export function buildMoveAssessments(
       san: move.san,
       from: move.from,
       to: move.to,
-      promotion: (move as { readonly promotion?: string }).promotion,
+      promotion: move.promotion,
       beforeFen: beforePoint.fen,
       afterFen: afterPoint.fen,
       beforeScore: beforePoint.score,
