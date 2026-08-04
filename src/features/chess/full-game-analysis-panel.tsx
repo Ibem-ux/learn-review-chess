@@ -48,6 +48,99 @@ type QuickPassResult = {
   readonly candidateLines: readonly { readonly rank: number; readonly info: { readonly depth?: number; readonly score?: EngineScore; readonly nodes?: number; readonly timeMs?: number; readonly pv?: readonly string[] } }[];
 };
 
+function CurrentPlyResult({
+  currentResult,
+  currentPly,
+}: {
+  readonly currentResult: QuickPassResult;
+  readonly currentPly: number;
+}) {
+  const info = currentResult.info;
+  const bestMove = currentResult.bestMove;
+  const candidateLines = currentResult.candidateLines;
+
+  return (
+    <div data-testid="current-ply-result" className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
+      <div>
+        <span className="font-medium">Ply:</span> {currentPly}
+      </div>
+
+      {info && (
+        <div className="space-y-1">
+          {info.depth !== undefined && (
+            <div>
+              <span className="font-medium">Depth:</span> {info.depth}
+            </div>
+          )}
+          {info.nodes !== undefined && (
+            <div>
+              <span className="font-medium">Nodes:</span>{" "}
+              {info.nodes.toLocaleString()}
+            </div>
+          )}
+          {info.timeMs !== undefined && (
+            <div>
+              <span className="font-medium">Time:</span>{" "}
+              {info.timeMs}ms
+            </div>
+          )}
+          {info.score && (
+            <div>
+              <span className="font-medium">Score:</span>{" "}
+              {formatScore(info.score)}
+            </div>
+          )}
+          {info.pv && info.pv.length > 0 && (
+            <div>
+              <span className="font-medium">Engine line:</span>{" "}
+              {info.pv.join(" ")}
+            </div>
+          )}
+        </div>
+      )}
+
+      {bestMove && (bestMove.move || bestMove.ponder) && (
+        <div>
+          <span className="font-medium">Best move:</span>{" "}
+          {bestMove.move}
+          {bestMove.ponder && (
+            <> (ponder: {bestMove.ponder})</>
+          )}
+        </div>
+      )}
+
+      {candidateLines.length > 0 && (
+        <div className="space-y-1">
+          <span className="font-medium">Candidate lines:</span>
+          {candidateLines
+            .slice()
+            .sort((a, b) => a.rank - b.rank)
+            .map((line, index) => (
+              <div key={index} className="ml-2">
+                <span className="font-medium">Rank {line.rank}:</span>
+                {line.info.score && (
+                  <span> Score: {formatScore(line.info.score)}</span>
+                )}
+                {line.info.depth !== undefined && (
+                  <span> Depth: {line.info.depth}</span>
+                )}
+                {line.info.nodes !== undefined && (
+                  <span> Nodes: {line.info.nodes.toLocaleString()}</span>
+                )}
+                {line.info.timeMs !== undefined && (
+                  <span> Time: {line.info.timeMs}ms</span>
+                )}
+                {line.info.pv && line.info.pv.length > 0 && (
+                  <div>Engine line: {line.info.pv.join(" ")}</div>
+                )}
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FullGameAnalysisPanelEligible({
   timeline,
   currentPly,
@@ -170,87 +263,7 @@ function FullGameAnalysisPanelEligible({
       {controlsHost ? createPortal(analysisControls, controlsHost) : analysisControls}
 
       {currentResult && (
-        <div data-testid="current-ply-result" className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
-          <div>
-            <span className="font-medium">Ply:</span> {currentPly}
-          </div>
-
-          {(currentResult as { info: { depth?: number; nodes?: number; timeMs?: number; score?: EngineScore; pv?: readonly string[] } | null }).info && (
-            <div className="space-y-1">
-              {(currentResult as { info: { depth?: number } }).info.depth !== undefined && (
-                <div>
-                  <span className="font-medium">Depth:</span> {(currentResult as { info: { depth: number } }).info.depth}
-                </div>
-              )}
-              {(currentResult as { info: { nodes?: number } }).info.nodes !== undefined && (
-                <div>
-                  <span className="font-medium">Nodes:</span>{" "}
-                  {(currentResult as { info: { nodes: number } }).info.nodes.toLocaleString()}
-                </div>
-              )}
-              {(currentResult as { info: { timeMs?: number } }).info.timeMs !== undefined && (
-                <div>
-                  <span className="font-medium">Time:</span>{" "}
-                  {(currentResult as { info: { timeMs: number } }).info.timeMs}ms
-                </div>
-              )}
-              {(currentResult as { info: { score?: EngineScore } }).info.score && (
-                <div>
-                  <span className="font-medium">Score:</span>{" "}
-                  {formatScore((currentResult as { info: { score: EngineScore } }).info.score)}
-                </div>
-              )}
-              {(currentResult as { info: { pv?: readonly string[] } }).info.pv &&
-                (currentResult as { info: { pv: readonly string[] } }).info.pv.length > 0 && (
-                  <div>
-                    <span className="font-medium">Engine line:</span>{" "}
-                    {(currentResult as { info: { pv: readonly string[] } }).info.pv.join(" ")}
-                  </div>
-                )}
-            </div>
-          )}
-
-          {(currentResult as { bestMove: { move: string | null; ponder: string | null } | null }).bestMove &&
-            ((currentResult as { bestMove: { move: string | null; ponder: string | null } }).bestMove.move ||
-              (currentResult as { bestMove: { move: string | null; ponder: string | null } }).bestMove.ponder) && (
-              <div>
-                <span className="font-medium">Best move:</span>{" "}
-                {(currentResult as { bestMove: { move: string | null } }).bestMove.move}
-                {(currentResult as { bestMove: { ponder: string | null } }).bestMove.ponder && (
-                  <> (ponder: {(currentResult as { bestMove: { ponder: string | null } }).bestMove.ponder})</>
-                )}
-              </div>
-            )}
-
-          {(currentResult as { candidateLines: readonly { rank: number; info: { depth?: number; score?: EngineScore; nodes?: number; timeMs?: number; pv?: readonly string[] } }[] }).candidateLines.length > 0 && (
-            <div className="space-y-1">
-              <span className="font-medium">Candidate lines:</span>
-              {(currentResult as { candidateLines: readonly { rank: number; info: { depth?: number; score?: EngineScore; nodes?: number; timeMs?: number; pv?: readonly string[] } }[] }).candidateLines
-                .slice()
-                .sort((a, b) => a.rank - b.rank)
-                .map((line, index) => (
-                  <div key={index} className="ml-2">
-                    <span className="font-medium">Rank {line.rank}:</span>
-                    {line.info.score && (
-                      <span> Score: {formatScore(line.info.score)}</span>
-                    )}
-                    {line.info.depth !== undefined && (
-                      <span> Depth: {line.info.depth}</span>
-                    )}
-                    {line.info.nodes !== undefined && (
-                      <span> Nodes: {line.info.nodes.toLocaleString()}</span>
-                    )}
-                    {line.info.timeMs !== undefined && (
-                      <span> Time: {line.info.timeMs}ms</span>
-                    )}
-                    {line.info.pv && line.info.pv.length > 0 && (
-                      <div>Engine line: {line.info.pv.join(" ")}</div>
-                    )}
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
+        <CurrentPlyResult currentResult={currentResult} currentPly={currentPly} />
       )}
 
       {!currentResult && displayState.status !== "loading" && (
