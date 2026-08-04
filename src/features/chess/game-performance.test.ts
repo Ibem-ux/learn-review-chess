@@ -160,4 +160,82 @@ describe("buildGamePerformance", () => {
     expect(result.black.counts.unclassified).toBe(1);
     expect(result.black.counts.blunder).toBe(0);
   });
+
+  it("scores a tiny exact delta near 100", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        delta: { kind: "exact", beforeMoverScore: { type: "cp", value: 30, perspective: "mover" }, afterMoverScore: { type: "cp", value: 29, perspective: "mover" }, signedChange: -1, centipawnLoss: 1 },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.accuracyMoves).toBe(1);
+    expect(result.white.averageAccuracy).toBeGreaterThan(95);
+  });
+
+  it("scores a large exact delta lower than a tiny one", () => {
+    const tiny = classified({
+      mover: "white",
+      delta: { kind: "exact", beforeMoverScore: { type: "cp", value: 30, perspective: "mover" }, afterMoverScore: { type: "cp", value: 29, perspective: "mover" }, signedChange: -1, centipawnLoss: 1 },
+    });
+    const large = classified({
+      mover: "white",
+      delta: { kind: "exact", beforeMoverScore: { type: "cp", value: 30, perspective: "mover" }, afterMoverScore: { type: "cp", value: -170, perspective: "mover" }, signedChange: -200, centipawnLoss: 200 },
+    });
+    const tinyResult = buildGamePerformance([tiny]);
+    const largeResult = buildGamePerformance([large]);
+    expect(tinyResult.white.averageAccuracy).toBeGreaterThan(95);
+    expect(largeResult.white.averageAccuracy).toBeLessThan(60);
+  });
+
+  it("counts a mate delta as accuracy-eligible", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        delta: { kind: "mate", beforeMoverScore: { type: "mate", value: 2, perspective: "mover" }, afterMoverScore: { type: "mate", value: 1, perspective: "mover" } },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.accuracyMoves).toBe(1);
+    expect(result.white.averageAccuracy).not.toBeNull();
+    expect(result.white.countedMoves).toBe(0);
+    expect(result.white.averageCentipawnLoss).toBeNull();
+  });
+
+  it("excludes a bounded delta from accuracy", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        delta: { kind: "bounded", beforeMoverScore: { type: "cp", value: 30, perspective: "mover" }, afterMoverScore: { type: "cp", value: 20, perspective: "mover" } },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.accuracyMoves).toBe(0);
+    expect(result.white.averageAccuracy).toBeNull();
+  });
+
+  it("excludes a null delta from accuracy", () => {
+    const items: ClassifiedMove[] = [
+      classified({ mover: "white", delta: null }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.accuracyMoves).toBe(0);
+    expect(result.white.averageAccuracy).toBeNull();
+  });
+
+  it("counts accuracyMoves per player independently", () => {
+    const items: ClassifiedMove[] = [
+      classified({
+        mover: "white",
+        delta: { kind: "exact", beforeMoverScore: { type: "cp", value: 30, perspective: "mover" }, afterMoverScore: { type: "cp", value: 29, perspective: "mover" }, signedChange: -1, centipawnLoss: 1 },
+      }),
+      classified({
+        mover: "black",
+        delta: { kind: "exact", beforeMoverScore: { type: "cp", value: 30, perspective: "mover" }, afterMoverScore: { type: "cp", value: 0, perspective: "mover" }, signedChange: -30, centipawnLoss: 30 },
+      }),
+    ];
+    const result = buildGamePerformance(items);
+    expect(result.white.accuracyMoves).toBe(1);
+    expect(result.black.accuracyMoves).toBe(1);
+  });
 });

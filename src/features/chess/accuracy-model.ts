@@ -10,7 +10,11 @@ export function winPercentFromCentipawns(cp: number): number {
   return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
 }
 
-/** Win probability 0..100 for a mate score. */
+/** Win probability 0..100 for a mate score.
+ *
+ * A mate distance of 0 returns 0, taking the losing branch deliberately,
+ * matching evaluation-graph-model.
+ */
 export function winPercentFromMate(movesToMate: number): number {
   if (!Number.isFinite(movesToMate)) {
     throw new RangeError("Mate distance must be finite.");
