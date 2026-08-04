@@ -29,6 +29,8 @@ function makeAssessment(
     candidateRank: null,
     bestCandidateUci: null,
     candidateMoves: [],
+    bestCandidateScore: null,
+    secondCandidateScore: null,
     ...overrides,
   };
 }

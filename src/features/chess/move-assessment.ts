@@ -1,8 +1,8 @@
-import type { ScoreBound } from "./engine";
+import type { EngineScore, ScoreBound } from "./engine";
 import type { ReviewTimeline, TimelinePly } from "./timeline";
 import type { QuickPassCompletedJob } from "./quick-pass-runner";
-import type { NormalizedScore } from "./quick-pass-evaluation";
-import { buildQuickPassEvaluationSeries } from "./quick-pass-evaluation";
+import type { NormalizedScore, SideToMove } from "./quick-pass-evaluation";
+import { buildQuickPassEvaluationSeries, normalizeScore } from "./quick-pass-evaluation";
 
 // ---------------------------------------------------------------------------
 // Domain types
@@ -60,6 +60,8 @@ export type MoveAssessment = {
   readonly candidateRank: number | null;
   readonly bestCandidateUci: string | null;
   readonly candidateMoves: readonly string[];
+  readonly bestCandidateScore: MoverScore | null;
+  readonly secondCandidateScore: MoverScore | null;
 };
 
 export type AssessmentSuccess = {
@@ -123,6 +125,8 @@ interface CandidateOutcome {
   readonly candidateRank: number | null;
   readonly bestCandidateUci: string | null;
   readonly candidateMoves: readonly string[];
+  readonly bestCandidateScore: MoverScore | null;
+  readonly secondCandidateScore: MoverScore | null;
 }
 
 /**
@@ -137,6 +141,8 @@ interface CandidateOutcome {
 function findCandidateMatch(
   result: QuickPassCompletedJob | undefined,
   move: TimelinePly["move"],
+  sideToMove: SideToMove,
+  mover: Mover,
 ): CandidateOutcome {
   const playedUci = toUci(move);
   const normalizedPlayed = playedUci.toLowerCase();
@@ -146,11 +152,13 @@ function findCandidateMatch(
       candidateRank: null,
       bestCandidateUci: null,
       candidateMoves: [],
+      bestCandidateScore: null,
+      secondCandidateScore: null,
     };
   }
 
   const seen = new Set<number>();
-  const candidates: { rank: number; move: string }[] = [];
+  const candidates: { rank: number; move: string; score?: EngineScore }[] = [];
 
   for (const line of result.candidateLines) {
     if (!Number.isInteger(line.rank) || line.rank < 1) {
@@ -169,7 +177,11 @@ function findCandidateMatch(
     if (typeof firstMove !== "string" || firstMove.length === 0) {
       continue;
     }
-    candidates.push({ rank: line.rank, move: firstMove.toLowerCase() });
+    candidates.push({
+      rank: line.rank,
+      move: firstMove.toLowerCase(),
+      score: line.info.score,
+    });
   }
 
   candidates.sort((a, b) => a.rank - b.rank);
@@ -180,10 +192,18 @@ function findCandidateMatch(
   const match = candidates.find((c) => c.move === normalizedPlayed);
   const candidateRank = match ? match.rank : null;
 
+  const firstNorm = candidates.length > 0 ? normalizeScore(candidates[0].score, sideToMove) : null;
+  const bestCandidateScore = firstNorm ? toMoverScore(firstNorm, mover) : null;
+
+  const secondNorm = candidates.length > 1 ? normalizeScore(candidates[1].score, sideToMove) : null;
+  const secondCandidateScore = secondNorm ? toMoverScore(secondNorm, mover) : null;
+
   return {
     candidateRank,
     bestCandidateUci,
     candidateMoves,
+    bestCandidateScore,
+    secondCandidateScore,
   };
 }
 
@@ -241,7 +261,12 @@ export function buildMoveAssessments(
 
     const playedUci = toUci(move);
     const beforeResult = resultByPly.get(beforePoint.ply);
-    const candidateMatch = findCandidateMatch(beforeResult, move);
+    const candidateMatch = findCandidateMatch(
+      beforeResult,
+      move,
+      beforePoint.sideToMove,
+      mover,
+    );
 
     // Determine availability and reason.
     const beforeMissing = !beforePoint.completed || beforePoint.score === null;

@@ -24,6 +24,8 @@ function classified(
     candidateRank: 1,
     bestCandidateUci: "e2e4",
     candidateMoves: [],
+    bestCandidateScore: null,
+    secondCandidateScore: null,
     ...overrides,
   };
 

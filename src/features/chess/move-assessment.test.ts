@@ -843,4 +843,104 @@ describe("buildMoveAssessments", () => {
       expect(result.reason).toContain("Malformed FEN");
     });
   });
+
+  describe("candidate score carrying", () => {
+    it("carries best and second candidate scores when two candidate lines are present", () => {
+      const timeline = shortGameTimeline();
+      const job0 = makeJob(0, INITIAL);
+      const info0: EngineInfo = { depth: 14, score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] };
+      const lines: QuickPassCandidateLine[] = [
+        { rank: 1, info: { score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] } },
+        { rank: 2, info: { score: { type: "cp", value: 10, perspective: "white" }, pv: ["d2d4"] } },
+      ];
+      const result0 = makeResult(job0, info0, lines);
+      const series = buildMoveAssessments(timeline, [result0]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 30, perspective: "mover" });
+      expect(a.secondCandidateScore).toEqual({ type: "cp", value: 10, perspective: "mover" });
+    });
+
+    it("sets secondCandidateScore to null when only one candidate line is present", () => {
+      const timeline = shortGameTimeline();
+      const job0 = makeJob(0, INITIAL);
+      const info0: EngineInfo = { depth: 14, score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] };
+      const lines: QuickPassCandidateLine[] = [
+        { rank: 1, info: { score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] } },
+      ];
+      const result0 = makeResult(job0, info0, lines);
+      const series = buildMoveAssessments(timeline, [result0]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 30, perspective: "mover" });
+      expect(a.secondCandidateScore).toBeNull();
+    });
+
+    it("sets both candidate scores to null when no candidate lines are present", () => {
+      const timeline = shortGameTimeline();
+      const job0 = makeJob(0, INITIAL);
+      const info0: EngineInfo = { depth: 14, score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] };
+      const result0 = makeResult(job0, info0, []);
+      const series = buildMoveAssessments(timeline, [result0]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateScore).toBeNull();
+      expect(a.secondCandidateScore).toBeNull();
+    });
+
+    it("sets bestCandidateScore to null when rank-1 score is undefined while candidateRank resolves", () => {
+      const timeline = shortGameTimeline();
+      const job0 = makeJob(0, INITIAL);
+      const info0: EngineInfo = { depth: 14, score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] };
+      const lines: QuickPassCandidateLine[] = [
+        { rank: 1, info: { pv: ["e2e4"] } },
+      ];
+      const result0 = makeResult(job0, info0, lines);
+      const series = buildMoveAssessments(timeline, [result0]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.candidateRank).toBe(1);
+      expect(a.bestCandidateScore).toBeNull();
+      expect(a.secondCandidateScore).toBeNull();
+    });
+
+    it("converts candidate scores to mover perspective for a BLACK mover", () => {
+      const timeline = shortGameTimeline();
+      const job1 = makeJob(1, AFTER_E4);
+      const info1: EngineInfo = { depth: 14, score: { type: "cp", value: -50, perspective: "white" }, pv: ["e7e5"] };
+      const lines: QuickPassCandidateLine[] = [
+        { rank: 1, info: { score: { type: "cp", value: -50, perspective: "white" }, pv: ["e7e5"] } },
+        { rank: 2, info: { score: { type: "cp", value: -120, perspective: "white" }, pv: ["c7c5"] } },
+      ];
+      const result1 = makeResult(job1, info1, lines);
+      const series = buildMoveAssessments(timeline, [result1]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[1];
+      expect(a.mover).toBe("black");
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 50, perspective: "mover" });
+      expect(a.secondCandidateScore).toEqual({ type: "cp", value: 120, perspective: "mover" });
+    });
+
+    it("orders candidate scores by rank when candidate lines are supplied out of order", () => {
+      const timeline = shortGameTimeline();
+      const job0 = makeJob(0, INITIAL);
+      const info0: EngineInfo = { depth: 14, score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] };
+      const lines: QuickPassCandidateLine[] = [
+        { rank: 2, info: { score: { type: "cp", value: 10, perspective: "white" }, pv: ["d2d4"] } },
+        { rank: 1, info: { score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] } },
+      ];
+      const result0 = makeResult(job0, info0, lines);
+      const series = buildMoveAssessments(timeline, [result0]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 30, perspective: "mover" });
+      expect(a.secondCandidateScore).toEqual({ type: "cp", value: 10, perspective: "mover" });
+    });
+  });
 });
