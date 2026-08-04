@@ -150,6 +150,151 @@ describe("classifyMove", () => {
     });
   });
 
+  describe("great", () => {
+    it("classifies as great with only-move basis when margin is exactly 150 and loss is 0 at rank 1", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+          secondCandidateScore: { type: "cp", value: 50, perspective: "mover" },
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("great");
+      expect(result.basis).toBe("only-move");
+    });
+
+    it("classifies as great when margin is 200 and loss is exactly 20 at rank 1", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+          secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+          delta: exactDelta(20),
+        })
+      );
+      expect(result.classification).toBe("great");
+      expect(result.basis).toBe("only-move");
+    });
+
+    it("falls back to best with candidate-rank basis when margin is 149", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "cp", value: 199, perspective: "mover" },
+          secondCandidateScore: { type: "cp", value: 50, perspective: "mover" },
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("candidate-rank");
+    });
+
+    it("falls back to best when loss is 21", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+          secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+          delta: exactDelta(21),
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("candidate-rank");
+    });
+
+    it("does not classify rank 2 as great and falls through to centipawn-loss best", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 2,
+          bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+          secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("centipawn-loss");
+    });
+
+    it("falls back to best when bestCandidateScore is null", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: null,
+          secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("candidate-rank");
+    });
+
+    it("falls back to best when secondCandidateScore is null", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+          secondCandidateScore: null,
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("candidate-rank");
+    });
+
+    it("falls back to best when bestCandidateScore is mate", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "mate", value: 2, perspective: "mover" },
+          secondCandidateScore: { type: "cp", value: 50, perspective: "mover" },
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("candidate-rank");
+    });
+
+    it("falls back to best when secondCandidateScore is mate", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+          secondCandidateScore: { type: "mate", value: -2, perspective: "mover" },
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("candidate-rank");
+    });
+
+    it("falls back to best when bestCandidateScore carries lowerbound", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "cp", value: 200, perspective: "mover", bound: "lowerbound" },
+          secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("candidate-rank");
+    });
+
+    it("classifies as great when margin crosses zero with best +50 and second -120", () => {
+      const result = classifyMove(
+        makeAssessment({
+          candidateRank: 1,
+          bestCandidateScore: { type: "cp", value: 50, perspective: "mover" },
+          secondCandidateScore: { type: "cp", value: -120, perspective: "mover" },
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("great");
+      expect(result.basis).toBe("only-move");
+    });
+  });
+
   describe("unclassifiable inputs", () => {
     it("unavailable assessment", () => {
       const result = classifyMove(

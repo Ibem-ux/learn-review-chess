@@ -27,7 +27,11 @@ export const DEFAULT_CLASSIFICATION_POLICY: ClassificationPolicy = Object.freeze
   mistakeMax: 250,
 });
 
+export const GREAT_MARGIN_CP = 150;
+export const GREAT_MAX_LOSS_CP = 20;
+
 export type ClassificationBasis =
+  | "only-move"
   | "candidate-rank"
   | "centipawn-loss"
   | "unavailable"
@@ -90,6 +94,22 @@ function classifyMoveUnvalidated(
 
   if (!Number.isFinite(loss) || loss < 0) {
     return { assessment, classification: "unclassified", basis: "invalid-loss" };
+  }
+
+  const best = assessment.bestCandidateScore;
+  const second = assessment.secondCandidateScore;
+  if (
+    assessment.candidateRank === 1 &&
+    best !== null &&
+    second !== null &&
+    best.type === "cp" &&
+    second.type === "cp" &&
+    best.bound === undefined &&
+    second.bound === undefined &&
+    best.value - second.value >= GREAT_MARGIN_CP &&
+    loss <= GREAT_MAX_LOSS_CP
+  ) {
+    return { assessment, classification: "great", basis: "only-move" };
   }
 
   if (assessment.candidateRank === 1) {
