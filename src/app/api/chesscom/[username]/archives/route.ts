@@ -1,4 +1,5 @@
-import { getArchives, type ChesscomError, type FetchLike } from "@/features/game-import/chesscom";
+import { getArchives, type ChesscomError } from "@/features/game-import/chesscom";
+import { createFetchLike } from "@/features/game-import/fetch-adapter";
 
 const ARCHIVE_CACHE_CONTROL = "public, max-age=3600, s-maxage=86400";
 
@@ -37,7 +38,7 @@ export async function GET(
 ) {
   const { username } = await params;
 
-  const result = await getArchives(username, fetch.bind(globalThis) as unknown as FetchLike);
+  const result = await getArchives(username, createFetchLike());
 
   if (!result.ok) {
     return mapArchivesError(result.error);

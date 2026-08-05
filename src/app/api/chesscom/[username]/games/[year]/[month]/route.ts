@@ -1,4 +1,5 @@
-import { getMonthlyGames, type ChesscomError, type FetchLike } from "@/features/game-import/chesscom";
+import { getMonthlyGames, type ChesscomError } from "@/features/game-import/chesscom";
+import { createFetchLike } from "@/features/game-import/fetch-adapter";
 
 const MONTHLY_GAMES_CACHE_CONTROL = "public, max-age=1800, s-maxage=3600";
 
@@ -40,7 +41,7 @@ export async function GET(
   const yearNum = Number(year);
   const monthNum = Number(month);
 
-  const result = await getMonthlyGames(username, yearNum, monthNum, fetch.bind(globalThis) as unknown as FetchLike);
+  const result = await getMonthlyGames(username, yearNum, monthNum, createFetchLike());
 
   if (!result.ok) {
     return mapMonthlyGamesError(result.error);
