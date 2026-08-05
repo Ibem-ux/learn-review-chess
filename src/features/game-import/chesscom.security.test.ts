@@ -17,7 +17,7 @@ function createResponse(
   return {
     status,
     headers,
-    text: async () => JSON.stringify(body),
+    text: () => Promise.resolve(typeof body === "string" ? body : JSON.stringify(body)),
   };
 }
 
