@@ -3,11 +3,15 @@ import type { MoveAssessment } from "@/features/chess/move-assessment";
 import {
   classifyMove,
   classifyMoves,
+  isSacrifice,
   DEFAULT_CLASSIFICATION_POLICY,
 } from "@/features/chess/move-classification";
 
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
+const WHITE_LOST_KNIGHT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R1BQKBNR b KQkq - 0 1";
+const WHITE_LOST_PAWN_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
+const BLACK_LOST_KNIGHT_FEN = "r1bqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 function makeAssessment(
   overrides: Partial<MoveAssessment>
@@ -540,6 +544,201 @@ describe("classifyMove", () => {
         }
       );
       expect(result.classification).toBe("best");
+    });
+  });
+
+  describe("brilliant", () => {
+    it("classifies as brilliant when all great conditions met, knight sacrificed, and best candidate score is positive", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("brilliant");
+      expect(results[0].basis).toBe("sacrifice");
+    });
+
+    it("classifies as great when post-reply neighbour is absent", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove]);
+      expect(results[0].classification).toBe("great");
+      expect(results[0].basis).toBe("only-move");
+    });
+
+    it("classifies as great when material drop is smaller than MINOR_PIECE_VALUE", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: WHITE_LOST_PAWN_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("great");
+      expect(results[0].basis).toBe("only-move");
+    });
+
+    it("classifies as great when best candidate score is negative", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: -10, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: -200, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("great");
+      expect(results[0].basis).toBe("only-move");
+    });
+
+    it("classifies as neither brilliant nor great when candidate rank is 2", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 2,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("best");
+      expect(results[0].basis).toBe("centipawn-loss");
+    });
+
+    it("detects a sacrifice by black correctly using perspective flip", () => {
+      const blackMove = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: BLACK_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([blackMove, opponentReply]);
+      expect(results[0].classification).toBe("brilliant");
+      expect(results[0].basis).toBe("sacrifice");
+    });
+
+    it("handles malformed FEN without throwing and classifies move as great", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: "invalid fen string",
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      expect(isSacrifice(whiteMove, opponentReply)).toBe(false);
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("great");
+      expect(results[0].basis).toBe("only-move");
+    });
+
+    it("returns great when classifyMove is called on a single assessment", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const result = classifyMove(whiteMove);
+      expect(result.classification).toBe("great");
+      expect(result.basis).toBe("only-move");
+    });
+
+    it("classifies brilliant at the correct index only in a sequence of moves", () => {
+      const move1 = makeAssessment({
+        ply: 1,
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const move2 = makeAssessment({
+        ply: 2,
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 10, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const move3 = makeAssessment({
+        ply: 3,
+        mover: "white",
+        beforeFen: WHITE_LOST_KNIGHT_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+
+      const results = classifyMoves([move1, move2, move3]);
+      expect(results[0].classification).toBe("brilliant");
+      expect(results[0].basis).toBe("sacrifice");
+      expect(results[1].classification).toBe("best");
+      expect(results[2].classification).toBe("best");
     });
   });
 });

@@ -1,4 +1,5 @@
 import type { MoveAssessment } from "./move-assessment";
+import { MINOR_PIECE_VALUE, materialBalanceFromFen } from "./material";
 
 export type MoveClassification =
   | "brilliant"
@@ -38,13 +39,33 @@ export type ClassificationBasis =
   | "delta-missing"
   | "mate"
   | "bounded"
-  | "invalid-loss";
+  | "invalid-loss"
+  | "sacrifice";
 
 export type ClassifiedMove = {
   readonly assessment: MoveAssessment;
   readonly classification: MoveClassification;
   readonly basis: ClassificationBasis;
 };
+
+export function isSacrifice(
+  assessment: MoveAssessment,
+  postReply: MoveAssessment | undefined
+): boolean {
+  if (!postReply) {
+    return false;
+  }
+  // A malformed FEN must never break classification of an entire game.
+  try {
+    const rawBefore = materialBalanceFromFen(assessment.beforeFen);
+    const rawAfter = materialBalanceFromFen(postReply.afterFen);
+    const moverBefore = assessment.mover === "white" ? rawBefore : -rawBefore;
+    const moverAfter = assessment.mover === "white" ? rawAfter : -rawAfter;
+    return moverAfter <= moverBefore - MINOR_PIECE_VALUE;
+  } catch {
+    return false;
+  }
+}
 
 function validatePolicy(policy: ClassificationPolicy): void {
   const values = [
@@ -72,7 +93,8 @@ function validatePolicy(policy: ClassificationPolicy): void {
 
 function classifyMoveUnvalidated(
   assessment: MoveAssessment,
-  policy: ClassificationPolicy
+  policy: ClassificationPolicy,
+  postReply?: MoveAssessment
 ): ClassifiedMove {
   if (!assessment.available) {
     return { assessment, classification: "unclassified", basis: "unavailable" };
@@ -109,6 +131,9 @@ function classifyMoveUnvalidated(
     best.value - second.value >= GREAT_MARGIN_CP &&
     loss <= GREAT_MAX_LOSS_CP
   ) {
+    if (best.value >= 0 && isSacrifice(assessment, postReply)) {
+      return { assessment, classification: "brilliant", basis: "sacrifice" };
+    }
     return { assessment, classification: "great", basis: "only-move" };
   }
 
@@ -139,7 +164,8 @@ export function classifyMove(
   policy: ClassificationPolicy = DEFAULT_CLASSIFICATION_POLICY
 ): ClassifiedMove {
   validatePolicy(policy);
-  return classifyMoveUnvalidated(assessment, policy);
+  // classifyMove passes undefined for postReply, so a single move can never be brilliant.
+  return classifyMoveUnvalidated(assessment, policy, undefined);
 }
 
 export function classifyMoves(
@@ -147,5 +173,8 @@ export function classifyMoves(
   policy: ClassificationPolicy = DEFAULT_CLASSIFICATION_POLICY
 ): readonly ClassifiedMove[] {
   validatePolicy(policy);
-  return assessments.map((a) => classifyMoveUnvalidated(a, policy));
+  return assessments.map((a, i) =>
+    classifyMoveUnvalidated(a, policy, assessments[i + 1])
+  );
 }
+
