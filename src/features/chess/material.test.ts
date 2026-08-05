@@ -38,7 +38,7 @@ describe("materialBalanceFromFen", () => {
     ["b", "B", 330],
     ["r", "R", 500],
     ["q", "Q", 900],
-  ])("returns exact piece value %s (%d) when White has piece plus kings", (_name, pieceChar, expectedValue) => {
+  ])("returns exact piece value %s (%s) when White has piece plus kings", (_name, pieceChar, expectedValue) => {
     const fen = `4k3/8/8/8/8/8/8/4K2${pieceChar} w - - 0 1`;
     expect(materialBalanceFromFen(fen)).toBe(expectedValue);
   });

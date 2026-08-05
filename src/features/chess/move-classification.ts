@@ -12,6 +12,19 @@ export type MoveClassification =
   | "blunder"
   | "unclassified";
 
+// Canonical display order for any UI that lists classifications, best first and unclassified last.
+export const MOVE_CLASSIFICATION_ORDER: readonly MoveClassification[] = [
+  "brilliant",
+  "great",
+  "best",
+  "excellent",
+  "good",
+  "inaccuracy",
+  "mistake",
+  "blunder",
+  "unclassified",
+];
+
 export type ClassificationPolicy = {
   readonly bestMax: number;
   readonly excellentMax: number;

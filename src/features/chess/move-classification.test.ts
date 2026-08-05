@@ -5,6 +5,8 @@ import {
   classifyMoves,
   isSacrifice,
   DEFAULT_CLASSIFICATION_POLICY,
+  MOVE_CLASSIFICATION_ORDER,
+  type MoveClassification,
 } from "@/features/chess/move-classification";
 
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -739,6 +741,43 @@ describe("classifyMove", () => {
       expect(results[0].basis).toBe("sacrifice");
       expect(results[1].classification).toBe("best");
       expect(results[2].classification).toBe("best");
+    });
+  });
+
+  describe("MOVE_CLASSIFICATION_ORDER", () => {
+    // This object is what makes the compiler enforce completeness: omitting a union member from it is a tsc error.
+    const EVERY_CLASSIFICATION: Record<MoveClassification, true> = {
+      brilliant: true,
+      great: true,
+      best: true,
+      excellent: true,
+      good: true,
+      inaccuracy: true,
+      mistake: true,
+      blunder: true,
+      unclassified: true,
+    };
+
+    it("has sorted contents equal to the sorted keys of EVERY_CLASSIFICATION", () => {
+      const sortedOrder = [...MOVE_CLASSIFICATION_ORDER].sort();
+      const sortedKeys = Object.keys(EVERY_CLASSIFICATION).sort();
+      expect(sortedOrder).toEqual(sortedKeys);
+    });
+
+    it("contains no duplicates", () => {
+      const uniqueElements = new Set(MOVE_CLASSIFICATION_ORDER);
+      expect(uniqueElements.size).toBe(MOVE_CLASSIFICATION_ORDER.length);
+    });
+
+    it("places brilliant at index 0 and great at index 1", () => {
+      expect(MOVE_CLASSIFICATION_ORDER[0]).toBe("brilliant");
+      expect(MOVE_CLASSIFICATION_ORDER[1]).toBe("great");
+    });
+
+    it("places unclassified as the last element", () => {
+      expect(MOVE_CLASSIFICATION_ORDER[MOVE_CLASSIFICATION_ORDER.length - 1]).toBe(
+        "unclassified"
+      );
     });
   });
 });
