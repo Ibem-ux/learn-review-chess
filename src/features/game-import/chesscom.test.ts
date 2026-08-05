@@ -50,8 +50,8 @@ describe("normalizeChesscomUsername", () => {
     expect(normalizeChesscomUsername("  hikaru  ")).toBe("hikaru");
   });
 
-  it("URL-encodes special characters", () => {
-    expect(normalizeChesscomUsername("user+name")).toBe("user%2Bname");
+  it("rejects special characters", () => {
+    expect(() => normalizeChesscomUsername("user+name")).toThrow();
   });
 
   it("rejects empty input", () => {

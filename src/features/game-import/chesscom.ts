@@ -53,6 +53,8 @@ export type MonthlyGamesResult = MonthlyGamesSuccess | MonthlyGamesFailure;
 
 export const REQUEST_TIMEOUT_MS = 8000;
 export const MAX_RESPONSE_BYTES = 5000000;
+export const MAX_USERNAME_LENGTH = 32;
+export const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 export type FetchLike = (
   input: string,
@@ -103,6 +105,12 @@ export function normalizeChesscomUsername(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     throw new Error("Chess.com username must not be empty.");
+  }
+  if (trimmed.length > MAX_USERNAME_LENGTH) {
+    throw new Error(`Username exceeds maximum length of ${MAX_USERNAME_LENGTH} characters.`);
+  }
+  if (!USERNAME_PATTERN.test(trimmed)) {
+    throw new Error("Username contains invalid characters.");
   }
   return encodeURIComponent(trimmed);
 }
