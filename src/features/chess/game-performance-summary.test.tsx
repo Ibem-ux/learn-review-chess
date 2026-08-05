@@ -190,4 +190,27 @@ describe("GamePerformanceSummary", () => {
     expect(blackBlock).toHaveTextContent("42.7%");
     expect(blackBlock).not.toHaveTextContent("99.1%");
   });
+
+  it("renders classification name exactly once in a count row", () => {
+    const perf = makeGamePerformance({
+      counts: {
+        brilliant: 0,
+        great: 0,
+        best: 0,
+        excellent: 0,
+        good: 0,
+        inaccuracy: 0,
+        mistake: 0,
+        blunder: 1,
+        unclassified: 0,
+      },
+    });
+    render(<GamePerformanceSummary performance={perf} />);
+    const whiteBlock = screen.getByTestId("performance-white");
+    const countRow = whiteBlock.querySelector('[data-testid="count-row"]');
+    const text = countRow?.textContent ?? "";
+    const occurrences = text.match(/Blunder/g) ?? [];
+    expect(occurrences.length).toBe(1);
+    expect(text).toBe("Blunder(1)");
+  });
 });

@@ -7,7 +7,7 @@ import type { QuickPassCompletedJob } from "@/features/chess/quick-pass-runner";
 import type { QuickPassJob } from "@/features/chess/quick-pass-planner";
 import { parsePgn } from "@/features/chess/pgn";
 import { buildTimeline } from "@/features/chess/timeline";
-import { buildClassificationMap } from "@/features/chess/ReviewBoard";
+import { buildClassificationMap, buildPerformance } from "@/features/chess/ReviewBoard";
 import ReviewBoard from "@/features/chess/ReviewBoard";
 
 vi.mock("react-chessboard", () => import("@/features/chess/__mocks__/react-chessboard"));
@@ -658,6 +658,34 @@ describe("ReviewBoard", () => {
       expect(map.has(3)).toBe(true);
       expect(map.has(4)).toBe(true);
       expect(map.size).toBe(3);
+    });
+
+    describe("buildPerformance and summary wiring", () => {
+      it("renders run-an-analysis message and no element with aria-label Game performance when results are empty", () => {
+        const timeline = shortGameTimeline();
+        render(<ReviewBoard timeline={timeline} />);
+        expect(screen.getByText(/run a full-game analysis/i)).toBeInTheDocument();
+        expect(screen.queryByRole("region", { name: "Game performance" })).toBeNull();
+      });
+
+      it("returns null for an empty results array in buildPerformance", () => {
+        expect(buildPerformance(shortGameTimeline(), [])).toBeNull();
+      });
+
+      it("returns an object with white and black keys for a valid timeline and results pair in buildPerformance", () => {
+        const timeline = shortGameTimeline();
+        const results = resultsFor(timeline, [
+          { ply: 0, score: makeScore(100) },
+          { ply: 1, score: makeScore(100) },
+          { ply: 2, score: makeScore(150) },
+          { ply: 3, score: makeScore(130) },
+          { ply: 4, score: makeScore(130) },
+        ]);
+        const perf = buildPerformance(timeline, results);
+        expect(perf).not.toBeNull();
+        expect(perf?.white.mover).toBe("white");
+        expect(perf?.black.mover).toBe("black");
+      });
     });
   });
 

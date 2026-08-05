@@ -26,6 +26,8 @@ import {
 } from "./explorer-position-stack";
 import { ExplorerPanel } from "./explorer-panel";
 import { applyExplorerMove } from "./explorer-move";
+import { buildGamePerformance, type GamePerformance } from "./game-performance";
+import { GamePerformanceSummary } from "./game-performance-summary";
 
 const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
 
@@ -62,6 +64,20 @@ export function buildClassificationMap(
     }, new Map<number, MoveClassification>());
 }
 
+export function buildPerformance(
+  timeline: ReviewTimeline,
+  results: readonly QuickPassCompletedJob[],
+): GamePerformance | null {
+  if (results.length === 0) {
+    return null;
+  }
+  const assessmentResult = buildMoveAssessments(timeline, results);
+  if (!assessmentResult.ok) {
+    return null;
+  }
+  return buildGamePerformance(classifyMoves(assessmentResult.assessments));
+}
+
 export default function ReviewBoard({
   timeline,
 }: {
@@ -86,6 +102,11 @@ export default function ReviewBoard({
 
   const classifications = useMemo(
     () => buildClassificationMap(timeline, analysisState.results),
+    [timeline, analysisState.results]
+  );
+
+  const performance = useMemo(
+    () => buildPerformance(timeline, analysisState.results),
     [timeline, analysisState.results]
   );
 
@@ -323,6 +344,9 @@ export default function ReviewBoard({
           analysisState={analysisState}
           controlsHost={controlsHost}
         />
+      </div>
+      <div className="w-full max-w-2xl">
+        <GamePerformanceSummary performance={performance} />
       </div>
     </div>
   );
