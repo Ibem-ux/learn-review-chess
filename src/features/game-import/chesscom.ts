@@ -51,9 +51,15 @@ export type MonthlyGamesFailure = {
 
 export type MonthlyGamesResult = MonthlyGamesSuccess | MonthlyGamesFailure;
 
+export const REQUEST_TIMEOUT_MS = 8000;
+export const MAX_RESPONSE_BYTES = 5000000;
+
 export type FetchLike = (
   input: string,
-  init?: { readonly headers?: Readonly<Record<string, string>> }
+  init?: {
+    readonly headers?: Readonly<Record<string, string>>;
+    readonly signal?: AbortSignal;
+  }
 ) => Promise<{ readonly status: number; readonly headers: Readonly<Record<string, string>>; readonly text: () => Promise<string> }>;
 
 const USER_AGENT = "LearnReviewChess/0.1 (+https://github.com/Ibem-ux/learn-review-chess)";
@@ -121,6 +127,7 @@ export async function getArchives(
         Accept: "application/json",
         "User-Agent": USER_AGENT,
       },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (networkError) {
     return { ok: false, error: { kind: "network-error", reason: String(networkError) } };
@@ -157,9 +164,14 @@ export async function getArchives(
     return { ok: false, error: { kind: "http-error", status: response.status, body } };
   }
 
+  const bodyResult = await readResponseTextSafely(response);
+  if (!bodyResult.ok) {
+    return { ok: false, error: { kind: "invalid-response", reason: bodyResult.reason } };
+  }
+
   let raw: unknown;
   try {
-    raw = JSON.parse(await response.text());
+    raw = JSON.parse(bodyResult.text);
   } catch {
     return { ok: false, error: { kind: "invalid-response", reason: "Response is not valid JSON." } };
   }
@@ -214,6 +226,7 @@ export async function getMonthlyGames(
         Accept: "application/json",
         "User-Agent": USER_AGENT,
       },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (networkError) {
     return { ok: false, error: { kind: "network-error", reason: String(networkError) } };
@@ -250,9 +263,14 @@ export async function getMonthlyGames(
     return { ok: false, error: { kind: "http-error", status: response.status, body } };
   }
 
+  const bodyResult = await readResponseTextSafely(response);
+  if (!bodyResult.ok) {
+    return { ok: false, error: { kind: "invalid-response", reason: bodyResult.reason } };
+  }
+
   let raw: unknown;
   try {
-    raw = JSON.parse(await response.text());
+    raw = JSON.parse(bodyResult.text);
   } catch {
     return { ok: false, error: { kind: "invalid-response", reason: "Response is not valid JSON." } };
   }
@@ -278,6 +296,43 @@ export async function getMonthlyGames(
   }
 
   return { ok: true, games };
+}
+
+function getContentLength(headers: Readonly<Record<string, string>>): number | undefined {
+  const value = headers["content-length"] ?? headers["Content-Length"];
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return parsed;
+  }
+  return undefined;
+}
+
+type ReadBodyResult =
+  | { readonly ok: true; readonly text: string }
+  | { readonly ok: false; readonly reason: string };
+
+async function readResponseTextSafely(response: {
+  readonly headers: Readonly<Record<string, string>>;
+  readonly text: () => Promise<string>;
+}): Promise<ReadBodyResult> {
+  const contentLength = getContentLength(response.headers);
+  if (contentLength !== undefined && contentLength > MAX_RESPONSE_BYTES) {
+    return {
+      ok: false,
+      reason: `Response Content-Length of ${contentLength} bytes exceeds limit of ${MAX_RESPONSE_BYTES} bytes.`,
+    };
+  }
+
+  const text = await response.text();
+  if (text.length > MAX_RESPONSE_BYTES) {
+    return {
+      ok: false,
+      reason: `Response body length of ${text.length} bytes exceeds limit of ${MAX_RESPONSE_BYTES} bytes.`,
+    };
+  }
+
+  return { ok: true, text };
 }
 
 function parseRetryAfter(headers: Readonly<Record<string, string>>): number | undefined {
