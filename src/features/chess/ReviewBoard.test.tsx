@@ -686,6 +686,21 @@ describe("ReviewBoard", () => {
         expect(perf?.white.mover).toBe("white");
         expect(perf?.black.mover).toBe("black");
       });
+
+      it("renders Game performance region when analysis results are populated", () => {
+        const timeline = shortGameTimeline();
+        const results = resultsFor(timeline, [
+          { ply: 0, score: makeScore(100) },
+          { ply: 1, score: makeScore(100) },
+          { ply: 2, score: makeScore(150) },
+          { ply: 3, score: makeScore(130) },
+          { ply: 4, score: makeScore(130) },
+        ]);
+        mockAnalysisState.status = "completed";
+        mockAnalysisState.results = results;
+        render(<ReviewBoard timeline={timeline} />);
+        expect(screen.getByRole("region", { name: "Game performance" })).toBeInTheDocument();
+      });
     });
   });
 

@@ -191,7 +191,7 @@ describe("GamePerformanceSummary", () => {
     expect(blackBlock).not.toHaveTextContent("99.1%");
   });
 
-  it("renders classification name exactly once in a count row", () => {
+  it("exposes classification name to assistive technology via sr-only span", () => {
     const perf = makeGamePerformance({
       counts: {
         brilliant: 0,
@@ -208,9 +208,9 @@ describe("GamePerformanceSummary", () => {
     render(<GamePerformanceSummary performance={perf} />);
     const whiteBlock = screen.getByTestId("performance-white");
     const countRow = whiteBlock.querySelector('[data-testid="count-row"]');
-    const text = countRow?.textContent ?? "";
-    const occurrences = text.match(/Blunder/g) ?? [];
-    expect(occurrences.length).toBe(1);
-    expect(text).toBe("Blunder(1)");
+    const srSpan = countRow?.querySelector(".sr-only");
+    expect(srSpan).toBeInTheDocument();
+    expect(srSpan).toHaveTextContent("Blunder");
+    expect(countRow).toHaveTextContent("(1)");
   });
 });
