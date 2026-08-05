@@ -1,7 +1,10 @@
 import { getArchives, type ChesscomError } from "@/features/game-import/chesscom";
 import { createFetchLike } from "@/features/game-import/fetch-adapter";
+import { createRateLimiter } from "@/rate-limit";
 
 const ARCHIVE_CACHE_CONTROL = "public, max-age=3600, s-maxage=86400";
+
+const limiter = createRateLimiter({ now: () => Date.now() });
 
 function mapArchivesError(error: ChesscomError): Response {
   switch (error.kind) {
@@ -33,9 +36,24 @@ function mapArchivesError(error: ChesscomError): Response {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ username: string }> }
 ) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const key = forwarded ? forwarded.split(",")[0].trim() || "unknown" : "unknown";
+  const decision = limiter.check(key);
+  if (!decision.allowed) {
+    return Response.json(
+      { code: "rate-limited", message: "Too many requests." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(decision.retryAfterSeconds),
+        },
+      }
+    );
+  }
+
   const { username } = await params;
 
   const result = await getArchives(username, createFetchLike());

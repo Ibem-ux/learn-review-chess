@@ -1,7 +1,10 @@
 import { getMonthlyGames, type ChesscomError } from "@/features/game-import/chesscom";
 import { createFetchLike } from "@/features/game-import/fetch-adapter";
+import { createRateLimiter } from "@/rate-limit";
 
 const MONTHLY_GAMES_CACHE_CONTROL = "public, max-age=1800, s-maxage=3600";
+
+const limiter = createRateLimiter({ now: () => Date.now() });
 
 function mapMonthlyGamesError(error: ChesscomError): Response {
   switch (error.kind) {
@@ -33,9 +36,24 @@ function mapMonthlyGamesError(error: ChesscomError): Response {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ username: string; year: string; month: string }> }
 ) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const key = forwarded ? forwarded.split(",")[0].trim() || "unknown" : "unknown";
+  const decision = limiter.check(key);
+  if (!decision.allowed) {
+    return Response.json(
+      { code: "rate-limited", message: "Too many requests." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(decision.retryAfterSeconds),
+        },
+      }
+    );
+  }
+
   const { username, year, month } = await params;
 
   const yearNum = Number(year);
