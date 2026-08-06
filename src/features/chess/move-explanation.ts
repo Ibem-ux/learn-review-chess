@@ -22,7 +22,8 @@ export type ExplanationFact =
   | { readonly kind: "evaluation-held"; readonly centipawnLoss: number }
   | { readonly kind: "mate-missed"; readonly movesToMate: number }
   | { readonly kind: "mate-allowed"; readonly movesToMate: number }
-  | { readonly kind: "mate-converted"; readonly movesToMate: number };
+  | { readonly kind: "mate-converted"; readonly movesToMate: number }
+  | { readonly kind: "mate-found"; readonly movesToMate: number };
 
 export type MoveExplanation = {
   readonly ply: number;
@@ -108,6 +109,11 @@ export function buildMoveExplanation(
         facts.push({
           kind: "mate-missed",
           movesToMate: before.value,
+        });
+      } else if (!hadWinningMate && hasWinningMate) {
+        facts.push({
+          kind: "mate-found",
+          movesToMate: after.value,
         });
       } else if (!wasBeingMated && isBeingMated) {
         facts.push({

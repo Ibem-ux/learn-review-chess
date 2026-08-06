@@ -362,7 +362,8 @@ describe("buildMoveExplanation", () => {
       (f) =>
         f.kind === "mate-missed" ||
         f.kind === "mate-allowed" ||
-        f.kind === "mate-converted"
+        f.kind === "mate-converted" ||
+        f.kind === "mate-found"
     );
     expect(hasMateFact).toBe(false);
   });
@@ -425,7 +426,8 @@ describe("buildMoveExplanation", () => {
       (f) =>
         f.kind === "mate-missed" ||
         f.kind === "mate-allowed" ||
-        f.kind === "mate-converted"
+        f.kind === "mate-converted" ||
+        f.kind === "mate-found"
     );
     expect(hasMateFact).toBe(false);
   });
@@ -449,6 +451,81 @@ describe("buildMoveExplanation", () => {
       { kind: "played-best-move" },
       { kind: "material-even" },
       { kind: "mate-converted", movesToMate: 3 },
+    ]);
+  });
+
+  it("mate-found emitted when cp score transitions to winning mate", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "cp", value: 100, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: 2, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-found",
+      movesToMate: 2,
+    });
+    const mateFacts = explanation.facts.filter(
+      (f) =>
+        f.kind === "mate-missed" ||
+        f.kind === "mate-allowed" ||
+        f.kind === "mate-converted" ||
+        f.kind === "mate-found"
+    );
+    expect(mateFacts).toEqual([{ kind: "mate-found", movesToMate: 2 }]);
+  });
+
+  it("mate-found emitted when losing mate transitions to winning mate", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "mate", value: -3, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: 1, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-found",
+      movesToMate: 1,
+    });
+  });
+
+  it("mate-found carries movesToMate value verbatim", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "cp", value: 0, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: 5, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-found",
+      movesToMate: 5,
+    });
+  });
+
+  it("mate-found fact is ordered last after phase, best-move, material", () => {
+    const assessment = makeAssessment({
+      ply: 25,
+      beforeFen: "r1bq1rk1/ppp2ppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R2Q1RK1 w - - 0 8",
+      afterFen: "r1bq1rk1/ppp2ppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R2Q1RK1 w - - 0 8",
+      playedUci: "e2e4",
+      bestCandidateUci: "e2e4",
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "cp", value: 150, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: 4, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toEqual([
+      { kind: "phase", phase: "middlegame" },
+      { kind: "played-best-move" },
+      { kind: "material-even" },
+      { kind: "mate-found", movesToMate: 4 },
     ]);
   });
 });
