@@ -28,6 +28,8 @@ import { ExplorerPanel } from "./explorer-panel";
 import { applyExplorerMove } from "./explorer-move";
 import { buildGamePerformance, type GamePerformance } from "./game-performance";
 import { GamePerformanceSummary } from "./game-performance-summary";
+import { buildMoveExplanations } from "./move-explanation";
+import { MoveExplanationPanel } from "./move-explanation-panel";
 
 const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
 
@@ -122,6 +124,14 @@ export default function ReviewBoard({
     () => buildAnalysisCache(analysisState.results),
     [analysisState.results]
   );
+
+  const moveExplanations = useMemo(() => {
+    const res = buildMoveAssessments(timeline, analysisState.results);
+    return res.ok ? buildMoveExplanations(res.assessments) : [];
+  }, [timeline, analysisState.results]);
+
+  const explanation =
+    moveExplanations.find((e) => e.ply === ply) ?? null;
 
   const currentGraphPoint = useMemo(() => {
     return graphPoints.find((point) => point.ply === ply) ?? null;
@@ -347,6 +357,9 @@ export default function ReviewBoard({
       </div>
       <div className="w-full max-w-2xl">
         <GamePerformanceSummary performance={performance} />
+      </div>
+      <div className="w-full max-w-2xl">
+        <MoveExplanationPanel explanation={explanation} />
       </div>
     </div>
   );

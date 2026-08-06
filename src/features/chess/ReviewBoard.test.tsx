@@ -1062,5 +1062,31 @@ describe("ReviewBoard", () => {
       expect(items[0]).toHaveTextContent("Best");
       expect(items[1]).toHaveTextContent("2nd best");
     });
+
+    it("renders move explanation panel region", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+      expect(
+        screen.getByRole("region", { name: "Move explanation" })
+      ).toBeInTheDocument();
+    });
+
+    it("shows explanation for selected ply when at start position", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+      expect(
+        screen.getByText("Select a move to see its explanation.")
+      ).toBeInTheDocument();
+    });
+
+    it("navigating to another ply updates explanation panel text", () => {
+      const timeline = timelineOf(SHORT_GAME);
+      render(<ReviewBoard timeline={timeline} />);
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      expect(
+        screen.queryByText("Select a move to see its explanation.")
+      ).toBeNull();
+      expect(screen.getByRole("heading", { name: "e4" })).toBeInTheDocument();
+    });
   });
 });
