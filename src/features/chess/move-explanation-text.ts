@@ -7,19 +7,22 @@ import type { ExplanationFact, MoveExplanation } from "./move-explanation";
 export function explanationFactToSentence(fact: ExplanationFact): string {
   switch (fact.kind) {
     case "unavailable": {
-      let clause: string;
-      if (fact.reason === "before-analysis-missing") {
-        clause = "the position before it was not analyzed";
-      } else if (fact.reason === "after-analysis-missing") {
-        clause = "the position after it was not analyzed";
-      } else if (fact.reason === "before-score-missing") {
-        clause = "no evaluation was available before it";
-      } else if (fact.reason === "after-score-missing") {
-        clause = "no evaluation was available after it";
-      } else {
-        clause = "it was not analyzed";
+      const reason = fact.reason;
+      if (reason === null) {
+        return "This move could not be explained because it was not analyzed.";
       }
-      return `This move could not be explained because ${clause}.`;
+      switch (reason) {
+        case "before-analysis-missing":
+          return "This move could not be explained because the position before it was not analyzed.";
+        case "after-analysis-missing":
+          return "This move could not be explained because the position after it was not analyzed.";
+        case "before-score-missing":
+          return "This move could not be explained because no evaluation was available before it.";
+        case "after-score-missing":
+          return "This move could not be explained because no evaluation was available after it.";
+      }
+      const exhaustive: never = reason;
+      return exhaustive;
     }
     case "phase":
       return `Played in the ${fact.phase}.`;

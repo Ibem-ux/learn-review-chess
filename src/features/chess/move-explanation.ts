@@ -1,6 +1,6 @@
 /**
  * Explains individual chess moves by building structured facts.
- * Mate and bounded deltas are deliberately not explained yet.
+ * Bounded deltas are deliberately not explained yet.
  */
 
 import type { GamePhase } from "./game-phase";
