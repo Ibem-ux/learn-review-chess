@@ -19,7 +19,10 @@ export type ExplanationFact =
   | { readonly kind: "material-lost"; readonly centipawns: number }
   | { readonly kind: "material-even" }
   | { readonly kind: "evaluation-drop"; readonly centipawnLoss: number }
-  | { readonly kind: "evaluation-held"; readonly centipawnLoss: number };
+  | { readonly kind: "evaluation-held"; readonly centipawnLoss: number }
+  | { readonly kind: "mate-missed"; readonly movesToMate: number }
+  | { readonly kind: "mate-allowed"; readonly movesToMate: number }
+  | { readonly kind: "mate-converted"; readonly movesToMate: number };
 
 export type MoveExplanation = {
   readonly ply: number;
@@ -85,6 +88,31 @@ export function buildMoveExplanation(
         facts.push({
           kind: "evaluation-held",
           centipawnLoss: assessment.delta.centipawnLoss,
+        });
+      }
+    } else if (assessment.delta.kind === "mate") {
+      const before = assessment.delta.beforeMoverScore;
+      const after = assessment.delta.afterMoverScore;
+
+      const hadWinningMate = before.type === "mate" && before.value > 0;
+      const hasWinningMate = after.type === "mate" && after.value > 0;
+      const wasBeingMated = before.type === "mate" && before.value < 0;
+      const isBeingMated = after.type === "mate" && after.value < 0;
+
+      if (hadWinningMate && hasWinningMate) {
+        facts.push({
+          kind: "mate-converted",
+          movesToMate: after.value,
+        });
+      } else if (hadWinningMate && !hasWinningMate) {
+        facts.push({
+          kind: "mate-missed",
+          movesToMate: before.value,
+        });
+      } else if (!wasBeingMated && isBeingMated) {
+        facts.push({
+          kind: "mate-allowed",
+          movesToMate: Math.abs(after.value),
         });
       }
     }

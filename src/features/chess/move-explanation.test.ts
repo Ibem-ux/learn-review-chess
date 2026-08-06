@@ -282,4 +282,173 @@ describe("buildMoveExplanation", () => {
     expect(explanations[1].ply).toBe(2);
     expect(explanations[1].san).toBe("e5");
   });
+
+  it("mate-missed emitted when winning mate is lost", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "mate", value: 3, perspective: "mover" },
+        afterMoverScore: { type: "cp", value: 100, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-missed",
+      movesToMate: 3,
+    });
+  });
+
+  it("mate-allowed emitted when mover allows opponent mate", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "cp", value: 0, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: -2, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-allowed",
+      movesToMate: 2,
+    });
+  });
+
+  it("mate-converted emitted when winning mate is maintained", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "mate", value: 4, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: 3, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-converted",
+      movesToMate: 3,
+    });
+  });
+
+  it("mate delta emits no evaluation-drop or evaluation-held fact", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "mate", value: 3, perspective: "mover" },
+        afterMoverScore: { type: "cp", value: 100, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    const hasEval = explanation.facts.some(
+      (f) => f.kind === "evaluation-drop" || f.kind === "evaluation-held"
+    );
+    expect(hasEval).toBe(false);
+  });
+
+  it("exact delta emits evaluation fact and no mate fact", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "exact",
+        beforeMoverScore: { type: "cp", value: 200, perspective: "mover" },
+        afterMoverScore: { type: "cp", value: 50, perspective: "mover" },
+        signedChange: -150,
+        centipawnLoss: 150,
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "evaluation-drop",
+      centipawnLoss: 150,
+    });
+    const hasMateFact = explanation.facts.some(
+      (f) =>
+        f.kind === "mate-missed" ||
+        f.kind === "mate-allowed" ||
+        f.kind === "mate-converted"
+    );
+    expect(hasMateFact).toBe(false);
+  });
+
+  it("mate-missed carries before movesToMate value verbatim", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "mate", value: 5, perspective: "mover" },
+        afterMoverScore: { type: "cp", value: 50, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-missed",
+      movesToMate: 5,
+    });
+  });
+
+  it("mate-allowed carries absolute movesToMate value verbatim", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "cp", value: 50, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: -4, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-allowed",
+      movesToMate: 4,
+    });
+  });
+
+  it("mate-converted carries after movesToMate value verbatim", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "mate", value: 2, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: 1, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toContainEqual({
+      kind: "mate-converted",
+      movesToMate: 1,
+    });
+  });
+
+  it("mate delta when mover was already being mated emits no mate fact", () => {
+    const assessment = makeAssessment({
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "mate", value: -3, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: -2, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    const hasMateFact = explanation.facts.some(
+      (f) =>
+        f.kind === "mate-missed" ||
+        f.kind === "mate-allowed" ||
+        f.kind === "mate-converted"
+    );
+    expect(hasMateFact).toBe(false);
+  });
+
+  it("mate-converted fact is ordered last after phase, best-move, material", () => {
+    const assessment = makeAssessment({
+      ply: 25,
+      beforeFen: "r1bq1rk1/ppp2ppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R2Q1RK1 w - - 0 8",
+      afterFen: "r1bq1rk1/ppp2ppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R2Q1RK1 w - - 0 8",
+      playedUci: "e2e4",
+      bestCandidateUci: "e2e4",
+      delta: {
+        kind: "mate",
+        beforeMoverScore: { type: "mate", value: 4, perspective: "mover" },
+        afterMoverScore: { type: "mate", value: 3, perspective: "mover" },
+      },
+    });
+    const explanation = buildMoveExplanation(assessment);
+    expect(explanation.facts).toEqual([
+      { kind: "phase", phase: "middlegame" },
+      { kind: "played-best-move" },
+      { kind: "material-even" },
+      { kind: "mate-converted", movesToMate: 3 },
+    ]);
+  });
 });
