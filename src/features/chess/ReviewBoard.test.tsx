@@ -1062,7 +1062,9 @@ describe("ReviewBoard", () => {
       expect(items[0]).toHaveTextContent("Best");
       expect(items[1]).toHaveTextContent("2nd best");
     });
+  });
 
+  describe("move explanation panel", () => {
     it("renders move explanation panel region", () => {
       const timeline = timelineOf(SHORT_GAME);
       render(<ReviewBoard timeline={timeline} />);
