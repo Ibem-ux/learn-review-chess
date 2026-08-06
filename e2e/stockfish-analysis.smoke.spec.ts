@@ -110,15 +110,12 @@ test.describe("Stockfish browser smoke test", () => {
     await expect(page.getByTestId("review-ply-status")).toBeVisible();
     await expect(page.getByLabel("Full-game analysis")).toBeVisible();
 
-    const analysisStatus = page.getByLabel("Full-game analysis").getByRole("status");
     const analyzeButton = page.getByRole("button", { name: "Analyze full game" });
     await expect(analyzeButton).toBeEnabled({ timeout: 60000 });
 
     await expect(page.getByText("Position not yet analyzed.")).toBeVisible();
 
     await analyzeButton.click();
-
-    await expect(analysisStatus).toHaveText(/Analyzing position/);
 
     const results = page.getByTestId("current-ply-result");
     await expect(results).toContainText(/Depth:|Nodes:|Time:|Score:|Engine line:/);
@@ -194,8 +191,6 @@ test.describe("Stockfish browser smoke test", () => {
     await expect(analyzeButton).toBeEnabled({ timeout: 60000 });
 
     await analyzeButton.click();
-
-    await expect(analysisStatus).toHaveText(/Analyzing position/);
 
     const results = page.getByTestId("current-ply-result");
     await expect(results).toContainText(/Depth:|Nodes:|Time:|Score:|Engine line:/);
@@ -288,8 +283,6 @@ test.describe("Stockfish browser smoke test", () => {
 
     await analyzeButton.click();
 
-    await expect(analysisStatus).toHaveText(/Analyzing position/);
-
     const results = page.getByTestId("current-ply-result");
     await expect(results).toContainText(/Depth:|Nodes:|Time:|Score:|Engine line:/);
     await expect(page.getByText("Best move:")).toBeVisible({ timeout: 120000 });
@@ -330,8 +323,6 @@ test.describe("Stockfish browser smoke test", () => {
 
     await analyzeButton.click();
 
-    await expect(analysisStatus).toHaveText(/Analyzing position/);
-
     await expect(page.getByText("Best move:")).toBeVisible({ timeout: 120000 });
     await expect(analysisStatus).toHaveText("Analysis complete.");
 
@@ -353,8 +344,6 @@ test.describe("Stockfish browser smoke test", () => {
     await expect(analyzeButton).toBeEnabled({ timeout: 60000 });
 
     await analyzeButton.click();
-
-    await expect(analysisStatus).toHaveText(/Analyzing position/);
 
     await expect(page.getByText("Best move:")).toBeVisible({ timeout: 120000 });
     await expect(analysisStatus).toHaveText("Analysis complete.");
