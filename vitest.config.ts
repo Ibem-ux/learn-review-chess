@@ -10,7 +10,6 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}", "scripts/**/*.test.{js,mjs}"],
     maxWorkers: 2,
-    pool: "threads",
     testTimeout: 15000,
     hookTimeout: 15000,
   },
