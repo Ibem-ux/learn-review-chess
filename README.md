@@ -51,7 +51,7 @@ The Playwright smoke suite verifies the real-browser Stockfish path: StudyBoard 
 
 ## Continuous Integration
 
-GitHub Actions (`.github/workflows/ci.yml`) runs `npm run lint`, `npm run test:run`, `npm run build`, and `npm run test:e2e` on every push and pull request. The workflow uses Node 20 with npm caching, installs Playwright Chromium and required system dependencies, and uploads Playwright failure artifacts only when the browser smoke tests fail.
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm run lint`, `npm run test:run`, `npm run build`, and `npm run test:e2e` on every push and pull request. The workflow uses Node 22 with npm caching, installs Playwright Chromium and required system dependencies, and uploads Playwright failure artifacts only when the browser smoke tests fail.
 
 ## Chess rules
 
