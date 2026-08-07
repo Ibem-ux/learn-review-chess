@@ -659,48 +659,110 @@ describe("ReviewBoard", () => {
       expect(map.has(4)).toBe(true);
       expect(map.size).toBe(3);
     });
+  });
 
-    describe("buildPerformance and summary wiring", () => {
-      it("renders run-an-analysis message and no element with aria-label Game performance when results are empty", () => {
-        const timeline = shortGameTimeline();
-        render(<ReviewBoard timeline={timeline} />);
-        expect(screen.getByText(/run a full-game analysis/i)).toBeInTheDocument();
-        expect(screen.queryByRole("region", { name: "Game performance" })).toBeNull();
-      });
+  describe("buildPerformance and summary wiring", () => {
+    function makeScore(value: number): EngineScore {
+      return { type: "cp", value, perspective: "white" };
+    }
 
-      it("returns null for an empty results array in buildPerformance", () => {
-        expect(buildPerformance(shortGameTimeline(), [])).toBeNull();
-      });
+    const INITIAL = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
+    const AFTER_E5 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2";
+    const AFTER_NF3 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
+    const AFTER_NC6 = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKBNR w KQkq - 2 3";
 
-      it("returns an object with white and black keys for a valid timeline and results pair in buildPerformance", () => {
-        const timeline = shortGameTimeline();
-        const results = resultsFor(timeline, [
-          { ply: 0, score: makeScore(100) },
-          { ply: 1, score: makeScore(100) },
-          { ply: 2, score: makeScore(150) },
-          { ply: 3, score: makeScore(130) },
-          { ply: 4, score: makeScore(130) },
-        ]);
-        const perf = buildPerformance(timeline, results);
-        expect(perf).not.toBeNull();
-        expect(perf?.white.mover).toBe("white");
-        expect(perf?.black.mover).toBe("black");
-      });
+    function makeJob(ply: number, fen: string): QuickPassJob {
+      return {
+        id: `qp-${ply}`,
+        phase: "quick-pass",
+        ply,
+        fen,
+        limit: { kind: "depth", value: 14 },
+      };
+    }
 
-      it("renders Game performance region when analysis results are populated", () => {
-        const timeline = shortGameTimeline();
-        const results = resultsFor(timeline, [
-          { ply: 0, score: makeScore(100) },
-          { ply: 1, score: makeScore(100) },
-          { ply: 2, score: makeScore(150) },
-          { ply: 3, score: makeScore(130) },
-          { ply: 4, score: makeScore(130) },
-        ]);
-        mockAnalysisState.status = "completed";
-        mockAnalysisState.results = results;
-        render(<ReviewBoard timeline={timeline} />);
-        expect(screen.getByRole("region", { name: "Game performance" })).toBeInTheDocument();
+    function makeResult(
+      job: QuickPassJob,
+      info: EngineInfo | null,
+    ): QuickPassCompletedJob {
+      return {
+        job,
+        info,
+        bestMove: info ? { move: "e2e4", ponder: null } : null,
+        candidateLines: info ? [{ rank: 1, info }] : [],
+      };
+    }
+
+    function shortGameTimeline(): ReviewTimeline {
+      return {
+        steps: [
+          { ply: 0, fen: INITIAL, move: null },
+          { ply: 1, fen: AFTER_E4, move: { san: "e4", color: "w", from: "e2", to: "e4", before: INITIAL, after: AFTER_E4 } },
+          { ply: 2, fen: AFTER_E5, move: { san: "e5", color: "b", from: "e7", to: "e5", before: AFTER_E4, after: AFTER_E5 } },
+          { ply: 3, fen: AFTER_NF3, move: { san: "Nf3", color: "w", from: "g1", to: "f3", before: AFTER_E5, after: AFTER_NF3 } },
+          { ply: 4, fen: AFTER_NC6, move: { san: "Nc6", color: "b", from: "b8", to: "c6", before: AFTER_NF3, after: AFTER_NC6 } },
+        ],
+        totalPlies: 4,
+        initialFen: INITIAL,
+        finalFen: AFTER_NC6,
+        analysisEligible: true,
+      };
+    }
+
+    function resultsFor(
+      timeline: ReviewTimeline,
+      scores: Array<{ ply: number; score: EngineScore }>,
+    ): QuickPassCompletedJob[] {
+      return scores.map((s) => {
+        const job = makeJob(s.ply, timeline.steps[s.ply].fen);
+        return makeResult(job, {
+          depth: 14,
+          score: s.score,
+          pv: ["e2e4"],
+        });
       });
+    }
+
+    it("renders run-an-analysis message and no element with aria-label Game performance when results are empty", () => {
+      const timeline = shortGameTimeline();
+      render(<ReviewBoard timeline={timeline} />);
+      expect(screen.getByText(/run a full-game analysis/i)).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Game performance" })).toBeNull();
+    });
+
+    it("returns null for an empty results array in buildPerformance", () => {
+      expect(buildPerformance(shortGameTimeline(), [])).toBeNull();
+    });
+
+    it("returns an object with white and black keys for a valid timeline and results pair in buildPerformance", () => {
+      const timeline = shortGameTimeline();
+      const results = resultsFor(timeline, [
+        { ply: 0, score: makeScore(100) },
+        { ply: 1, score: makeScore(100) },
+        { ply: 2, score: makeScore(150) },
+        { ply: 3, score: makeScore(130) },
+        { ply: 4, score: makeScore(130) },
+      ]);
+      const perf = buildPerformance(timeline, results);
+      expect(perf).not.toBeNull();
+      expect(perf?.white.mover).toBe("white");
+      expect(perf?.black.mover).toBe("black");
+    });
+
+    it("renders Game performance region when analysis results are populated", () => {
+      const timeline = shortGameTimeline();
+      const results = resultsFor(timeline, [
+        { ply: 0, score: makeScore(100) },
+        { ply: 1, score: makeScore(100) },
+        { ply: 2, score: makeScore(150) },
+        { ply: 3, score: makeScore(130) },
+        { ply: 4, score: makeScore(130) },
+      ]);
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = results;
+      render(<ReviewBoard timeline={timeline} />);
+      expect(screen.getByRole("region", { name: "Game performance" })).toBeInTheDocument();
     });
   });
 
