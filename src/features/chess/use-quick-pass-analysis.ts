@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EngineAnalysisLimit, EngineConfiguration, EngineWorkerEvent } from "./engine";
 import type { ReviewTimeline } from "./timeline";
-import { planQuickPass } from "./quick-pass-planner";
+import type { CriticalPosition } from "./critical-positions";
+import { planCriticalPass, planQuickPass, type QuickPassPlan } from "./quick-pass-planner";
 import { QuickPassRunner, type QuickPassCompletedJob, type QuickPassRunnerState } from "./quick-pass-runner";
 import { EngineController } from "./engine-controller";
 import { createStockfishWorkerFactory } from "./engine-worker-factory";
@@ -45,6 +46,11 @@ export type UseQuickPassAnalysis = {
   readonly currentJobId: string | null;
   readonly results: readonly QuickPassCompletedJob[];
   readonly start: (timeline: ReviewTimeline, limit: EngineAnalysisLimit, multiPv?: number) => boolean;
+  readonly startCriticalPass: (
+    positions: readonly CriticalPosition[],
+    limit: EngineAnalysisLimit,
+    multiPv?: number
+  ) => boolean;
   readonly cancel: () => void;
 };
 
@@ -60,7 +66,7 @@ export function useQuickPassAnalysis(
   const mountedRef = useRef(true);
   const disposedRef = useRef(false);
   const optionsRef = useRef(options);
-  const pendingRequestRef = useRef<{ timeline: ReviewTimeline; limit: EngineAnalysisLimit; multiPv: number } | null>(null);
+  const pendingRequestRef = useRef<{ plan: QuickPassPlan; multiPv: number } | null>(null);
 
   const [state, setState] = useState<QuickPassAnalysisState>(initialState);
 
@@ -74,140 +80,145 @@ export function useQuickPassAnalysis(
     optionsRef.current = options;
   }, [options]);
 
-  const executeRequest = useCallback((
-    request: { timeline: ReviewTimeline; limit: EngineAnalysisLimit; multiPv: number }
-  ) => {
-    const { timeline, limit, multiPv } = request;
+  const executeRequest = useCallback(
+    (request: { plan: QuickPassPlan; multiPv: number }) => {
+      const { plan, multiPv } = request;
+      const resolvedMultiPv = multiPv ?? DEFAULT_MULTI_PV;
 
-    const resolvedMultiPv = multiPv ?? DEFAULT_MULTI_PV;
-    const plan = planQuickPass(timeline, limit);
-
-    if (runnerRef.current) {
-      pendingRequestRef.current = null;
-      return;
-    }
-
-    const controller = controllerRef.current;
-    if (!controller || controller.status !== "ready") {
-      pendingRequestRef.current = null;
-      return;
-    }
-
-    const engineAdapter = {
-      analyze(id: string, payload: { fen: string; limit: EngineAnalysisLimit; multiPv?: number }): void {
-        controller.analyze(id, payload);
-      },
-      stop(): void {
-        controller.stop();
-      },
-      subscribe(listener: (event: EngineWorkerEvent) => void): () => void {
-        return controller.subscribe(listener);
-      },
-    };
-
-    const runner = new QuickPassRunner({
-      engine: engineAdapter,
-      multiPv: resolvedMultiPv,
-    });
-
-    const runnerUnsub = runner.subscribe((runnerState: QuickPassRunnerState) => {
-      if (disposedRef.current) return;
-      if (runnerRef.current !== runner) return;
-
-      let hookStatus: HookStatus;
-      switch (runnerState.status) {
-        case "running":
-          hookStatus = "running";
-          break;
-        case "completed":
-          hookStatus = "completed";
-          break;
-        case "cancelled":
-          hookStatus = "cancelled";
-          break;
-        case "error":
-          hookStatus = "error";
-          break;
-        default:
-          hookStatus = "ready";
+      if (runnerRef.current) {
+        pendingRequestRef.current = null;
+        return;
       }
 
-      setSafeState((prev) => ({
-        ...prev,
-        status: hookStatus,
-        totalJobs: runnerState.totalJobs,
-        completedJobs: runnerState.completedJobs,
-        currentJobId: runnerState.currentJobId,
-        results: runnerState.results,
-        error: runnerState.error ?? prev.error,
-      }));
-
-      if (runnerState.status === "completed" || runnerState.status === "cancelled" || runnerState.status === "error") {
-        if (runnerUnsubRef.current === runnerUnsub) {
-          try {
-            runnerUnsubRef.current();
-          } catch {}
-          runnerUnsubRef.current = null;
-        }
-        if (runnerRef.current === runner) {
-          try {
-            runnerRef.current.dispose();
-          } catch {}
-          runnerRef.current = null;
-        }
+      const controller = controllerRef.current;
+      if (!controller || controller.status !== "ready") {
+        pendingRequestRef.current = null;
+        return;
       }
-    });
 
-    runnerRef.current = runner;
-    runnerUnsubRef.current = runnerUnsub;
+      const engineAdapter = {
+        analyze(id: string, payload: { fen: string; limit: EngineAnalysisLimit; multiPv?: number }): void {
+          controller.analyze(id, payload);
+        },
+        stop(): void {
+          controller.stop();
+        },
+        subscribe(listener: (event: EngineWorkerEvent) => void): () => void {
+          return controller.subscribe(listener);
+        },
+      };
 
-    try {
-      runner.start(plan);
-    } catch (error) {
-      if (runnerRef.current === runner) {
-        if (runnerUnsubRef.current === runnerUnsub) {
-          try {
-            runnerUnsubRef.current();
-          } catch {}
-          runnerUnsubRef.current = null;
+      const runner = new QuickPassRunner({
+        engine: engineAdapter,
+        multiPv: resolvedMultiPv,
+      });
+
+      const runnerUnsub = runner.subscribe((runnerState: QuickPassRunnerState) => {
+        if (disposedRef.current) return;
+        if (runnerRef.current !== runner) return;
+
+        let hookStatus: HookStatus;
+        switch (runnerState.status) {
+          case "running":
+            hookStatus = "running";
+            break;
+          case "completed":
+            hookStatus = "completed";
+            break;
+          case "cancelled":
+            hookStatus = "cancelled";
+            break;
+          case "error":
+            hookStatus = "error";
+            break;
+          default:
+            hookStatus = "ready";
         }
-        runnerRef.current = null;
-        setSafeState(() => ({
-          ...initialState,
-          status: "error",
-          error: error instanceof Error ? error.message : "Failed to start analysis.",
-        }));
-      }
-      // If terminal callback already cleaned up, do not overwrite state
-    }
-  }, [setSafeState]);
 
-  const handleControllerEvent = useCallback((event: EngineWorkerEvent) => {
-    if (disposedRef.current) return;
-    if (event.type !== "error" && runnerRef.current) return;
-
-    switch (event.type) {
-      case "loading":
-        setSafeState((prev) => ({ ...prev, status: "loading" }));
-        break;
-      case "ready":
-        setSafeState((prev) => ({ ...prev, status: "ready" }));
-        if (pendingRequestRef.current) {
-          const request = pendingRequestRef.current;
-          pendingRequestRef.current = null;
-          executeRequest(request);
-        }
-        break;
-      case "error":
         setSafeState((prev) => ({
           ...prev,
-          status: "error",
-          error: event.message,
+          status: hookStatus,
+          totalJobs: runnerState.totalJobs,
+          completedJobs: runnerState.completedJobs,
+          currentJobId: runnerState.currentJobId,
+          results: runnerState.results,
+          error: runnerState.error ?? prev.error,
         }));
-        pendingRequestRef.current = null;
-        break;
-    }
-  }, [setSafeState, executeRequest]);
+
+        if (
+          runnerState.status === "completed" ||
+          runnerState.status === "cancelled" ||
+          runnerState.status === "error"
+        ) {
+          if (runnerUnsubRef.current === runnerUnsub) {
+            try {
+              runnerUnsubRef.current();
+            } catch {}
+            runnerUnsubRef.current = null;
+          }
+          if (runnerRef.current === runner) {
+            try {
+              runnerRef.current.dispose();
+            } catch {}
+            runnerRef.current = null;
+          }
+        }
+      });
+
+      runnerRef.current = runner;
+      runnerUnsubRef.current = runnerUnsub;
+
+      try {
+        runner.start(plan);
+      } catch (error) {
+        if (runnerRef.current === runner) {
+          if (runnerUnsubRef.current === runnerUnsub) {
+            try {
+              runnerUnsubRef.current();
+            } catch {}
+            runnerUnsubRef.current = null;
+          }
+          runnerRef.current = null;
+          setSafeState(() => ({
+            ...initialState,
+            status: "error",
+            error: error instanceof Error ? error.message : "Failed to start analysis.",
+          }));
+        }
+      }
+    },
+    [setSafeState]
+  );
+
+  const handleControllerEvent = useCallback(
+    (event: EngineWorkerEvent) => {
+      if (disposedRef.current) return;
+      if (event.type !== "error" && runnerRef.current) return;
+
+      switch (event.type) {
+        case "loading":
+          setSafeState((prev) => ({ ...prev, status: "loading" }));
+          break;
+        case "ready":
+          setSafeState((prev) => ({ ...prev, status: "ready" }));
+          if (pendingRequestRef.current) {
+            const request = pendingRequestRef.current;
+            pendingRequestRef.current = null;
+            executeRequest(request);
+          }
+          break;
+        case "error":
+          setSafeState((prev) => ({
+            ...prev,
+            status: "error",
+            error: event.message,
+          }));
+          pendingRequestRef.current = null;
+          break;
+      }
+    },
+    [setSafeState, executeRequest]
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -265,8 +276,8 @@ export function useQuickPassAnalysis(
     runner.cancel();
   }, []);
 
-  const start = useCallback(
-    (timeline: ReviewTimeline, limit: EngineAnalysisLimit, multiPv?: number): boolean => {
+  const startWithPlan = useCallback(
+    (plan: QuickPassPlan, multiPv?: number): boolean => {
       if (!mountedRef.current || disposedRef.current) {
         return false;
       }
@@ -279,28 +290,21 @@ export function useQuickPassAnalysis(
         return false;
       }
 
-      const validateRequest = (
-        timelineInput: ReviewTimeline,
-        limitInput: EngineAnalysisLimit,
-        multiPvInput: number | undefined
-      ): { ok: true } | { ok: false; error: string } => {
-        const resolvedMultiPv = multiPvInput ?? DEFAULT_MULTI_PV;
-        if (!Number.isInteger(resolvedMultiPv) || resolvedMultiPv < 1) {
-          return { ok: false, error: "multiPv must be a positive integer." };
-        }
-        const plan = planQuickPass(timelineInput, limitInput);
-        if (!plan.ok) {
-          return { ok: false, error: plan.reason };
-        }
-        return { ok: true };
-      };
-
-      const validation = validateRequest(timeline, limit, multiPv);
-      if (!validation.ok) {
+      const resolvedMultiPv = multiPv ?? DEFAULT_MULTI_PV;
+      if (!Number.isInteger(resolvedMultiPv) || resolvedMultiPv < 1) {
         setSafeState(() => ({
           ...initialState,
           status: "error",
-          error: validation.error,
+          error: "multiPv must be a positive integer.",
+        }));
+        return false;
+      }
+
+      if (!plan.ok) {
+        setSafeState(() => ({
+          ...initialState,
+          status: "error",
+          error: plan.reason,
         }));
         return false;
       }
@@ -311,15 +315,12 @@ export function useQuickPassAnalysis(
           const controller = new EngineController(factory);
           const ownerId = `quick-pass-${quickPassOwnerCounter++}`;
           ownerIdRef.current = ownerId;
-          // onRevoked must not set React state; it runs synchronously during another component's acquireEngine call.
           acquireEngine({
             id: ownerId,
             onRevoked: () => {
               try {
                 runnerUnsubRef.current?.();
-              } catch {
-                // swallow
-              }
+              } catch {}
               runnerUnsubRef.current = null;
 
               const runner = runnerRef.current;
@@ -327,27 +328,19 @@ export function useQuickPassAnalysis(
 
               try {
                 runner?.cancel();
-              } catch {
-                // swallow
-              }
+              } catch {}
               try {
                 runner?.dispose();
-              } catch {
-                // swallow
-              }
+              } catch {}
 
               try {
                 controllerUnsubRef.current?.();
-              } catch {
-                // swallow
-              }
+              } catch {}
               controllerUnsubRef.current = null;
 
               try {
                 controllerRef.current?.dispose();
-              } catch {
-                // swallow
-              }
+              } catch {}
               controllerRef.current = null;
 
               initializedRef.current = false;
@@ -380,14 +373,34 @@ export function useQuickPassAnalysis(
 
       const controller = controllerRef.current;
       if (!controller || controller.status !== "ready") {
-        pendingRequestRef.current = { timeline, limit, multiPv: multiPv ?? DEFAULT_MULTI_PV };
+        pendingRequestRef.current = { plan, multiPv: resolvedMultiPv };
         return true;
       }
 
-      executeRequest({ timeline, limit, multiPv: multiPv ?? DEFAULT_MULTI_PV });
+      executeRequest({ plan, multiPv: resolvedMultiPv });
       return true;
     },
     [setSafeState, handleControllerEvent, executeRequest]
+  );
+
+  const start = useCallback(
+    (timeline: ReviewTimeline, limit: EngineAnalysisLimit, multiPv?: number): boolean => {
+      const plan = planQuickPass(timeline, limit);
+      return startWithPlan(plan, multiPv);
+    },
+    [startWithPlan]
+  );
+
+  const startCriticalPass = useCallback(
+    (
+      positions: readonly CriticalPosition[],
+      limit: EngineAnalysisLimit,
+      multiPv?: number
+    ): boolean => {
+      const plan = planCriticalPass(positions, limit);
+      return startWithPlan(plan, multiPv);
+    },
+    [startWithPlan]
   );
 
   return {
@@ -398,6 +411,7 @@ export function useQuickPassAnalysis(
     currentJobId: state.currentJobId,
     results: state.results,
     start,
+    startCriticalPass,
     cancel,
   };
 }
