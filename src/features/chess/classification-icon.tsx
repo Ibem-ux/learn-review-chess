@@ -1,30 +1,8 @@
 import type { MoveClassification } from "./move-classification";
-
-const COLORS: Record<MoveClassification, string> = {
-  brilliant: "#22d3ee",
-  great: "#818cf8",
-  best: "#22c55e",
-  excellent: "#14b8a6",
-  good: "#eab308",
-  "missed-win": "#d946ef",
-  inaccuracy: "#f97316",
-  mistake: "#ef4444",
-  blunder: "#991b1b",
-  unclassified: "#64748b",
-};
-
-const LABELS: Record<MoveClassification, string> = {
-  brilliant: "Brilliant move",
-  great: "Great move",
-  best: "Best move",
-  excellent: "Excellent move",
-  good: "Good move",
-  "missed-win": "Missed Win",
-  inaccuracy: "Inaccuracy",
-  mistake: "Mistake",
-  blunder: "Blunder",
-  unclassified: "Unclassified",
-};
+import {
+  CLASSIFICATION_COLORS,
+  CLASSIFICATION_LABELS,
+} from "./classification-presentation";
 
 function renderGlyph(
   classification: MoveClassification,
@@ -127,7 +105,7 @@ export function ClassificationIcon({
   className,
 }: ClassificationIconProps): React.ReactElement {
   const validSize = Number.isFinite(size) && size > 0 ? size : 16;
-  const color = COLORS[classification];
+  const color = CLASSIFICATION_COLORS[classification];
 
   return (
     <svg
@@ -139,7 +117,7 @@ export function ClassificationIcon({
       focusable="false"
       data-classification={classification}
     >
-      <title>{LABELS[classification]}</title>
+      <title>{CLASSIFICATION_LABELS[classification]}</title>
       {renderGlyph(classification, color)}
     </svg>
   );

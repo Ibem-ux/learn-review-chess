@@ -1,19 +1,7 @@
 import type { ReviewTimeline } from "./timeline";
 import type { MoveClassification } from "./move-classification";
 import { ClassificationIcon } from "./classification-icon";
-
-const LABELS: Record<MoveClassification, string> = {
-  brilliant: "Brilliant move",
-  great: "Great move",
-  best: "Best move",
-  excellent: "Excellent move",
-  good: "Good move",
-  "missed-win": "Missed Win",
-  inaccuracy: "Inaccuracy",
-  mistake: "Mistake",
-  blunder: "Blunder",
-  unclassified: "Unclassified",
-};
+import { CLASSIFICATION_LABELS } from "./classification-presentation";
 
 export type MoveListProps = {
   readonly timeline: ReviewTimeline;
@@ -70,7 +58,7 @@ export function MoveList({
             return (
               <>
                 <ClassificationIcon classification={classification} />
-                <span className="sr-only">{LABELS[classification]}</span>
+                <span className="sr-only">{CLASSIFICATION_LABELS[classification]}</span>
               </>
             );
           })()}

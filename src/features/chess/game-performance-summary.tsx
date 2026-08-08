@@ -2,27 +2,12 @@
 
 import type { GamePerformance, PlayerPerformance } from "./game-performance";
 import type { GamePhase } from "./game-phase";
-import {
-  MOVE_CLASSIFICATION_ORDER,
-  type MoveClassification,
-} from "./move-classification";
+import { MOVE_CLASSIFICATION_ORDER } from "./move-classification";
 import { ClassificationIcon } from "./classification-icon";
 import { estimateRatingFromAccuracy } from "./rating-estimate";
+import { CLASSIFICATION_LABELS } from "./classification-presentation";
 
 const PHASES: readonly GamePhase[] = ["opening", "middlegame", "endgame"];
-
-const LABELS: Record<MoveClassification, string> = {
-  brilliant: "Brilliant move",
-  great: "Great move",
-  best: "Best move",
-  excellent: "Excellent move",
-  good: "Good move",
-  "missed-win": "Missed Win",
-  inaccuracy: "Inaccuracy",
-  mistake: "Mistake",
-  blunder: "Blunder",
-  unclassified: "Unclassified",
-};
 
 const PHASE_LABELS: Record<GamePhase, string> = {
   opening: "Opening",
@@ -104,7 +89,7 @@ function PlayerBlock({
                 className="flex items-center gap-2"
               >
                 <ClassificationIcon classification={classification} />
-                <span className="sr-only">{LABELS[classification]}</span>
+                <span className="sr-only">{CLASSIFICATION_LABELS[classification]}</span>
                 <span className="font-mono text-xs">({count})</span>
               </li>
             );
