@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Chessboard, type PieceDropHandlerArgs } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
 import { useQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
@@ -91,6 +91,7 @@ export default function ReviewBoard({
   const [orientation, setOrientation] = useState<"white" | "black">("white");
   const [controlsHost, setControlsHost] = useState<HTMLDivElement | null>(null);
   const [explorer, setExplorer] = useState<ExplorerStack | null>(null);
+  const [criticalSelection, setCriticalSelection] = useState<readonly CriticalPosition[] | null>(null);
   const setControlsHostRef = useCallback((node: HTMLDivElement | null) => {
     setControlsHost(node);
   }, []);
@@ -101,16 +102,9 @@ export default function ReviewBoard({
   if (identity !== lastIdentity) {
     setLastIdentity(identity);
     setPly(0);
+    setCriticalSelection(null);
   }
   const analysisState = useQuickPassAnalysis();
-
-  const criticalSelectionRef = useRef<readonly CriticalPosition[] | null>(null);
-  const [criticalSelection, setCriticalSelection] = useState<readonly CriticalPosition[] | null>(null);
-
-  useEffect(() => {
-    criticalSelectionRef.current = null;
-    setCriticalSelection(null);
-  }, [timeline]);
 
   const classifications = useMemo(
     () => buildClassificationMap(timeline, analysisState.results),
@@ -129,11 +123,9 @@ export default function ReviewBoard({
 
   useEffect(() => {
     if (analysisState.status !== "completed") return;
-    if (criticalSelectionRef.current !== null) return;
-    const selection = selectCriticalPositions(classifiedMoves);
-    criticalSelectionRef.current = selection;
-    setCriticalSelection(selection);
-  }, [analysisState.status, classifiedMoves]);
+    if (criticalSelection !== null) return;
+    setCriticalSelection(selectCriticalPositions(classifiedMoves));
+  }, [analysisState.status, classifiedMoves, criticalSelection]);
 
   const graphPoints = useMemo(() => {
     const series = buildQuickPassEvaluationSeries(timeline, analysisState.results);

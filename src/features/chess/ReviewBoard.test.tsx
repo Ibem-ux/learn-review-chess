@@ -1331,5 +1331,23 @@ describe("ReviewBoard", () => {
 
       expect(screen.getByText("Analyze critical moments")).toBeInTheDocument();
     });
+
+    it("loading a different timeline hides the button again", () => {
+      const timeline = testTimeline();
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = resultsFor(timeline, [
+        { ply: 0, score: makeScore(20) },
+        { ply: 1, score: makeScore(20) },
+        { ply: 2, score: makeScore(400) },
+        { ply: 3, score: makeScore(400) },
+        { ply: 4, score: makeScore(400) },
+      ]);
+      const { rerender } = render(<ReviewBoard timeline={timeline} />);
+      expect(screen.getByText("Analyze critical moments")).toBeInTheDocument();
+
+      const differentTimeline = timelineOf('[Event "Other"]\n1. d4 d5 *');
+      rerender(<ReviewBoard timeline={differentTimeline} />);
+      expect(screen.queryByText("Analyze critical moments")).toBeNull();
+    });
   });
 });
