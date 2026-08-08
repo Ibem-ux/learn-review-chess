@@ -35,7 +35,21 @@ export function buildAnalysisCache(
         score: line.info.score ?? null,
       }));
 
-    entries.set(fen, { fen, score, depth, lines });
+    const candidate: CachedAnalysis = { fen, score, depth, lines };
+    const existing = entries.get(fen);
+
+    // Prefer deeper analysis when caching duplicate positions.
+    if (!existing) {
+      entries.set(fen, candidate);
+    } else if (depth !== null && existing.depth === null) {
+      entries.set(fen, candidate);
+    } else if (depth !== null && existing.depth !== null) {
+      if (depth > existing.depth) {
+        entries.set(fen, candidate);
+      }
+    } else if (depth === null && existing.depth === null) {
+      entries.set(fen, candidate);
+    }
   }
 
   return entries;

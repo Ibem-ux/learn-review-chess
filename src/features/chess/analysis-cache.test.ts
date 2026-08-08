@@ -158,6 +158,75 @@ describe("buildAnalysisCache", () => {
     expect(entry?.score).toEqual(cpScore(200));
     expect(entry?.depth).toBe(20);
   });
+
+  it("prefers deeper result when depths are 10 then 18", () => {
+    const job1 = quickPassJob(START_FEN, 0);
+    const job2 = quickPassJob(START_FEN, 0);
+    const results = [
+      completedJob(job1, { info: engineInfo({ depth: 10 }) }),
+      completedJob(job2, { info: engineInfo({ depth: 18 }) }),
+    ];
+    const cache = buildAnalysisCache(results);
+    const entry = lookupAnalysis(cache, START_FEN);
+    expect(entry?.depth).toBe(18);
+  });
+
+  it("prefers deeper result when depths are 18 then 10", () => {
+    const job1 = quickPassJob(START_FEN, 0);
+    const job2 = quickPassJob(START_FEN, 0);
+    const results = [
+      completedJob(job1, { info: engineInfo({ depth: 18 }) }),
+      completedJob(job2, { info: engineInfo({ depth: 10 }) }),
+    ];
+    const cache = buildAnalysisCache(results);
+    const entry = lookupAnalysis(cache, START_FEN);
+    expect(entry?.depth).toBe(18);
+  });
+
+  it("prefers numeric depth over null when depth is null then 12", () => {
+    const job1 = quickPassJob(START_FEN, 0);
+    const job2 = quickPassJob(START_FEN, 0);
+    const results = [
+      completedJob(job1, { info: engineInfo({ depth: undefined }) }),
+      completedJob(job2, { info: engineInfo({ depth: 12 }) }),
+    ];
+    const cache = buildAnalysisCache(results);
+    const entry = lookupAnalysis(cache, START_FEN);
+    expect(entry?.depth).toBe(12);
+  });
+
+  it("keeps numeric depth when depth is 12 then null", () => {
+    const job1 = quickPassJob(START_FEN, 0);
+    const job2 = quickPassJob(START_FEN, 0);
+    const results = [
+      completedJob(job1, { info: engineInfo({ depth: 12 }) }),
+      completedJob(job2, { info: engineInfo({ depth: undefined }) }),
+    ];
+    const cache = buildAnalysisCache(results);
+    const entry = lookupAnalysis(cache, START_FEN);
+    expect(entry?.depth).toBe(12);
+  });
+
+  it("replaces entry with later result when both depths are null", () => {
+    const job1 = quickPassJob(START_FEN, 0);
+    const job2 = quickPassJob(START_FEN, 0);
+    const line1 = candidateLine(1, { pv: ["e2e4"] });
+    const line2 = candidateLine(1, { pv: ["d2d4"] });
+    const results = [
+      completedJob(job1, {
+        info: engineInfo({ depth: undefined }),
+        candidateLines: [line1],
+      }),
+      completedJob(job2, {
+        info: engineInfo({ depth: undefined }),
+        candidateLines: [line2],
+      }),
+    ];
+    const cache = buildAnalysisCache(results);
+    const entry = lookupAnalysis(cache, START_FEN);
+    expect(entry?.depth).toBeNull();
+    expect(entry?.lines[0].moves).toEqual(["d2d4"]);
+  });
 });
 
 describe("lookupAnalysis", () => {
