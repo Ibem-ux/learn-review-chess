@@ -4,8 +4,9 @@ import {
   buildTimeline,
   type ReviewTimeline,
 } from "@/features/chess/timeline";
-import { planQuickPass } from "@/features/chess/quick-pass-planner";
+import { planCriticalPass, planQuickPass } from "@/features/chess/quick-pass-planner";
 import type { QuickPassJob, QuickPassPlan } from "@/features/chess/quick-pass-planner";
+import type { CriticalPosition } from "@/features/chess/critical-positions";
 
 const COMPLETED_PGN = `[Event "Test"]
 [White "White"]
@@ -171,5 +172,79 @@ describe("planQuickPass", () => {
     expect(timeline.finalFen).toBe(originalFinalFen);
     expect(plan.ok).toBe(true);
     expect(limit).toEqual({ kind: "depth", value: 14 });
+  });
+});
+
+describe("planCriticalPass", () => {
+  it("an empty positions array returns the failure variant with the exact reason string", () => {
+    const plan = planCriticalPass([], { kind: "depth", value: 18 });
+    expect(plan.ok).toBe(false);
+    if (plan.ok) throw new Error("expected failure variant");
+    expect(plan.reason).toBe("No critical positions to analyze.");
+  });
+
+  it("an empty positions array returns an empty jobs array", () => {
+    const plan = planCriticalPass([], { kind: "depth", value: 18 });
+    expect(plan.jobs).toEqual([]);
+  });
+
+  it("one position produces exactly one job", () => {
+    const pos: CriticalPosition = { ply: 5, fen: "fen-5", reason: "blunder" };
+    const plan = planCriticalPass([pos], { kind: "depth", value: 18 });
+    expect(plan.ok).toBe(true);
+    expect(plan.jobs).toHaveLength(1);
+  });
+
+  it("that job's id is critical-pass-<ply> for the position's ply", () => {
+    const pos: CriticalPosition = { ply: 5, fen: "fen-5", reason: "blunder" };
+    const plan = planCriticalPass([pos], { kind: "depth", value: 18 });
+    expect(plan.jobs[0].id).toBe("critical-pass-5");
+  });
+
+  it("that job's phase is critical-pass", () => {
+    const pos: CriticalPosition = { ply: 5, fen: "fen-5", reason: "blunder" };
+    const plan = planCriticalPass([pos], { kind: "depth", value: 18 });
+    expect(plan.jobs[0].phase).toBe("critical-pass");
+  });
+
+  it("that job's fen and ply equal the position's fen and ply", () => {
+    const pos: CriticalPosition = { ply: 5, fen: "fen-5", reason: "blunder" };
+    const plan = planCriticalPass([pos], { kind: "depth", value: 18 });
+    expect(plan.jobs[0].ply).toBe(5);
+    expect(plan.jobs[0].fen).toBe("fen-5");
+  });
+
+  it("three positions produce three jobs in the same order as the input", () => {
+    const positions: readonly CriticalPosition[] = [
+      { ply: 10, fen: "fen-10", reason: "blunder" },
+      { ply: 3, fen: "fen-3", reason: "mistake" },
+      { ply: 15, fen: "fen-15", reason: "inaccuracy" },
+    ];
+    const plan = planCriticalPass(positions, { kind: "depth", value: 18 });
+    expect(plan.ok).toBe(true);
+    expect(plan.jobs.map((j) => j.ply)).toEqual([10, 3, 15]);
+  });
+
+  it("every job carries the identical limit value that was passed in", () => {
+    const positions: readonly CriticalPosition[] = [
+      { ply: 1, fen: "fen-1", reason: "blunder" },
+      { ply: 2, fen: "fen-2", reason: "mistake" },
+    ];
+    const limit = { kind: "depth", value: 18 } as const;
+    const plan = planCriticalPass(positions, limit);
+    expect(plan.ok).toBe(true);
+    for (const job of plan.jobs) {
+      expect(job.limit).toEqual(limit);
+    }
+  });
+
+  it("the input array is not mutated", () => {
+    const positions: readonly CriticalPosition[] = [
+      { ply: 1, fen: "fen-1", reason: "blunder" },
+      { ply: 2, fen: "fen-2", reason: "mistake" },
+    ];
+    const originalJson = JSON.stringify(positions);
+    planCriticalPass(positions, { kind: "depth", value: 18 });
+    expect(JSON.stringify(positions)).toBe(originalJson);
   });
 });

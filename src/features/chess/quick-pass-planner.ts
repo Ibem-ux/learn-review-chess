@@ -1,9 +1,12 @@
+import type { CriticalPosition } from "./critical-positions";
 import type { EngineAnalysisLimit } from "./engine";
 import type { ReviewTimeline } from "./timeline";
 
+export type QuickPassPhase = "quick-pass" | "critical-pass";
+
 export type QuickPassJob = {
   readonly id: string;
-  readonly phase: "quick-pass";
+  readonly phase: QuickPassPhase;
   readonly ply: number;
   readonly fen: string;
   readonly limit: EngineAnalysisLimit;
@@ -47,3 +50,30 @@ export function planQuickPass(
     jobs,
   };
 }
+
+export function planCriticalPass(
+  positions: readonly CriticalPosition[],
+  limit: EngineAnalysisLimit
+): QuickPassPlan {
+  if (positions.length === 0) {
+    return {
+      ok: false,
+      reason: "No critical positions to analyze.",
+      jobs: [],
+    };
+  }
+
+  const jobs = positions.map((position) => ({
+    id: `critical-pass-${position.ply}`,
+    phase: "critical-pass" as const,
+    ply: position.ply,
+    fen: position.fen,
+    limit,
+  }));
+
+  return {
+    ok: true,
+    jobs,
+  };
+}
+
