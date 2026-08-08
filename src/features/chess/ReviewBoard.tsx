@@ -105,9 +105,11 @@ export default function ReviewBoard({
   const analysisState = useQuickPassAnalysis();
 
   const criticalSelectionRef = useRef<readonly CriticalPosition[] | null>(null);
+  const [criticalSelection, setCriticalSelection] = useState<readonly CriticalPosition[] | null>(null);
 
   useEffect(() => {
     criticalSelectionRef.current = null;
+    setCriticalSelection(null);
   }, [timeline]);
 
   const classifications = useMemo(
@@ -128,7 +130,9 @@ export default function ReviewBoard({
   useEffect(() => {
     if (analysisState.status !== "completed") return;
     if (criticalSelectionRef.current !== null) return;
-    criticalSelectionRef.current = selectCriticalPositions(classifiedMoves);
+    const selection = selectCriticalPositions(classifiedMoves);
+    criticalSelectionRef.current = selection;
+    setCriticalSelection(selection);
   }, [analysisState.status, classifiedMoves]);
 
   const graphPoints = useMemo(() => {
@@ -365,13 +369,12 @@ export default function ReviewBoard({
         <EvaluationGraph points={graphPoints} currentPly={ply} onSelectPly={goTo} />
       </div>
       <div className="w-full max-w-2xl space-y-3">
-        {/* eslint-disable-next-line react-hooks/refs */}
-        {criticalSelectionRef.current !== null && criticalSelectionRef.current.length > 0 && (
+        {criticalSelection !== null && criticalSelection.length > 0 && (
           <button
             type="button"
             onClick={() => {
-              if (criticalSelectionRef.current) {
-                analysisState.startCriticalPass(criticalSelectionRef.current, DEEP_PASS_LIMIT, 3);
+              if (criticalSelection) {
+                analysisState.startCriticalPass(criticalSelection, DEEP_PASS_LIMIT, 3);
               }
             }}
             disabled={analysisState.status === "running"}

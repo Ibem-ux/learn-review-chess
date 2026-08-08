@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewTimeline } from "@/features/chess/timeline";
@@ -1308,6 +1308,28 @@ describe("ReviewBoard", () => {
 
       const secondClickArg = mockAnalysisState.startCriticalPass.mock.calls[1][0];
       expect(secondClickArg).toBe(firstClickArg);
+    });
+
+    it("the button is visible on the render caused by completion, with no further interaction", () => {
+      const timeline = testTimeline();
+      mockAnalysisState.status = "running";
+      mockAnalysisState.results = [];
+      const { rerender } = render(<ReviewBoard timeline={timeline} />);
+      expect(screen.queryByText("Analyze critical moments")).toBeNull();
+
+      act(() => {
+        mockAnalysisState.results = resultsFor(timeline, [
+          { ply: 0, score: makeScore(20) },
+          { ply: 1, score: makeScore(20) },
+          { ply: 2, score: makeScore(400) },
+          { ply: 3, score: makeScore(400) },
+          { ply: 4, score: makeScore(400) },
+        ]);
+        mockAnalysisState.status = "completed";
+        rerender(<ReviewBoard timeline={timeline} />);
+      });
+
+      expect(screen.getByText("Analyze critical moments")).toBeInTheDocument();
     });
   });
 });
