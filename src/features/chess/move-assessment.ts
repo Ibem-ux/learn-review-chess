@@ -231,7 +231,25 @@ export function buildMoveAssessments(
   }
 
   const points = seriesResult.points;
-  const resultByPly = new Map(results.map((r) => [r.job.ply, r]));
+  const resultByFen = new Map<string, QuickPassCompletedJob>();
+  for (const r of results) {
+    const existing = resultByFen.get(r.job.fen);
+    if (!existing) {
+      resultByFen.set(r.job.fen, r);
+    } else {
+      const existingDepth =
+        existing.info?.depth !== undefined && Number.isFinite(existing.info.depth)
+          ? existing.info.depth
+          : 0;
+      const rDepth =
+        r.info?.depth !== undefined && Number.isFinite(r.info.depth)
+          ? r.info.depth
+          : 0;
+      if (rDepth >= existingDepth) {
+        resultByFen.set(r.job.fen, r);
+      }
+    }
+  }
   const assessments: MoveAssessment[] = [];
 
   for (let i = 1; i < timeline.steps.length; i++) {
@@ -260,7 +278,7 @@ export function buildMoveAssessments(
     }
 
     const playedUci = toUci(move);
-    const beforeResult = resultByPly.get(beforePoint.ply);
+    const beforeResult = resultByFen.get(beforePoint.fen);
     const candidateMatch = findCandidateMatch(
       beforeResult,
       move,

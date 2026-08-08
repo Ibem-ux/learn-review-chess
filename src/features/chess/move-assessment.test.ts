@@ -995,5 +995,85 @@ describe("buildMoveAssessments", () => {
       expect(a.bestCandidateScore).toBeNull();
       expect(a.secondCandidateScore).toEqual({ type: "cp", value: 25, perspective: "mover" });
     });
+
+    it("prefers the deeper result when two results share the same fen", () => {
+      const timeline = shortGameTimeline();
+      const jobShallow = makeJob(0, INITIAL);
+      const infoShallow: EngineInfo = {
+        depth: 10,
+        score: { type: "cp", value: 10, perspective: "white" },
+        pv: ["e2e4"],
+      };
+      const resultShallow = makeResult(jobShallow, infoShallow, [
+        { rank: 1, info: { score: { type: "cp", value: 10, perspective: "white" }, pv: ["e2e4"] } },
+      ]);
+
+      const jobDeep = makeJob(0, INITIAL);
+      const infoDeep: EngineInfo = {
+        depth: 18,
+        score: { type: "cp", value: 95, perspective: "white" },
+        pv: ["d2d4"],
+      };
+      const resultDeep = makeResult(jobDeep, infoDeep, [
+        { rank: 1, info: { score: { type: "cp", value: 95, perspective: "white" }, pv: ["d2d4"] } },
+      ]);
+
+      const series = buildMoveAssessments(timeline, [resultShallow, resultDeep]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateUci).toBe("d2d4");
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 95, perspective: "mover" });
+    });
+
+    it("prefers the later result when two results share the same fen at equal depth", () => {
+      const timeline = shortGameTimeline();
+      const jobEarly = makeJob(0, INITIAL);
+      const infoEarly: EngineInfo = {
+        depth: 14,
+        score: { type: "cp", value: 20, perspective: "white" },
+        pv: ["e2e4"],
+      };
+      const resultEarly = makeResult(jobEarly, infoEarly, [
+        { rank: 1, info: { score: { type: "cp", value: 20, perspective: "white" }, pv: ["e2e4"] } },
+      ]);
+
+      const jobLater = makeJob(0, INITIAL);
+      const infoLater: EngineInfo = {
+        depth: 14,
+        score: { type: "cp", value: 75, perspective: "white" },
+        pv: ["c2c4"],
+      };
+      const resultLater = makeResult(jobLater, infoLater, [
+        { rank: 1, info: { score: { type: "cp", value: 75, perspective: "white" }, pv: ["c2c4"] } },
+      ]);
+
+      const series = buildMoveAssessments(timeline, [resultEarly, resultLater]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateUci).toBe("c2c4");
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 75, perspective: "mover" });
+    });
+
+    it("is unchanged when every fen appears exactly once", () => {
+      const timeline = shortGameTimeline();
+      const job0 = makeJob(0, INITIAL);
+      const info0: EngineInfo = {
+        depth: 14,
+        score: { type: "cp", value: 30, perspective: "white" },
+        pv: ["e2e4"],
+      };
+      const result0 = makeResult(job0, info0, [
+        { rank: 1, info: { score: { type: "cp", value: 30, perspective: "white" }, pv: ["e2e4"] } },
+      ]);
+
+      const series = buildMoveAssessments(timeline, [result0]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      const a = series.assessments[0];
+      expect(a.bestCandidateUci).toBe("e2e4");
+      expect(a.bestCandidateScore).toEqual({ type: "cp", value: 30, perspective: "mover" });
+    });
   });
 });
