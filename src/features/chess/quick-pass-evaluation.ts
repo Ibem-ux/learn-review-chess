@@ -174,6 +174,42 @@ export function getTimelineStepSafe(
 // ---------------------------------------------------------------------------
 
 /**
+ * Selects the deepest result for each ply from a list of completed jobs.
+ *
+ * Rules:
+ * - Group by `job.ply`.
+ * - Keep the entry with the greatest `info?.depth`.
+ * - Treat a missing or non-finite depth as 0.
+ * - On a depth tie, keep the LATER entry in array order.
+ * - Return one entry per ply, ordered by first appearance of that ply in the input array.
+ * - No mutation of the input array or of any entry.
+ */
+export function selectDeepestResultsByPly(
+  results: readonly QuickPassCompletedJob[],
+): readonly QuickPassCompletedJob[] {
+  const map = new Map<number, QuickPassCompletedJob>();
+  for (const r of results) {
+    const existing = map.get(r.job.ply);
+    if (!existing) {
+      map.set(r.job.ply, r);
+    } else {
+      const existingDepth =
+        existing.info?.depth !== undefined && Number.isFinite(existing.info.depth)
+          ? existing.info.depth
+          : 0;
+      const rDepth =
+        r.info?.depth !== undefined && Number.isFinite(r.info.depth)
+          ? r.info.depth
+          : 0;
+      if (rDepth >= existingDepth) {
+        map.set(r.job.ply, r);
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
+/**
  * Builds an ordered evaluation series by aligning completed quick-pass
  * results with timeline positions.
  *
@@ -185,7 +221,7 @@ export function getTimelineStepSafe(
  *   Rank 2/3 candidate lines are never substituted.
  * - Missing result → `completed: false`, `score: null`.
  * - Completed result without score → `completed: true`, `score: null`.
- * - Duplicate result plies, non-finite/fractional/negative plies,
+ * - Duplicate result plies for a ply select the deepest result. Non-finite/fractional/negative plies,
  *   out-of-range plies, FEN mismatches, and malformed FEN are rejected with
  *   a safe reason.
  */
@@ -193,10 +229,10 @@ export function buildQuickPassEvaluationSeries(
   timeline: ReviewTimeline,
   results: readonly QuickPassCompletedJob[],
 ): EvaluationSeriesResult {
-  // Index results by ply for alignment.
+  const selectedResults = selectDeepestResultsByPly(results);
   const resultByPly = new Map<number, QuickPassCompletedJob>();
 
-  for (const result of results) {
+  for (const result of selectedResults) {
     const plyValidation = validateResultPly(result.job.ply);
     if (plyValidation !== null) {
       return {
@@ -212,14 +248,6 @@ export function buildQuickPassEvaluationSeries(
       return {
         ok: false,
         reason: `Result ply ${ply} is out of range (max ${timeline.totalPlies}).`,
-      };
-    }
-
-    // Reject duplicate plies.
-    if (resultByPly.has(ply)) {
-      return {
-        ok: false,
-        reason: `Duplicate result for ply ${ply}.`,
       };
     }
 

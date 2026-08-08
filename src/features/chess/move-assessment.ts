@@ -2,7 +2,11 @@ import type { EngineScore, ScoreBound } from "./engine";
 import type { ReviewTimeline, TimelinePly } from "./timeline";
 import type { QuickPassCompletedJob } from "./quick-pass-runner";
 import type { NormalizedScore, SideToMove } from "./quick-pass-evaluation";
-import { buildQuickPassEvaluationSeries, normalizeScore } from "./quick-pass-evaluation";
+import {
+  buildQuickPassEvaluationSeries,
+  normalizeScore,
+  selectDeepestResultsByPly,
+} from "./quick-pass-evaluation";
 
 // ---------------------------------------------------------------------------
 // Domain types
@@ -231,25 +235,8 @@ export function buildMoveAssessments(
   }
 
   const points = seriesResult.points;
-  const resultByFen = new Map<string, QuickPassCompletedJob>();
-  for (const r of results) {
-    const existing = resultByFen.get(r.job.fen);
-    if (!existing) {
-      resultByFen.set(r.job.fen, r);
-    } else {
-      const existingDepth =
-        existing.info?.depth !== undefined && Number.isFinite(existing.info.depth)
-          ? existing.info.depth
-          : 0;
-      const rDepth =
-        r.info?.depth !== undefined && Number.isFinite(r.info.depth)
-          ? r.info.depth
-          : 0;
-      if (rDepth >= existingDepth) {
-        resultByFen.set(r.job.fen, r);
-      }
-    }
-  }
+  const selectedResults = selectDeepestResultsByPly(results);
+  const resultByPly = new Map(selectedResults.map((r) => [r.job.ply, r]));
   const assessments: MoveAssessment[] = [];
 
   for (let i = 1; i < timeline.steps.length; i++) {
@@ -278,7 +265,7 @@ export function buildMoveAssessments(
     }
 
     const playedUci = toUci(move);
-    const beforeResult = resultByFen.get(beforePoint.fen);
+    const beforeResult = resultByPly.get(beforePoint.ply);
     const candidateMatch = findCandidateMatch(
       beforeResult,
       move,

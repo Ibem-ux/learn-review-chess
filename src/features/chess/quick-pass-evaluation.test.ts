@@ -792,20 +792,20 @@ describe("buildQuickPassEvaluationSeries", () => {
       expect(series.reason).toContain("integer");
     });
 
-    it("rejects duplicate result plies", () => {
+    it("handles duplicate result plies by selecting the deeper score", () => {
       const timeline = twoStepTimeline();
       const job0a = makeJob(0, INITIAL_FEN);
       const job0b = makeJob(0, INITIAL_FEN);
-      const info: EngineInfo = { depth: 14 };
+      const infoShallow: EngineInfo = { depth: 10, score: { type: "cp", value: 10, perspective: "white" } };
+      const infoDeep: EngineInfo = { depth: 18, score: { type: "cp", value: 85, perspective: "white" } };
 
       const series = buildQuickPassEvaluationSeries(timeline, [
-        makeResult(job0a, info),
-        makeResult(job0b, info),
+        makeResult(job0a, infoShallow),
+        makeResult(job0b, infoDeep),
       ]);
-      expect(series.ok).toBe(false);
-      if (series.ok) return;
-      expect(series.reason).toContain("Duplicate");
-      expect(series.reason).toContain("0");
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      expect(series.points[0].score).toEqual({ type: "cp", value: 85, perspective: "white" });
     });
 
     it("rejects negative ply", () => {
@@ -955,6 +955,38 @@ describe("buildQuickPassEvaluationSeries", () => {
       expect(() =>
         buildQuickPassEvaluationSeries(timeline, [makeResult(badJob, { depth: 14 })])
       ).not.toThrow();
+    });
+
+    it("keeps the deepest result when a ply is analysed twice", () => {
+      const timeline = twoStepTimeline();
+      const job0a = makeJob(0, INITIAL_FEN);
+      const job0b = makeJob(0, INITIAL_FEN);
+      const infoShallow: EngineInfo = { depth: 10, score: { type: "cp", value: 15, perspective: "white" } };
+      const infoDeep: EngineInfo = { depth: 18, score: { type: "cp", value: 90, perspective: "white" } };
+
+      const series = buildQuickPassEvaluationSeries(timeline, [
+        makeResult(job0a, infoShallow),
+        makeResult(job0b, infoDeep),
+      ]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      expect(series.points[0].score).toEqual({ type: "cp", value: 90, perspective: "white" });
+    });
+
+    it("keeps the later result when two results for a ply have equal depth", () => {
+      const timeline = twoStepTimeline();
+      const job0a = makeJob(0, INITIAL_FEN);
+      const job0b = makeJob(0, INITIAL_FEN);
+      const info1: EngineInfo = { depth: 14, score: { type: "cp", value: 20, perspective: "white" } };
+      const info2: EngineInfo = { depth: 14, score: { type: "cp", value: 60, perspective: "white" } };
+
+      const series = buildQuickPassEvaluationSeries(timeline, [
+        makeResult(job0a, info1),
+        makeResult(job0b, info2),
+      ]);
+      expect(series.ok).toBe(true);
+      if (!series.ok) return;
+      expect(series.points[0].score).toEqual({ type: "cp", value: 60, perspective: "white" });
     });
   });
 });
