@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chessboard, type PieceDropHandlerArgs } from "react-chessboard";
 import { getTimelineStep, type ReviewTimeline } from "@/features/chess/timeline";
 import { useQuickPassAnalysis } from "@/features/chess/use-quick-pass-analysis";
@@ -13,6 +13,7 @@ import { buildMoveAssessments } from "@/features/chess/move-assessment";
 import { classifyMoves, type MoveClassification } from "@/features/chess/move-classification";
 import type { EngineAnalysisLimit } from "@/features/chess/engine";
 import type { QuickPassCompletedJob } from "@/features/chess/quick-pass-runner";
+import { selectCriticalPositions, type CriticalPosition } from "./critical-positions";
 import { buildQuickPassEvaluationSeries } from "./quick-pass-evaluation";
 import { buildEvaluationGraphPoints } from "./evaluation-graph-model";
 import { EvaluationBar } from "./evaluation-bar";
@@ -32,6 +33,7 @@ import { buildMoveExplanations } from "./move-explanation";
 import { MoveExplanationPanel } from "./move-explanation-panel";
 
 const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
+const DEEP_PASS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 18 };
 
 function isDisabled(ply: number, total: number): {
   atStart: boolean;
@@ -102,6 +104,12 @@ export default function ReviewBoard({
   }
   const analysisState = useQuickPassAnalysis();
 
+  const criticalSelectionRef = useRef<readonly CriticalPosition[] | null>(null);
+
+  useEffect(() => {
+    criticalSelectionRef.current = null;
+  }, [timeline]);
+
   const classifications = useMemo(
     () => buildClassificationMap(timeline, analysisState.results),
     [timeline, analysisState.results]
@@ -111,6 +119,17 @@ export default function ReviewBoard({
     () => buildPerformance(timeline, analysisState.results),
     [timeline, analysisState.results]
   );
+
+  const classifiedMoves = useMemo(() => {
+    const res = buildMoveAssessments(timeline, analysisState.results);
+    return res.ok ? classifyMoves(res.assessments) : [];
+  }, [timeline, analysisState.results]);
+
+  useEffect(() => {
+    if (analysisState.status !== "completed") return;
+    if (criticalSelectionRef.current !== null) return;
+    criticalSelectionRef.current = selectCriticalPositions(classifiedMoves);
+  }, [analysisState.status, classifiedMoves]);
 
   const graphPoints = useMemo(() => {
     const series = buildQuickPassEvaluationSeries(timeline, analysisState.results);
@@ -345,7 +364,22 @@ export default function ReviewBoard({
       <div className="w-full max-w-2xl">
         <EvaluationGraph points={graphPoints} currentPly={ply} onSelectPly={goTo} />
       </div>
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-2xl space-y-3">
+        {/* eslint-disable-next-line react-hooks/refs */}
+        {criticalSelectionRef.current !== null && criticalSelectionRef.current.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              if (criticalSelectionRef.current) {
+                analysisState.startCriticalPass(criticalSelectionRef.current, DEEP_PASS_LIMIT, 3);
+              }
+            }}
+            disabled={analysisState.status === "running"}
+            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+          >
+            Analyze critical moments
+          </button>
+        )}
         <FullGameAnalysisPanel
           timeline={timeline}
           currentPly={ply}

@@ -125,6 +125,7 @@ const { mockUseQuickPassAnalysis, mockAnalysisState } = vi.hoisted(() => {
     currentJobId: string | null;
     results: QuickPassCompletedJob[];
     start: ReturnType<typeof vi.fn>;
+    startCriticalPass: ReturnType<typeof vi.fn>;
     cancel: ReturnType<typeof vi.fn>;
   } = {
     status: "idle",
@@ -134,6 +135,7 @@ const { mockUseQuickPassAnalysis, mockAnalysisState } = vi.hoisted(() => {
     currentJobId: null,
     results: [],
     start: vi.fn(() => true),
+    startCriticalPass: vi.fn(() => true),
     cancel: vi.fn(),
   };
 
@@ -153,6 +155,7 @@ const { mockUseQuickPassAnalysis, mockAnalysisState } = vi.hoisted(() => {
           forceUpdate();
           return true;
         }),
+        startCriticalPass: mockAnalysisState.startCriticalPass,
         cancel: vi.fn(() => {
           mockAnalysisState.status = "cancelled";
           mockAnalysisState.currentJobId = null;
@@ -194,6 +197,7 @@ describe("ReviewBoard", () => {
     mockAnalysisState.currentJobId = null;
     mockAnalysisState.results = [];
     mockAnalysisState.start.mockClear();
+    mockAnalysisState.startCriticalPass.mockClear();
     mockAnalysisState.cancel.mockClear();
   });
 
@@ -1151,6 +1155,159 @@ describe("ReviewBoard", () => {
         screen.queryByText("Select a move to see its explanation.")
       ).toBeNull();
       expect(screen.getByRole("heading", { name: "e4" })).toBeInTheDocument();
+    });
+  });
+
+  describe("deep critical pass", () => {
+    const INITIAL = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
+    const AFTER_E5 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2";
+    const AFTER_NF3 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
+    const AFTER_NC6 = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKBNR w KQkq - 2 3";
+
+    function makeJob(ply: number, fen: string): QuickPassJob {
+      return {
+        id: `qp-${ply}`,
+        phase: "quick-pass",
+        ply,
+        fen,
+        limit: { kind: "depth", value: 14 },
+      };
+    }
+
+    function makeResult(
+      job: QuickPassJob,
+      info: EngineInfo | null,
+    ): QuickPassCompletedJob {
+      return {
+        job,
+        info,
+        bestMove: info ? { move: "e2e4", ponder: null } : null,
+        candidateLines: info ? [{ rank: 1, info }] : [],
+      };
+    }
+
+    function makeScore(value: number): EngineScore {
+      return { type: "cp", value, perspective: "white" };
+    }
+
+    function testTimeline(): ReviewTimeline {
+      return {
+        steps: [
+          { ply: 0, fen: INITIAL, move: null },
+          { ply: 1, fen: AFTER_E4, move: { san: "e4", color: "w", from: "e2", to: "e4", before: INITIAL, after: AFTER_E4 } },
+          { ply: 2, fen: AFTER_E5, move: { san: "e5", color: "b", from: "e7", to: "e5", before: AFTER_E4, after: AFTER_E5 } },
+          { ply: 3, fen: AFTER_NF3, move: { san: "Nf3", color: "w", from: "g1", to: "f3", before: AFTER_E5, after: AFTER_NF3 } },
+          { ply: 4, fen: AFTER_NC6, move: { san: "Nc6", color: "b", from: "b8", to: "c6", before: AFTER_NF3, after: AFTER_NC6 } },
+        ],
+        totalPlies: 4,
+        initialFen: INITIAL,
+        finalFen: AFTER_NC6,
+        analysisEligible: true,
+      };
+    }
+
+    function resultsFor(
+      timeline: ReviewTimeline,
+      scores: Array<{ ply: number; score: EngineScore }>,
+    ): QuickPassCompletedJob[] {
+      return scores.map((s) => {
+        const job = makeJob(s.ply, timeline.steps[s.ply].fen);
+        return makeResult(job, {
+          depth: 14,
+          score: s.score,
+          pv: ["e2e4"],
+        });
+      });
+    }
+
+    it("before the first pass completes, the 'Analyze critical moments' button is not rendered", () => {
+      mockAnalysisState.status = "running";
+      mockAnalysisState.results = [];
+      render(<ReviewBoard timeline={testTimeline()} />);
+      expect(screen.queryByText("Analyze critical moments")).toBeNull();
+    });
+
+    it("after the first pass completes with no critical moves, the button is not rendered", () => {
+      const timeline = testTimeline();
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = resultsFor(timeline, [
+        { ply: 0, score: makeScore(20) },
+        { ply: 1, score: makeScore(20) },
+        { ply: 2, score: makeScore(20) },
+        { ply: 3, score: makeScore(20) },
+        { ply: 4, score: makeScore(20) },
+      ]);
+      render(<ReviewBoard timeline={timeline} />);
+      expect(screen.queryByText("Analyze critical moments")).toBeNull();
+    });
+
+    it("after the first pass completes with at least one critical move, the button is rendered and startCriticalPass has NOT been called", () => {
+      const timeline = testTimeline();
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = resultsFor(timeline, [
+        { ply: 0, score: makeScore(20) },
+        { ply: 1, score: makeScore(20) },
+        { ply: 2, score: makeScore(400) },
+        { ply: 3, score: makeScore(400) },
+        { ply: 4, score: makeScore(400) },
+      ]);
+      render(<ReviewBoard timeline={timeline} />);
+      expect(screen.getByText("Analyze critical moments")).toBeInTheDocument();
+      expect(mockAnalysisState.startCriticalPass).not.toHaveBeenCalled();
+    });
+
+    it("clicking the button calls startCriticalPass exactly once, and its second argument equals { kind: \"depth\", value: 18 } and its third argument equals 3", () => {
+      const timeline = testTimeline();
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = resultsFor(timeline, [
+        { ply: 0, score: makeScore(20) },
+        { ply: 1, score: makeScore(20) },
+        { ply: 2, score: makeScore(400) },
+        { ply: 3, score: makeScore(400) },
+        { ply: 4, score: makeScore(400) },
+      ]);
+      render(<ReviewBoard timeline={timeline} />);
+      const btn = screen.getByText("Analyze critical moments");
+      fireEvent.click(btn);
+      expect(mockAnalysisState.startCriticalPass).toHaveBeenCalledTimes(1);
+      expect(mockAnalysisState.startCriticalPass.mock.calls[0][1]).toEqual({ kind: "depth", value: 18 });
+      expect(mockAnalysisState.startCriticalPass.mock.calls[0][2]).toBe(3);
+    });
+
+    it("after the deep pass completes and the classified moves change, clicking the button again passes the SAME first argument value as the first click (selection stability)", () => {
+      const timeline = testTimeline();
+      mockAnalysisState.status = "completed";
+      const initialResults = resultsFor(timeline, [
+        { ply: 0, score: makeScore(20) },
+        { ply: 1, score: makeScore(20) },
+        { ply: 2, score: makeScore(400) },
+        { ply: 3, score: makeScore(400) },
+        { ply: 4, score: makeScore(400) },
+      ]);
+      mockAnalysisState.results = initialResults;
+
+      const { rerender } = render(<ReviewBoard timeline={timeline} />);
+      const btn = screen.getByText("Analyze critical moments");
+      fireEvent.click(btn);
+
+      const firstClickArg = mockAnalysisState.startCriticalPass.mock.calls[0][0];
+
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = resultsFor(timeline, [
+        { ply: 0, score: makeScore(0) },
+        { ply: 1, score: makeScore(500) },
+        { ply: 2, score: makeScore(-300) },
+        { ply: 3, score: makeScore(600) },
+        { ply: 4, score: makeScore(0) },
+      ]);
+      rerender(<ReviewBoard timeline={timeline} />);
+
+      const btn2 = screen.getByText("Analyze critical moments");
+      fireEvent.click(btn2);
+
+      const secondClickArg = mockAnalysisState.startCriticalPass.mock.calls[1][0];
+      expect(secondClickArg).toBe(firstClickArg);
     });
   });
 });
