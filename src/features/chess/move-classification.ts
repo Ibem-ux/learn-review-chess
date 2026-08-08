@@ -1,3 +1,4 @@
+import { Chess } from "chess.js";
 import type { MoveAssessment } from "./move-assessment";
 import { MINOR_PIECE_VALUE, materialBalanceFromFen } from "./material";
 
@@ -66,6 +67,15 @@ export type ClassifiedMove = {
   readonly classification: MoveClassification;
   readonly basis: ClassificationBasis;
 };
+
+function countLegalMoves(fen: string): number {
+  try {
+    const chess = new Chess(fen);
+    return chess.moves().length;
+  } catch {
+    return 2;
+  }
+}
 
 export function isSacrifice(
   assessment: MoveAssessment,
@@ -148,6 +158,7 @@ function classifyMoveUnvalidated(
         second.bound === undefined &&
         best.value - second.value >= GREAT_MARGIN_CP &&
         best.value >= 0 &&
+        countLegalMoves(assessment.beforeFen) >= 2 &&
         isSacrifice(assessment, postReply)
       ) {
         return { assessment, classification: "brilliant", basis: "sacrifice" };
@@ -207,7 +218,11 @@ function classifyMoveUnvalidated(
     best.value - second.value >= GREAT_MARGIN_CP &&
     loss <= GREAT_MAX_LOSS_CP
   ) {
-    if (best.value >= 0 && isSacrifice(assessment, postReply)) {
+    if (
+      best.value >= 0 &&
+      countLegalMoves(assessment.beforeFen) >= 2 &&
+      isSacrifice(assessment, postReply)
+    ) {
       return { assessment, classification: "brilliant", basis: "sacrifice" };
     }
     return { assessment, classification: "great", basis: "only-move" };

@@ -742,6 +742,122 @@ describe("classifyMove", () => {
       expect(results[1].classification).toBe("best");
       expect(results[2].classification).toBe("best");
     });
+
+    it("a sacrifice in a position with only one legal move is NOT brilliant", () => {
+      const FORCED_FEN = "k6K/7r/8/8/8/8/8/8 w - - 0 1";
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: FORCED_FEN,
+        afterFen: FORCED_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: FORCED_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).not.toBe("brilliant");
+    });
+
+    it("the same position falls through to the expected loss-based classification", () => {
+      const FORCED_FEN = "k6K/7r/8/8/8/8/8/8 w - - 0 1";
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: FORCED_FEN,
+        afterFen: FORCED_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: FORCED_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("great");
+      expect(results[0].basis).toBe("only-move");
+    });
+
+    it("a sacrifice in a position with many legal moves is still brilliant", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("brilliant");
+      expect(results[0].basis).toBe("sacrifice");
+    });
+
+    it("a sacrifice in a position with exactly two legal moves is still brilliant", () => {
+      const TWO_MOVES_FEN = "7k/1r6/8/8/8/8/P7/K7 w - - 0 1";
+      const WHITE_LOST_KNIGHT_TWO_MOVES_FEN = "7k/1r6/8/8/8/8/P7/K6n b - - 0 1";
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: TWO_MOVES_FEN,
+        afterFen: TWO_MOVES_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: TWO_MOVES_FEN,
+        afterFen: WHITE_LOST_KNIGHT_TWO_MOVES_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("brilliant");
+      expect(results[0].basis).toBe("sacrifice");
+    });
+
+    it("an unparseable beforeFen still classifies without throwing", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: "invalid-fen-string",
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: exactDelta(0),
+      });
+      expect(() => classifyMove(whiteMove)).not.toThrow();
+      const result = classifyMove(whiteMove);
+      expect(result.classification).toBe("great");
+      expect(result.basis).toBe("only-move");
+    });
+
+    it("a non-sacrifice move in a forced position is unaffected", () => {
+      const FORCED_FEN = "k6K/7r/8/8/8/8/8/8 w - - 0 1";
+      const result = classifyMove(
+        makeAssessment({
+          mover: "white",
+          beforeFen: FORCED_FEN,
+          afterFen: FORCED_FEN,
+          delta: exactDelta(0),
+        })
+      );
+      expect(result.classification).toBe("best");
+    });
   });
 
   describe("mate classification", () => {
