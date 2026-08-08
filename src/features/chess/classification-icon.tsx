@@ -6,6 +6,7 @@ const COLORS: Record<MoveClassification, string> = {
   best: "#22c55e",
   excellent: "#14b8a6",
   good: "#eab308",
+  "missed-win": "#d946ef",
   inaccuracy: "#f97316",
   mistake: "#ef4444",
   blunder: "#991b1b",
@@ -18,6 +19,7 @@ const LABELS: Record<MoveClassification, string> = {
   best: "Best move",
   excellent: "Excellent move",
   good: "Good move",
+  "missed-win": "Missed Win",
   inaccuracy: "Inaccuracy",
   mistake: "Mistake",
   blunder: "Blunder",
@@ -66,6 +68,13 @@ function renderGlyph(
         <>
           <circle cx="8" cy="8" r="7" fill={color} />
           <rect x="4" y="7.5" width="8" height="1" fill="white" />
+        </>
+      );
+    case "missed-win":
+      return (
+        <>
+          <circle cx="8" cy="8" r="7" fill={color} />
+          <path d="M8 12 L12 6 H4 Z" fill="white" />
         </>
       );
     case "inaccuracy":

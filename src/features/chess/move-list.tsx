@@ -8,6 +8,7 @@ const LABELS: Record<MoveClassification, string> = {
   best: "Best move",
   excellent: "Excellent move",
   good: "Good move",
+  "missed-win": "Missed Win",
   inaccuracy: "Inaccuracy",
   mistake: "Mistake",
   blunder: "Blunder",

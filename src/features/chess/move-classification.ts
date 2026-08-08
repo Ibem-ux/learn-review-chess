@@ -7,6 +7,7 @@ export type MoveClassification =
   | "best"
   | "excellent"
   | "good"
+  | "missed-win"
   | "inaccuracy"
   | "mistake"
   | "blunder"
@@ -21,6 +22,7 @@ export const MOVE_CLASSIFICATION_ORDER: readonly MoveClassification[] = [
   "good",
   "inaccuracy",
   "mistake",
+  "missed-win",
   "blunder",
   "unclassified",
 ];
@@ -50,7 +52,11 @@ export type ClassificationBasis =
   | "centipawn-loss"
   | "unavailable"
   | "delta-missing"
-  | "mate"
+  | "mate-delivered"
+  | "mate-preserved"
+  | "mate-drift"
+  | "mate-missed"
+  | "mate-allowed"
   | "bounded"
   | "invalid-loss"
   | "sacrifice";
@@ -118,7 +124,64 @@ function classifyMoveUnvalidated(
   }
 
   if (assessment.delta.kind === "mate") {
-    return { assessment, classification: "unclassified", basis: "mate" };
+    const before = assessment.delta.beforeMoverScore;
+    const after = assessment.delta.afterMoverScore;
+
+    const hadWinningMate = before.type === "mate" && before.value > 0;
+    const hasWinningMate = after.type === "mate" && after.value > 0;
+    const wasBeingMated = before.type === "mate" && before.value < 0;
+    const isBeingMated = after.type === "mate" && after.value < 0;
+
+    // Case (a): delivers or preserves a forced mate for the mover.
+    if (hasWinningMate) {
+      // Check the sacrifice gate: a mate-delivering/preserving move that is
+      // also a sacrifice at rank 1 with positive best candidate score is brilliant.
+      const best = assessment.bestCandidateScore;
+      const second = assessment.secondCandidateScore;
+      if (
+        assessment.candidateRank === 1 &&
+        best !== null &&
+        second !== null &&
+        best.type === "cp" &&
+        second.type === "cp" &&
+        best.bound === undefined &&
+        second.bound === undefined &&
+        best.value - second.value >= GREAT_MARGIN_CP &&
+        best.value >= 0 &&
+        isSacrifice(assessment, postReply)
+      ) {
+        return { assessment, classification: "brilliant", basis: "sacrifice" };
+      }
+
+      if (!hadWinningMate) {
+        return { assessment, classification: "best", basis: "mate-delivered" };
+      }
+      // Mate-converted: compare distances. A longer distance means the mover
+      // played a slower mate — suboptimal but not losing.
+      if (after.value > before.value) {
+        return { assessment, classification: "good", basis: "mate-drift" };
+      }
+      return { assessment, classification: "best", basis: "mate-preserved" };
+    }
+
+    // Case (d): winning mate flipped to being mated — strictly worse than case (c).
+    if (hadWinningMate && isBeingMated) {
+      return { assessment, classification: "blunder", basis: "mate-allowed" };
+    }
+
+    // Case (b): had a winning mate but lost it (position remains winning or drawn, not mated).
+    if (hadWinningMate && !hasWinningMate) {
+      return { assessment, classification: "missed-win", basis: "mate-missed" };
+    }
+
+    // Case (c): allows the opponent a forced mate.
+    if (!wasBeingMated && isBeingMated) {
+      return { assessment, classification: "blunder", basis: "mate-allowed" };
+    }
+
+    // Remaining mate transitions (e.g. was being mated and still being mated)
+    // are left unclassified — no centipawn loss is available.
+    return { assessment, classification: "unclassified", basis: "bounded" };
   }
 
   if (assessment.delta.kind === "bounded") {

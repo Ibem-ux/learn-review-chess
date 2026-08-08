@@ -37,6 +37,7 @@ export function buildGamePerformance(
     best: 0,
     excellent: 0,
     good: 0,
+    "missed-win": 0,
     inaccuracy: 0,
     mistake: 0,
     blunder: 0,

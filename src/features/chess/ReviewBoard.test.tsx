@@ -646,7 +646,7 @@ describe("ReviewBoard", () => {
     it("excludes entries classified as unclassified from the map", () => {
       const timeline = shortGameTimeline();
       const results = resultsFor(timeline, [
-        { ply: 0, score: { type: "mate", value: 5, perspective: "side-to-move" } },
+        { ply: 0, score: { type: "cp", value: 100, perspective: "side-to-move", bound: "lowerbound" } },
         { ply: 1, score: makeScore(100) },
         { ply: 2, score: makeScore(100) },
         { ply: 3, score: makeScore(100) },

@@ -9,6 +9,7 @@ const CLASSIFICATIONS: MoveClassification[] = [
   "best",
   "excellent",
   "good",
+  "missed-win",
   "inaccuracy",
   "mistake",
   "blunder",

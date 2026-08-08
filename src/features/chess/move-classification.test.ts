@@ -319,7 +319,7 @@ describe("classifyMove", () => {
       expect(result.basis).toBe("delta-missing");
     });
 
-    it("mate delta", () => {
+    it("mate delta delivering mate classifies as best", () => {
       const result = classifyMove(
         makeAssessment({
           delta: {
@@ -329,8 +329,8 @@ describe("classifyMove", () => {
           },
         })
       );
-      expect(result.classification).toBe("unclassified");
-      expect(result.basis).toBe("mate");
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("mate-delivered");
     });
 
     it("bounded delta", () => {
@@ -744,6 +744,186 @@ describe("classifyMove", () => {
     });
   });
 
+  describe("mate classification", () => {
+    it("case (a): delivering a forced mate classifies as best with mate-delivered basis", () => {
+      const result = classifyMove(
+        makeAssessment({
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "cp", value: 50, perspective: "mover" },
+            afterMoverScore: { type: "mate", value: 4, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("mate-delivered");
+    });
+
+    it("case (a): preserving a forced mate classifies as best with mate-preserved basis", () => {
+      const result = classifyMove(
+        makeAssessment({
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "mate", value: 5, perspective: "mover" },
+            afterMoverScore: { type: "mate", value: 4, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("best");
+      expect(result.basis).toBe("mate-preserved");
+    });
+
+    it("case (a): playing a slower mate classifies as good with mate-drift basis", () => {
+      const result = classifyMove(
+        makeAssessment({
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "mate", value: 3, perspective: "mover" },
+            afterMoverScore: { type: "mate", value: 5, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("good");
+      expect(result.basis).toBe("mate-drift");
+    });
+
+    it("case (a) + sacrifice: mate-delivering sacrifice classifies as brilliant", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 0, perspective: "mover" },
+        delta: {
+          kind: "mate",
+          beforeMoverScore: { type: "cp", value: 200, perspective: "mover" },
+          afterMoverScore: { type: "mate", value: 3, perspective: "mover" },
+        },
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: WHITE_LOST_KNIGHT_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("brilliant");
+      expect(results[0].basis).toBe("sacrifice");
+    });
+
+    it("case (b): losing a winning mate classifies as missed-win", () => {
+      const result = classifyMove(
+        makeAssessment({
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "mate", value: 3, perspective: "mover" },
+            afterMoverScore: { type: "cp", value: 200, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("missed-win");
+      expect(result.basis).toBe("mate-missed");
+    });
+
+    it("case (c): allowing opponent a forced mate classifies as blunder", () => {
+      const result = classifyMove(
+        makeAssessment({
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "cp", value: 0, perspective: "mover" },
+            afterMoverScore: { type: "mate", value: -2, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("blunder");
+      expect(result.basis).toBe("mate-allowed");
+    });
+
+    it("case (d): flipping winning mate to being mated classifies as blunder", () => {
+      const result = classifyMove(
+        makeAssessment({
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "mate", value: 3, perspective: "mover" },
+            afterMoverScore: { type: "mate", value: -1, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("blunder");
+      expect(result.basis).toBe("mate-allowed");
+    });
+
+    it("case (b) for black: losing a winning mate classifies as missed-win with correct perspective", () => {
+      const result = classifyMove(
+        makeAssessment({
+          mover: "black",
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "mate", value: 2, perspective: "mover" },
+            afterMoverScore: { type: "cp", value: 150, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("missed-win");
+      expect(result.basis).toBe("mate-missed");
+    });
+
+    it("case (c) for black: allowing opponent a forced mate classifies as blunder", () => {
+      const result = classifyMove(
+        makeAssessment({
+          mover: "black",
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "cp", value: -50, perspective: "mover" },
+            afterMoverScore: { type: "mate", value: -3, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("blunder");
+      expect(result.basis).toBe("mate-allowed");
+    });
+
+    it("remaining mate transition (was being mated, still being mated) stays unclassified", () => {
+      const result = classifyMove(
+        makeAssessment({
+          delta: {
+            kind: "mate",
+            beforeMoverScore: { type: "mate", value: -3, perspective: "mover" },
+            afterMoverScore: { type: "mate", value: -2, perspective: "mover" },
+          },
+        })
+      );
+      expect(result.classification).toBe("unclassified");
+      expect(result.basis).toBe("bounded");
+    });
+
+    it("mate-delivering move without sacrifice conditions classifies as best not brilliant", () => {
+      const whiteMove = makeAssessment({
+        mover: "white",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        candidateRank: 1,
+        bestCandidateScore: { type: "cp", value: 200, perspective: "mover" },
+        secondCandidateScore: { type: "cp", value: 100, perspective: "mover" },
+        delta: {
+          kind: "mate",
+          beforeMoverScore: { type: "cp", value: 200, perspective: "mover" },
+          afterMoverScore: { type: "mate", value: 2, perspective: "mover" },
+        },
+      });
+      const opponentReply = makeAssessment({
+        mover: "black",
+        beforeFen: INITIAL_FEN,
+        afterFen: INITIAL_FEN,
+        delta: exactDelta(0),
+      });
+      const results = classifyMoves([whiteMove, opponentReply]);
+      expect(results[0].classification).toBe("best");
+      expect(results[0].basis).toBe("mate-delivered");
+    });
+  });
+
   describe("MOVE_CLASSIFICATION_ORDER", () => {
     // This object is what makes the compiler enforce completeness: omitting a union member from it is a tsc error.
     const EVERY_CLASSIFICATION: Record<MoveClassification, true> = {
@@ -752,6 +932,7 @@ describe("classifyMove", () => {
       best: true,
       excellent: true,
       good: true,
+      "missed-win": true,
       inaccuracy: true,
       mistake: true,
       blunder: true,
