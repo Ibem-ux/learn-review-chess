@@ -46,7 +46,7 @@ export type UseQuickPassAnalysis = {
   readonly currentJobId: string | null;
   readonly results: readonly QuickPassCompletedJob[];
   readonly start: (timeline: ReviewTimeline, limit: EngineAnalysisLimit, multiPv?: number) => boolean;
-  readonly startCriticalPass: (
+  readonly startCriticalPass?: (
     positions: readonly CriticalPosition[],
     limit: EngineAnalysisLimit,
     multiPv?: number

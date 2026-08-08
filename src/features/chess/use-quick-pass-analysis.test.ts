@@ -203,24 +203,7 @@ describe("use-quick-pass-analysis", () => {
       WorkerSpy = vi.fn();
       EngineControllerSpy = vi.fn();
       planQuickPassSpy = vi.fn(() => ({ ok: true, jobs: [] }));
-      QuickPassRunnerSpy = vi.fn(function MockQuickPassRunner(options?: { engine?: { analyze: (id: string, payload: { fen: string; limit: EngineAnalysisLimit }) => void } }) {
-        fakeRunner.start.mockImplementation((plan?: { ok: boolean; jobs: readonly { id: string; fen: string; limit: EngineAnalysisLimit }[] }) => {
-          if (plan && plan.ok) {
-            fakeRunner.emitState({
-              status: "running",
-              totalJobs: plan.jobs.length,
-              completedJobs: 0,
-              currentJobId: plan.jobs[0]?.id ?? null,
-              results: [],
-              error: null,
-            });
-            if (options && options.engine && typeof options.engine.analyze === "function") {
-              for (const job of plan.jobs) {
-                options.engine.analyze(job.id, { fen: job.fen, limit: job.limit });
-              }
-            }
-          }
-        });
+      QuickPassRunnerSpy = vi.fn(function MockQuickPassRunner() {
         return fakeRunner;
       });
 
@@ -1383,6 +1366,177 @@ describe("use-quick-pass-analysis", () => {
       expect(fakeRunner.dispose).toHaveBeenCalledTimes(1);
       expect(fakeController.dispose).toHaveBeenCalledTimes(1);
     });
+
+    describe("startCriticalPass", () => {
+      const pos1: CriticalPosition = { ply: 1, fen: "fen-1", reason: "blunder" };
+      const pos2: CriticalPosition = { ply: 2, fen: "fen-2", reason: "mistake" };
+      const pos3: CriticalPosition = { ply: 3, fen: "fen-3", reason: "inaccuracy" };
+
+      it("an empty positions array returns false and the engine receives no analyze call", async () => {
+        const mod = await import("@/features/chess/use-quick-pass-analysis");
+        const { useQuickPassAnalysis } = mod;
+
+        const { result } = renderHook(() => useQuickPassAnalysis());
+        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
+
+        let startResult = true;
+        act(() => {
+          startResult = result.current.startCriticalPass!([], limit);
+        });
+
+        expect(startResult).toBe(false);
+        expect(fakeRunner.start).not.toHaveBeenCalled();
+      });
+
+      it("one position returns true", async () => {
+        const mod = await import("@/features/chess/use-quick-pass-analysis");
+        const { useQuickPassAnalysis } = mod;
+
+        const { result } = renderHook(() => useQuickPassAnalysis());
+        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
+
+        let startResult = false;
+        act(() => {
+          startResult = result.current.startCriticalPass!([pos1], limit);
+        });
+
+        expect(startResult).toBe(true);
+      });
+
+      it("the engine receives exactly one analyze call, and its fen equals the position's fen", async () => {
+        const mod = await import("@/features/chess/use-quick-pass-analysis");
+        const { useQuickPassAnalysis } = mod;
+
+        const { result } = renderHook(() => useQuickPassAnalysis());
+        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
+
+        act(() => {
+          result.current.startCriticalPass!([pos1], limit);
+        });
+
+        act(() => {
+          fakeController.emit({ type: "ready", requestId: "init-1" });
+        });
+
+        expect(fakeRunner.start).toHaveBeenCalledTimes(1);
+        const plan = fakeRunner.start.mock.calls[0][0];
+        expect(plan.jobs).toHaveLength(1);
+        expect(plan.jobs[0].fen).toBe("fen-1");
+      });
+
+      it("the engine receives the exact limit object value that was passed in", async () => {
+        const mod = await import("@/features/chess/use-quick-pass-analysis");
+        const { useQuickPassAnalysis } = mod;
+
+        const { result } = renderHook(() => useQuickPassAnalysis());
+        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
+
+        act(() => {
+          result.current.startCriticalPass!([pos1], limit);
+        });
+
+        act(() => {
+          fakeController.emit({ type: "ready", requestId: "init-1" });
+        });
+
+        expect(fakeRunner.start).toHaveBeenCalledTimes(1);
+        const plan = fakeRunner.start.mock.calls[0][0];
+        expect(plan.jobs[0].limit).toEqual(limit);
+      });
+
+      it("three positions produce three analyze calls in the same order as the input", async () => {
+        const mod = await import("@/features/chess/use-quick-pass-analysis");
+        const { useQuickPassAnalysis } = mod;
+
+        const { result } = renderHook(() => useQuickPassAnalysis());
+        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
+
+        act(() => {
+          result.current.startCriticalPass!([pos1, pos2, pos3], limit);
+        });
+
+        act(() => {
+          fakeController.emit({ type: "ready", requestId: "init-1" });
+        });
+
+        expect(fakeRunner.start).toHaveBeenCalledTimes(1);
+        const plan = fakeRunner.start.mock.calls[0][0];
+        expect(plan.jobs).toHaveLength(3);
+        expect(plan.jobs.map((j: { fen: string }) => j.fen)).toEqual(["fen-1", "fen-2", "fen-3"]);
+      });
+
+      it("calling startCriticalPass while a run is already in progress returns false", async () => {
+        const mod = await import("@/features/chess/use-quick-pass-analysis");
+        const { useQuickPassAnalysis } = mod;
+
+        const { result } = renderHook(() => useQuickPassAnalysis());
+        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
+
+        act(() => {
+          result.current.startCriticalPass!([pos1], limit);
+        });
+
+        act(() => {
+          fakeController.emit({ type: "ready", requestId: "init-1" });
+        });
+
+        let secondCallResult = true;
+        act(() => {
+          secondCallResult = result.current.startCriticalPass!([pos2], limit);
+        });
+
+        expect(secondCallResult).toBe(false);
+      });
+
+      it("totalJobs equals the number of critical positions passed in", async () => {
+        const mod = await import("@/features/chess/use-quick-pass-analysis");
+        const { useQuickPassAnalysis } = mod;
+
+        const { result } = renderHook(() => useQuickPassAnalysis());
+        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
+
+        act(() => {
+          result.current.startCriticalPass!([pos1, pos2, pos3], limit);
+        });
+
+        act(() => {
+          fakeController.emit({ type: "ready", requestId: "init-1" });
+        });
+
+        expect(fakeRunner.start).toHaveBeenCalledTimes(1);
+        const plan = fakeRunner.start.mock.calls[0][0];
+        expect(plan.jobs).toHaveLength(3);
+      });
+
+      it("the existing start path still works: start with an eligible timeline returns true and analyzes the ply-0 fen", async () => {
+        const mod = await import("@/features/chess/use-quick-pass-analysis");
+        const { useQuickPassAnalysis } = mod;
+
+        const { result } = renderHook(() => useQuickPassAnalysis());
+
+        const timeline = minimalTimeline(true);
+        const limit: EngineAnalysisLimit = { kind: "depth", value: 14 };
+
+        planQuickPassSpy.mockReturnValue({
+          ok: true,
+          jobs: [{ id: "quick-pass-0", phase: "quick-pass", ply: 0, fen: "ply-0-fen", limit }],
+        });
+
+        let startResult = false;
+        act(() => {
+          startResult = result.current.start(timeline, limit);
+        });
+
+        act(() => {
+          fakeController.emit({ type: "ready", requestId: "init-1" });
+        });
+
+        expect(startResult).toBe(true);
+        expect(fakeRunner.start).toHaveBeenCalledTimes(1);
+        const plan = fakeRunner.start.mock.calls[0][0];
+        expect(plan.jobs[0].fen).toBe("ply-0-fen");
+      });
+    });
   });
 
   describe("engine ownership", () => {
@@ -1535,167 +1689,6 @@ describe("use-quick-pass-analysis", () => {
 
       expect(EngineControllerMock).toHaveBeenCalledTimes(0);
       expect(fakeController.dispose).not.toHaveBeenCalled();
-    });
-
-    describe("startCriticalPass", () => {
-      const pos1: CriticalPosition = { ply: 1, fen: "fen-1", reason: "blunder" };
-      const pos2: CriticalPosition = { ply: 2, fen: "fen-2", reason: "mistake" };
-      const pos3: CriticalPosition = { ply: 3, fen: "fen-3", reason: "inaccuracy" };
-
-      it("an empty positions array returns false and the engine receives no analyze call", async () => {
-        const mod = await import("@/features/chess/use-quick-pass-analysis");
-        const { useQuickPassAnalysis } = mod;
-
-        const { result } = renderHook(() => useQuickPassAnalysis());
-        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
-
-        let startResult = true;
-        act(() => {
-          startResult = result.current.startCriticalPass([], limit);
-        });
-
-        expect(startResult).toBe(false);
-        expect(fakeController.analyze).not.toHaveBeenCalled();
-      });
-
-      it("one position returns true", async () => {
-        const mod = await import("@/features/chess/use-quick-pass-analysis");
-        const { useQuickPassAnalysis } = mod;
-
-        const { result } = renderHook(() => useQuickPassAnalysis());
-        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
-
-        let startResult = false;
-        act(() => {
-          startResult = result.current.startCriticalPass([pos1], limit);
-        });
-
-        expect(startResult).toBe(true);
-      });
-
-      it("the engine receives exactly one analyze call, and its fen equals the position's fen", async () => {
-        const mod = await import("@/features/chess/use-quick-pass-analysis");
-        const { useQuickPassAnalysis } = mod;
-
-        const { result } = renderHook(() => useQuickPassAnalysis());
-        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
-
-        act(() => {
-          result.current.startCriticalPass([pos1], limit);
-        });
-
-        act(() => {
-          fakeController.emit({ type: "ready", requestId: "init-1" });
-        });
-
-        expect(fakeController.analyze).toHaveBeenCalledTimes(1);
-        expect(fakeController.analyze.mock.calls[0][1].fen).toBe("fen-1");
-      });
-
-      it("the engine receives the exact limit object value that was passed in", async () => {
-        const mod = await import("@/features/chess/use-quick-pass-analysis");
-        const { useQuickPassAnalysis } = mod;
-
-        const { result } = renderHook(() => useQuickPassAnalysis());
-        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
-
-        act(() => {
-          result.current.startCriticalPass([pos1], limit);
-        });
-
-        act(() => {
-          fakeController.emit({ type: "ready", requestId: "init-1" });
-        });
-
-        expect(fakeController.analyze).toHaveBeenCalledTimes(1);
-        expect(fakeController.analyze.mock.calls[0][1].limit).toEqual(limit);
-      });
-
-      it("three positions produce three analyze calls in the same order as the input", async () => {
-        const mod = await import("@/features/chess/use-quick-pass-analysis");
-        const { useQuickPassAnalysis } = mod;
-
-        const { result } = renderHook(() => useQuickPassAnalysis());
-        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
-
-        act(() => {
-          result.current.startCriticalPass([pos1, pos2, pos3], limit);
-        });
-
-        act(() => {
-          fakeController.emit({ type: "ready", requestId: "init-1" });
-        });
-
-        expect(fakeController.analyze).toHaveBeenCalledTimes(3);
-        expect(fakeController.analyze.mock.calls[0][1].fen).toBe("fen-1");
-        expect(fakeController.analyze.mock.calls[1][1].fen).toBe("fen-2");
-        expect(fakeController.analyze.mock.calls[2][1].fen).toBe("fen-3");
-      });
-
-      it("calling startCriticalPass while a run is already in progress returns false", async () => {
-        const mod = await import("@/features/chess/use-quick-pass-analysis");
-        const { useQuickPassAnalysis } = mod;
-
-        const { result } = renderHook(() => useQuickPassAnalysis());
-        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
-
-        act(() => {
-          result.current.startCriticalPass([pos1], limit);
-        });
-
-        act(() => {
-          fakeController.emit({ type: "ready", requestId: "init-1" });
-        });
-
-        let secondCallResult = true;
-        act(() => {
-          secondCallResult = result.current.startCriticalPass([pos2], limit);
-        });
-
-        expect(secondCallResult).toBe(false);
-      });
-
-      it("totalJobs equals the number of critical positions passed in", async () => {
-        const mod = await import("@/features/chess/use-quick-pass-analysis");
-        const { useQuickPassAnalysis } = mod;
-
-        const { result } = renderHook(() => useQuickPassAnalysis());
-        const limit: EngineAnalysisLimit = { kind: "depth", value: 18 };
-
-        act(() => {
-          result.current.startCriticalPass([pos1, pos2, pos3], limit);
-        });
-
-        expect(result.current.totalJobs).toBe(3);
-      });
-
-      it("the existing start path still works: start with an eligible timeline returns true and analyzes the ply-0 fen", async () => {
-        const mod = await import("@/features/chess/use-quick-pass-analysis");
-        const { useQuickPassAnalysis } = mod;
-
-        const { result } = renderHook(() => useQuickPassAnalysis());
-
-        const timeline = minimalTimeline(true);
-        const limit: EngineAnalysisLimit = { kind: "depth", value: 14 };
-
-        planQuickPassSpy.mockReturnValue({
-          ok: true,
-          jobs: [{ id: "quick-pass-0", phase: "quick-pass", ply: 0, fen: "ply-0-fen", limit }],
-        });
-
-        let startResult = false;
-        act(() => {
-          startResult = result.current.start(timeline, limit);
-        });
-
-        act(() => {
-          fakeController.emit({ type: "ready", requestId: "init-1" });
-        });
-
-        expect(startResult).toBe(true);
-        expect(fakeController.analyze).toHaveBeenCalledTimes(1);
-        expect(fakeController.analyze.mock.calls[0][1].fen).toBe("ply-0-fen");
-      });
     });
   });
 });
