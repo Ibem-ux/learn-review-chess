@@ -11,6 +11,7 @@ type Mutable<T> = {
 };
 
 const stableStart = vi.fn(() => true);
+const stableStartCriticalPass = vi.fn(() => true);
 const stableCancel = vi.fn();
 
 const mockAnalysisState: Mutable<UseQuickPassAnalysis> = {
@@ -21,6 +22,7 @@ const mockAnalysisState: Mutable<UseQuickPassAnalysis> = {
   currentJobId: null,
   results: [],
   start: stableStart,
+  startCriticalPass: stableStartCriticalPass,
   cancel: stableCancel,
 };
 
