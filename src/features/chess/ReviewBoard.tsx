@@ -121,11 +121,9 @@ export default function ReviewBoard({
     return res.ok ? classifyMoves(res.assessments) : [];
   }, [timeline, analysisState.results]);
 
-  useEffect(() => {
-    if (analysisState.status !== "completed") return;
-    if (criticalSelection !== null) return;
+  if (analysisState.status === "completed" && criticalSelection === null) {
     setCriticalSelection(selectCriticalPositions(classifiedMoves));
-  }, [analysisState.status, classifiedMoves, criticalSelection]);
+  }
 
   const graphPoints = useMemo(() => {
     const series = buildQuickPassEvaluationSeries(timeline, analysisState.results);
