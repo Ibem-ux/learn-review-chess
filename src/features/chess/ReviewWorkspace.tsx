@@ -3,13 +3,14 @@
 import { useCallback, useState } from "react";
 import StudyBoard from "@/features/chess/StudyBoard";
 import ReviewBoard from "@/features/chess/ReviewBoard";
-import { normalizeHeader, parsePgn } from "@/features/chess/pgn";
+import { countPgnGames, normalizeHeader, parsePgn } from "@/features/chess/pgn";
 import { buildTimeline, type ReviewTimeline } from "@/features/chess/timeline";
 import ChesscomGamePicker from "@/features/game-import/ChesscomGamePicker";
 
 const MAX_PGN_LENGTH = 20000;
+const MAX_PGN_FILE_BYTES = 1000000;
 
-type ImportMethod = "paste" | "chesscom";
+type ImportMethod = "paste" | "chesscom" | "file";
 
 function summarize(parsed: {
   halfMoveCount: number;
@@ -36,6 +37,7 @@ export default function ReviewWorkspace() {
   const [importMethod, setImportMethod] = useState<ImportMethod>("paste");
   const [activeSource, setActiveSource] = useState<string | null>(null);
   const [descriptionId] = useState("pgn-description");
+  const [fileDescriptionId] = useState("file-description");
   const [errorId] = useState("pgn-error");
 
   const loadGame = useCallback((source: string, rawPgn: string) => {
@@ -63,6 +65,35 @@ export default function ReviewWorkspace() {
 
   const handleChesscomSelect = (selectedPgn: string) => {
     loadGame("Chess.com", selectedPgn);
+  };
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_PGN_FILE_BYTES) {
+      setError("File is too large. Choose a single-game PGN file under 1MB.");
+      input.value = "";
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      if (countPgnGames(text) > 1) {
+        setError(
+          "Multi-game files are not supported. Upload a PGN file containing a single game."
+        );
+        return;
+      }
+      loadGame("Uploaded file", text);
+    } catch {
+      setError("Could not read the selected file. Try choosing it again.");
+    } finally {
+      input.value = "";
+    }
   };
 
   const handleClear = () => {
@@ -146,6 +177,14 @@ export default function ReviewWorkspace() {
           >
             Chess.com
           </button>
+          <button
+            type="button"
+            aria-pressed={importMethod === "file"}
+            onClick={() => setImportMethod("file")}
+            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+          >
+            Upload file
+          </button>
         </div>
 
         {importMethod === "paste" && (
@@ -182,6 +221,28 @@ export default function ReviewWorkspace() {
         {importMethod === "chesscom" && (
           <div className="mt-4">
             <ChesscomGamePicker onSelectPgn={handleChesscomSelect} />
+          </div>
+        )}
+
+        {importMethod === "file" && (
+          <div className="mt-4">
+            <label
+              htmlFor="file-input"
+              className="block text-sm font-medium text-black dark:text-zinc-50"
+            >
+              Upload a PGN file
+            </label>
+            <p id={fileDescriptionId} className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+              Select a single-game .pgn file from your computer.
+            </p>
+            <input
+              id="file-input"
+              type="file"
+              accept=".pgn,application/x-chess-pgn,text/plain"
+              onChange={handleFileUpload}
+              aria-describedby={fileDescriptionId}
+              className="mt-2 block w-full text-sm text-zinc-600 file:mr-4 file:rounded-md file:border file:border-black/[.12] file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-black hover:file:bg-black/[.04] dark:text-zinc-400 dark:file:border-white/[.2] dark:file:bg-black dark:file:text-zinc-50 dark:hover:file:bg-white/[.08]"
+            />
           </div>
         )}
 

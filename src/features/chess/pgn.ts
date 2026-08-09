@@ -91,3 +91,21 @@ export function parsePgn(input: string): PgnResult {
     },
   };
 }
+
+export function countPgnGames(input: string): number {
+  const trimmed = input.trim();
+  if (trimmed.length === 0) {
+    return 0;
+  }
+  const lines = trimmed.split(/\r?\n/);
+  let eventHeaderCount = 0;
+  for (const line of lines) {
+    if (/^\s*\[Event[\s"]/.test(line)) {
+      eventHeaderCount++;
+    }
+  }
+  if (eventHeaderCount === 0) {
+    return 1;
+  }
+  return eventHeaderCount;
+}

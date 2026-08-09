@@ -416,4 +416,138 @@ describe("ReviewWorkspace", () => {
     );
     expect(textbox).toHaveValue("");
   });
+
+  describe("file upload import method", () => {
+    it("renders a third import-method button labelled Upload file", () => {
+      render(<ReviewWorkspace />);
+      expect(
+        screen.getByRole("button", { name: "Upload file" })
+      ).toBeInTheDocument();
+    });
+
+    it("reveals a file input with an accept attribute when Upload file is clicked", () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      expect(input).toHaveAttribute("type", "file");
+      expect(input).toHaveAttribute("accept");
+    });
+
+    it("loads the review when a valid single-game .pgn file is chosen and sets Source to Uploaded file", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const file = new File([SHORT_GAME], "game.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(
+        screen.getByRole("region", { name: "Review chessboard" })
+      ).toBeInTheDocument();
+      expect(screen.getByText("Uploaded file")).toBeInTheDocument();
+    });
+
+    it("shows an error naming multi-game files when a file containing two games is chosen, and loads no review", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const twoGamesPgn =
+        '[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0';
+      const file = new File([twoGamesPgn], "two-games.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      const alert = screen.getByRole("alert");
+      expect(alert.textContent).toMatch(/multi-game|more than one game/i);
+      expect(
+        screen.getByRole("region", { name: "Chess workspace" })
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId("review-ply-count")).not.toBeInTheDocument();
+    });
+
+    it("shows an error when an empty file is chosen and loads no review", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const file = new File([""], "empty.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      const alert = screen.getByRole("alert");
+      expect(alert.textContent).toMatch(/empty/i);
+      expect(
+        screen.getByRole("region", { name: "Chess workspace" })
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId("review-ply-count")).not.toBeInTheDocument();
+    });
+
+    it("shows an error when a file larger than the byte limit is chosen and loads no review", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const largeContent = "x".repeat(1000001);
+      const file = new File([largeContent], "large.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      const alert = screen.getByRole("alert");
+      expect(alert.textContent).toMatch(/too large|limit|size/i);
+      expect(
+        screen.getByRole("region", { name: "Chess workspace" })
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId("review-ply-count")).not.toBeInTheDocument();
+    });
+
+    it("preserves an already loaded review when switching to Upload file and back to Paste PGN", () => {
+      render(<ReviewWorkspace />);
+      const textbox = screen.getByRole("textbox", {
+        name: "Paste a completed PGN game",
+      });
+      fireEvent.change(textbox, { target: { value: SHORT_GAME } });
+      fireEvent.click(screen.getByRole("button", { name: "Load game" }));
+      expect(
+        screen.getByRole("region", { name: "Review chessboard" })
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      expect(
+        screen.getByRole("region", { name: "Review chessboard" })
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Paste PGN" }));
+      expect(
+        screen.getByRole("region", { name: "Review chessboard" })
+      ).toBeInTheDocument();
+    });
+
+    it("shows an error when the file cannot be read and loads no review", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const file = new File(["1. e4 e5 1-0"], "game.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      Object.defineProperty(file, "text", {
+        value: () => Promise.reject(new Error("disk read failed")),
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      const alert = screen.getByRole("alert");
+      expect(alert.textContent).toMatch(/could not read|unable to read/i);
+      expect(alert.textContent).not.toContain("disk read failed");
+      expect(
+        screen.getByRole("region", { name: "Chess workspace" })
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId("review-ply-count")).not.toBeInTheDocument();
+    });
+  });
 });

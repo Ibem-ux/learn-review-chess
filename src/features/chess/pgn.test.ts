@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeHeader, parsePgn } from "@/features/chess/pgn";
+import { countPgnGames, normalizeHeader, parsePgn } from "@/features/chess/pgn";
 
 const ELIGIBLE_RESULTS = ["1-0", "0-1", "1/2-1/2"] as const;
 
@@ -291,6 +291,46 @@ describe("parsePgn", () => {
       for (const move of otherMoves) {
         expect(move.promotion).toBeUndefined();
       }
+    });
+  });
+
+  describe("countPgnGames", () => {
+    it("returns 0 for empty string", () => {
+      expect(countPgnGames("")).toBe(0);
+    });
+
+    it("returns 0 for whitespace only", () => {
+      expect(countPgnGames("   \n\t  ")).toBe(0);
+    });
+
+    it("returns 1 for a single game with an Event header", () => {
+      const pgn = '[Event "Game 1"]\n1. e4 e5 1-0';
+      expect(countPgnGames(pgn)).toBe(1);
+    });
+
+    it("returns 2 for two games each with an Event header", () => {
+      const pgn = '[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0';
+      expect(countPgnGames(pgn)).toBe(2);
+    });
+
+    it("returns 3 for three games each with an Event header", () => {
+      const pgn = '[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0\n\n[Event "Game 3"]\n1. c4 c5 1-0';
+      expect(countPgnGames(pgn)).toBe(3);
+    });
+
+    it("returns 1 for a move list with no headers at all", () => {
+      expect(countPgnGames("1. e4 e5 1-0")).toBe(1);
+    });
+
+    it("returns 1 for a game whose header block is preceded by blank lines", () => {
+      const pgn = '\n\n  \n[Event "Game 1"]\n1. e4 e5 1-0';
+      expect(countPgnGames(pgn)).toBe(1);
+    });
+
+    it("documents parsePgn behavior when called with two complete games", () => {
+      const pgn = '[Event "Game 1"]\n[Result "1-0"]\n\n1. e4 e5 1-0\n\n[Event "Game 2"]\n[Result "0-1"]\n\n1. d4 d5 0-1';
+      const result = parsePgn(pgn);
+      expect(result.ok).toBe(false);
     });
   });
 });
