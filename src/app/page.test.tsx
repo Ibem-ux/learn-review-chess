@@ -80,4 +80,10 @@ describe("Home page", () => {
       "false"
     );
   });
+
+  it("renders a link to the licenses page in the shell", () => {
+    render(<Home />);
+    const link = screen.getByRole("link", { name: /licenses/i });
+    expect(link).toHaveAttribute("href", "/licenses");
+  });
 });

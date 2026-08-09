@@ -43,6 +43,18 @@ export default function Home() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8">
         <ReviewWorkspace />
       </main>
+
+      <footer className="border-t border-black/[.08] bg-white px-4 py-4 dark:border-white/[.145] dark:bg-black sm:px-8">
+        <div className="mx-auto flex w-full max-w-6xl justify-between text-xs text-zinc-600 dark:text-zinc-400">
+          <span>Learn Review Chess</span>
+          <a
+            href="/licenses"
+            className="hover:text-black hover:underline dark:hover:text-zinc-50"
+          >
+            Third-Party Licenses
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
