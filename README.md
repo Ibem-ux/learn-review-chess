@@ -2,11 +2,11 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Project Context
 
-For detailed product goals, architecture, implemented features, planned Stockfish and move-classification roadmaps, and security rules, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
+Features and setup instructions are below. Architecture and roadmap notes are maintained locally by the project owner and are not tracked in this repository.
 
 ## Features
 
-- **Game Import & Selection**: Paste raw PGN text or fetch recent completed games via Chess.com username.
+- **Game Import & Selection**: Paste raw PGN text or fetch completed games via Chess.com username. Every public archive month is listed newest first and any month can be selected to load that month's games without refetching the archive list.
 - **Stockfish Full-Game Quick-Pass Analysis**: Sequential Stockfish 18.0.0 analysis across all game positions at depth 10 with MultiPV 3.
 - **Deep Critical-Position Pass**: Automatic detection of critical turning points (blunders, mistakes, sharp score shifts) with deeper re-analysis (depth 14+) to refine evaluations and brilliancy detection.
 - **Objective Move Classification**: Moves categorized as Brilliant (`!!`), Great (`!`), Best (`★`), Excellent, Good, Inaccuracy (`?!`), Mistake (`?`), Blunder (`??`), or Missed Win using transparent centipawn loss and sacrifice evaluation rules.
