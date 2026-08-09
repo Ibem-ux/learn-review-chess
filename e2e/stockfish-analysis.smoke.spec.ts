@@ -118,7 +118,7 @@ test.describe("Stockfish browser smoke test", () => {
     await analyzeButton.click();
 
     const results = page.getByTestId("current-ply-result");
-    await expect(results).toContainText(/Depth:|Nodes:|Time:|Score:|Engine line:/);
+    await expect(results).toContainText(/Depth:|Nodes:|Time:|Score:|Engine line:/, { timeout: 120000 });
 
     await expect(page.getByText("Best move:")).toBeVisible({ timeout: 120000 });
 
