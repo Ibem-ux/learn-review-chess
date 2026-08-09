@@ -36,7 +36,7 @@ describe("ChesscomGamePicker", () => {
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     expect(screen.getByLabelText("Chess.com username")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("e.g. hikaru")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Load latest games" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Load games" })).toBeEnabled();
     expect(screen.getByText(/Only public completed-game data is retrieved/)).toBeInTheDocument();
   });
 
@@ -49,7 +49,7 @@ describe("ChesscomGamePicker", () => {
 
   it("rejects empty username without fetch", async () => {
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -57,7 +57,7 @@ describe("ChesscomGamePicker", () => {
     fetchMock.mockResolvedValueOnce(createArchivesResponse([]));
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "  hikaru  " } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(fetchMock).toHaveBeenCalledWith("/api/chesscom/hikaru/archives", expect.any(Object));
   });
@@ -69,7 +69,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const firstCall = fetchMock.mock.calls[0];
@@ -91,7 +91,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const secondCall = fetchMock.mock.calls[1];
@@ -102,7 +102,7 @@ describe("ChesscomGamePicker", () => {
     fetchMock.mockImplementationOnce(() => new Promise(() => {}));
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     expect(screen.getByLabelText("Chess.com username")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Loading..." })).toBeDisabled();
@@ -122,7 +122,7 @@ describe("ChesscomGamePicker", () => {
     const inputCopy = gamesResponse.map((g) => ({ ...g }));
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const items = screen.getAllByRole("listitem");
@@ -148,7 +148,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const listItems = screen.getAllByRole("listitem");
@@ -164,7 +164,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       expect(screen.getByText(/Alice vs Bob/)).toBeInTheDocument();
@@ -181,7 +181,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const items = screen.getAllByRole("listitem");
@@ -198,7 +198,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const items = screen.getAllByRole("listitem");
@@ -215,7 +215,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const items = screen.getAllByRole("listitem");
@@ -231,7 +231,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       expect(screen.getByText(/Alice vs Bob/)).toBeInTheDocument();
@@ -246,7 +246,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const items = screen.getAllByRole("listitem");
@@ -264,7 +264,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={onSelect} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Review game" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Review game" }));
@@ -275,7 +275,7 @@ describe("ChesscomGamePicker", () => {
     fetchMock.mockResolvedValueOnce(createArchivesResponse([]));
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       expect(screen.getByText("No public game archives found for this player.")).toBeInTheDocument();
@@ -289,7 +289,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       expect(screen.getByText("No games found for January 2023.")).toBeInTheDocument();
@@ -300,7 +300,7 @@ describe("ChesscomGamePicker", () => {
     fetchMock.mockResolvedValueOnce(createErrorResponse({ code: "not-found", message: "Player not found." }, 404));
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const alert = screen.getByRole("alert");
@@ -313,7 +313,7 @@ describe("ChesscomGamePicker", () => {
     fetchMock.mockResolvedValueOnce(createErrorResponse({ code: "rate-limited", message: "Rate limited by Chess.com.", retryAfter: 60 }, 429));
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const alert = screen.getByRole("alert");
@@ -326,7 +326,7 @@ describe("ChesscomGamePicker", () => {
     fetchMock.mockRejectedValueOnce(new Error("ECONNREFUSED 127.0.0.1:443"));
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const alert = screen.getByRole("alert");
@@ -339,7 +339,7 @@ describe("ChesscomGamePicker", () => {
     fetchMock.mockResolvedValueOnce(new Response("not json", { status: 200, headers: { "Content-Type": "application/json" } }));
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       const alert = screen.getByRole("alert");
@@ -360,12 +360,12 @@ describe("ChesscomGamePicker", () => {
     const input = screen.getByLabelText("Chess.com username");
 
     fireEvent.change(input, { target: { value: "old" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(screen.getByText(/Wold vs Bold/)).toBeInTheDocument());
 
     fireEvent.change(input, { target: { value: "new" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(screen.getByText(/Wnew vs Bnew/)).toBeInTheDocument());
     expect(screen.queryByText(/Wold vs Bold/)).not.toBeInTheDocument();
@@ -383,7 +383,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(screen.getByTestId("archive-month-select")).toBeInTheDocument());
 
@@ -407,7 +407,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(screen.getByTestId("archive-month-select")).toBeInTheDocument());
 
@@ -429,7 +429,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
@@ -452,7 +452,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
@@ -484,7 +484,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(screen.getByText(/JuneW vs JuneB/)).toBeInTheDocument());
 
@@ -505,7 +505,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => {
       expect(screen.getByText("No games found for August 2025.")).toBeInTheDocument();
@@ -526,7 +526,7 @@ describe("ChesscomGamePicker", () => {
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     const usernameInput = screen.getByLabelText("Chess.com username");
     fireEvent.change(usernameInput, { target: { value: "originaluser" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
@@ -552,7 +552,7 @@ describe("ChesscomGamePicker", () => {
 
     render(<ChesscomGamePicker onSelectPgn={() => {}} />);
     fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load latest games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
 
     await waitFor(() => expect(screen.getByTestId("archive-month-select")).toBeInTheDocument());
 
