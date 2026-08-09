@@ -4,6 +4,20 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 For detailed product goals, architecture, implemented features, planned Stockfish and move-classification roadmaps, and security rules, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
 
+## Features
+
+- **Game Import & Selection**: Paste raw PGN text or fetch recent completed games via Chess.com username.
+- **Stockfish Full-Game Quick-Pass Analysis**: Sequential Stockfish 18.0.0 analysis across all game positions at depth 10 with MultiPV 3.
+- **Deep Critical-Position Pass**: Automatic detection of critical turning points (blunders, mistakes, sharp score shifts) with deeper re-analysis (depth 14+) to refine evaluations and brilliancy detection.
+- **Objective Move Classification**: Moves categorized as Brilliant (`!!`), Great (`!`), Best (`★`), Excellent, Good, Inaccuracy (`?!`), Mistake (`?`), Blunder (`??`), or Missed Win using transparent centipawn loss and sacrifice evaluation rules.
+- **Natural Language Move Explanations**: Explanatory text detailing tactical threats, move quality, and positional mistakes for selected positions.
+- **Interactive SVG Evaluation Graph & Bar**: Interactive advantage timeline graph with hover tooltips and real-time evaluation bar.
+- **Game Performance Summary**: Per-player move category counts, move accuracy %, average centipawn loss (ACPL), estimated performance ratings, and game phase breakdowns (Opening, Middlegame, Endgame).
+- **Interactive Position Explorer**: Drag pieces on any reviewed position to explore alternative variations with position stack breadcrumbs and instant Return to Game navigation.
+- **ECO Opening Book**: Local ECO lookup matching SAN move-sequence prefixes against a small starter set of 28 lines at most 6 plies deep. Transpositions are not resolved.
+- **Best-Move Engine Arrows**: On-board arrow overlays displaying top engine candidate moves.
+- **Freeform StudyBoard**: Interactive study board with legal move validation, move history, undo, reset, and board flipping.
+
 ## Getting Started
 
 First, run the development server:
