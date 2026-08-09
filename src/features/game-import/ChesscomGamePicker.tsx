@@ -5,7 +5,29 @@ import { normalizeHeader, parsePgn } from "@/features/chess/pgn";
 
 const MAX_DISPLAYED_GAMES = 20;
 
+const MONTH_NAMES = [
+  "",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
 type GameStatus = "initial" | "loading-archives" | "loading-games" | "success" | "no-archives" | "no-games" | "error";
+
+type ArchiveEntry = {
+  readonly url: string;
+  readonly year: number;
+  readonly month: number;
+};
 
 type InternalArchivesResponse = {
   readonly username: string;
@@ -67,15 +89,26 @@ function encodeUsername(username: string): string {
   return encodeURIComponent(username.trim());
 }
 
-function pickLatestArchive(archives: readonly { year: number; month: number }[]): { year: number; month: number } | null {
-  if (archives.length === 0) return null;
-  let latest = archives[0]!;
-  for (const entry of archives) {
-    if (entry.year > latest.year || (entry.year === latest.year && entry.month > latest.month)) {
-      latest = entry;
-    }
-  }
-  return latest;
+function isValidArchiveEntry(entry: { year: number; month: number }): boolean {
+  if (!Number.isInteger(entry.year) || entry.year < 1000 || entry.year > 9999) return false;
+  if (!Number.isInteger(entry.month) || entry.month < 1 || entry.month > 12) return false;
+  return true;
+}
+
+function sortArchivesNewestFirst(archives: readonly ArchiveEntry[]): ArchiveEntry[] {
+  return [...archives].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return b.month - a.month;
+  });
+}
+
+function formatArchiveKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function formatMonthLabel(year: number, month: number): string {
+  const name = MONTH_NAMES[month] ?? "";
+  return `${name} ${year}`;
 }
 
 function parseGameDate(endTime: string): string {
@@ -112,102 +145,47 @@ export type ChesscomGamePickerProps = {
 export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerProps) {
   const [username, setUsername] = useState("");
   const [status, setStatus] = useState<GameStatus>("initial");
+  const [archives, setArchives] = useState<readonly ArchiveEntry[]>([]);
+  const [selectedArchive, setSelectedArchive] = useState<ArchiveEntry | null>(null);
   const [games, setGames] = useState<readonly InternalGame[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [errorRetryAfter, setErrorRetryAfter] = useState<number | undefined>(undefined);
   const controllerRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
+  const loadedUsernameRef = useRef("");
 
-  const handleSubmit = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      const trimmed = username.trim();
-      if (trimmed.length === 0) return;
+  const fetchGamesForMonth = useCallback(
+    async (
+      encoded: string,
+      year: number,
+      month: number,
+      generation: number,
+      signal: AbortSignal
+    ) => {
+      setStatus("loading-games");
 
-      const encoded = encodeUsername(trimmed);
-
-      if (controllerRef.current) {
-        controllerRef.current.abort();
-      }
-      const controller = new AbortController();
-      controllerRef.current = controller;
-      const generation = ++generationRef.current;
-
-      setStatus("loading-archives");
-      setGames([]);
-      setErrorMessage("");
-      setErrorRetryAfter(undefined);
-
+      const monthStr = String(month).padStart(2, "0");
       try {
-        const archivesResponse = await fetch(`/api/chesscom/${encoded}/archives`, {
-          signal: controller.signal,
+        const gamesResponse = await fetch(`/api/chesscom/${encoded}/games/${year}/${monthStr}`, {
+          signal,
         });
 
-        if (controller.signal.aborted) return;
-
-        let archivesJson: unknown;
-        try {
-          archivesJson = await archivesResponse.json();
-        } catch {
-          if (controller.signal.aborted) return;
-          setStatus("error");
-          setErrorMessage("Invalid archive response from server.");
-          return;
-        }
-
-        if (archivesResponse.status !== 200) {
-          if (isInternalError(archivesJson)) {
-            setStatus("error");
-            setErrorMessage(archivesJson.message);
-            setErrorRetryAfter(archivesJson.retryAfter);
-          } else {
-            setStatus("error");
-            setErrorMessage("Server error while loading archives.");
-          }
-          return;
-        }
-
-        if (!isInternalArchivesResponse(archivesJson)) {
-          setStatus("error");
-          setErrorMessage("Invalid archive response from server.");
-          return;
-        }
-
-        if (archivesJson.archives.length === 0) {
-          setStatus("no-archives");
-          return;
-        }
-
-        const archiveEntries = archivesJson.archives.map((a) => ({
-          url: a.url,
-          year: a.year,
-          month: a.month,
-        }));
-        const latest = pickLatestArchive(archiveEntries);
-
-        if (!latest) {
-          setStatus("no-archives");
-          return;
-        }
-
-        setStatus("loading-games");
-
-        const monthStr = String(latest.month).padStart(2, "0");
-        const gamesResponse = await fetch(`/api/chesscom/${encoded}/games/${latest.year}/${monthStr}`, {
-          signal: controller.signal,
-        });
-
-        if (controller.signal.aborted) return;
+        if (signal.aborted) return;
+        if (generation !== generationRef.current) return;
 
         let gamesJson: unknown;
         try {
           gamesJson = await gamesResponse.json();
         } catch {
-          if (controller.signal.aborted) return;
+          if (signal.aborted) return;
+          if (generation !== generationRef.current) return;
           setStatus("error");
           setErrorMessage("Invalid games response from server.");
           return;
         }
+
+        if (signal.aborted) return;
+        if (generation !== generationRef.current) return;
 
         if (gamesResponse.status !== 200) {
           if (isInternalError(gamesJson)) {
@@ -226,8 +204,6 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
           setErrorMessage("Invalid games response from server.");
           return;
         }
-
-        if (generation !== generationRef.current) return;
 
         const sorted = [...gamesJson.games].sort((a, b) => {
           const aTime = Number(a.endTime);
@@ -249,12 +225,144 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
         }
         setGames(limited);
       } catch {
-        if (controller.signal.aborted) return;
+        if (signal.aborted) return;
+        if (generation !== generationRef.current) return;
         setStatus("error");
         setErrorMessage("Unable to reach the server. Please try again later.");
       }
     },
-    [username]
+    []
+  );
+
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const trimmed = username.trim();
+      if (trimmed.length === 0) return;
+
+      const encoded = encodeUsername(trimmed);
+
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      controllerRef.current = controller;
+      const generation = ++generationRef.current;
+
+      setStatus("loading-archives");
+      setArchives([]);
+      setSelectedArchive(null);
+      setGames([]);
+      setErrorMessage("");
+      setErrorRetryAfter(undefined);
+
+      try {
+        const archivesResponse = await fetch(`/api/chesscom/${encoded}/archives`, {
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) return;
+        if (generation !== generationRef.current) return;
+
+        let archivesJson: unknown;
+        try {
+          archivesJson = await archivesResponse.json();
+        } catch {
+          if (controller.signal.aborted) return;
+          if (generation !== generationRef.current) return;
+          setStatus("error");
+          setErrorMessage("Invalid archive response from server.");
+          return;
+        }
+
+        if (controller.signal.aborted) return;
+        if (generation !== generationRef.current) return;
+
+        if (archivesResponse.status !== 200) {
+          if (isInternalError(archivesJson)) {
+            setStatus("error");
+            setErrorMessage(archivesJson.message);
+            setErrorRetryAfter(archivesJson.retryAfter);
+          } else {
+            setStatus("error");
+            setErrorMessage("Server error while loading archives.");
+          }
+          return;
+        }
+
+        if (!isInternalArchivesResponse(archivesJson)) {
+          setStatus("error");
+          setErrorMessage("Invalid archive response from server.");
+          return;
+        }
+
+        const validEntries = archivesJson.archives.filter((a) => isValidArchiveEntry(a));
+
+        if (validEntries.length === 0) {
+          setStatus("no-archives");
+          return;
+        }
+
+        const archiveEntries: ArchiveEntry[] = validEntries.map((a) => ({
+          url: a.url,
+          year: a.year,
+          month: a.month,
+        }));
+        const sortedArchives = sortArchivesNewestFirst(archiveEntries);
+
+        const newest = sortedArchives[0];
+        if (!newest) {
+          setStatus("no-archives");
+          return;
+        }
+
+        loadedUsernameRef.current = encoded;
+        setArchives(sortedArchives);
+        setSelectedArchive(newest);
+
+        await fetchGamesForMonth(encoded, newest.year, newest.month, generation, controller.signal);
+      } catch {
+        if (controller.signal.aborted) return;
+        if (generation !== generationRef.current) return;
+        setStatus("error");
+        setErrorMessage("Unable to reach the server. Please try again later.");
+      }
+    },
+    [username, fetchGamesForMonth]
+  );
+
+  const handleMonthChange = useCallback(
+    async (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value;
+      const parts = value.split("-");
+      const yearStr = parts[0];
+      const monthStr = parts[1];
+      if (yearStr === undefined || monthStr === undefined) return;
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+      if (!Number.isInteger(year) || !Number.isInteger(month)) return;
+
+      const entry = archives.find((a) => a.year === year && a.month === month);
+      if (!entry) return;
+
+      setSelectedArchive(entry);
+      setGames([]);
+      setErrorMessage("");
+      setErrorRetryAfter(undefined);
+
+      const encoded = loadedUsernameRef.current;
+      if (encoded.length === 0) return;
+
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      controllerRef.current = controller;
+      const generation = ++generationRef.current;
+
+      await fetchGamesForMonth(encoded, year, month, generation, controller.signal);
+    },
+    [archives, fetchGamesForMonth]
   );
 
   useEffect(() => {
@@ -296,6 +404,34 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
         </button>
       </form>
 
+      {archives.length > 0 && selectedArchive !== null && (
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="chesscom-archive-month"
+            className="block text-sm font-medium text-black dark:text-zinc-50"
+          >
+            Archive month
+          </label>
+          <select
+            id="chesscom-archive-month"
+            data-testid="archive-month-select"
+            value={formatArchiveKey(selectedArchive.year, selectedArchive.month)}
+            onChange={handleMonthChange}
+            disabled={isSubmitting}
+            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+          >
+            {archives.map((a) => {
+              const key = formatArchiveKey(a.year, a.month);
+              return (
+                <option key={key} value={key}>
+                  {formatMonthLabel(a.year, a.month)}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      )}
+
       <div aria-live="polite" className="text-sm font-medium text-black dark:text-zinc-50">
         {status === "loading-archives" && "Loading available months..."}
         {status === "loading-games" && "Loading recent games..."}
@@ -303,7 +439,9 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
           <span>{games.length > 0 ? `Showing ${games.length} game${games.length === 1 ? "" : "s"}` : ""}</span>
         )}
         {status === "no-archives" && "No public game archives found for this player."}
-        {status === "no-games" && "No games found for the latest month."}
+        {status === "no-games" &&
+          selectedArchive !== null &&
+          `No games found for ${formatMonthLabel(selectedArchive.year, selectedArchive.month)}.`}
       </div>
 
       {status === "error" && (
