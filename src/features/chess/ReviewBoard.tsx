@@ -31,6 +31,8 @@ import { buildGamePerformance, type GamePerformance } from "./game-performance";
 import { GamePerformanceSummary } from "./game-performance-summary";
 import { buildMoveExplanations } from "./move-explanation";
 import { MoveExplanationPanel } from "./move-explanation-panel";
+import { lookupOpening } from "./opening-book";
+import { OpeningDisplay } from "./opening-display";
 
 const FULL_GAME_ANALYSIS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 10 };
 const DEEP_PASS_LIMIT: EngineAnalysisLimit = { kind: "depth", value: 18 };
@@ -161,6 +163,20 @@ export default function ReviewBoard({
   });
   const currentMove = result.ok ? result.step.move : null;
 
+  const movesPlayed = useMemo(() => {
+    const list: string[] = [];
+    for (let i = 1; i <= ply && i < timeline.steps.length; i++) {
+      const step = timeline.steps[i];
+      const san = step?.move?.san;
+      if (typeof san === "string") {
+        list.push(san);
+      }
+    }
+    return list;
+  }, [timeline.steps, ply]);
+
+  const opening = useMemo(() => lookupOpening(movesPlayed), [movesPlayed]);
+
   const { atStart, atEnd } = isDisabled(ply, timeline.totalPlies);
 
   const handlePieceDrop = useCallback(
@@ -222,14 +238,17 @@ export default function ReviewBoard({
       <div
         role="status"
         aria-live="polite"
-        className="text-sm font-medium text-black dark:text-zinc-50"
+        className="flex items-center justify-between text-sm font-medium text-black dark:text-zinc-50"
       >
-        <span data-testid="review-ply-status">
-          {ply === 0 ? "Start position" : statusText}
-        </span>{" "}
-        <span data-testid="review-ply-count">
-          ({ply} / {timeline.totalPlies})
-        </span>
+        <div>
+          <span data-testid="review-ply-status">
+            {ply === 0 ? "Start position" : statusText}
+          </span>{" "}
+          <span data-testid="review-ply-count">
+            ({ply} / {timeline.totalPlies})
+          </span>
+        </div>
+        <OpeningDisplay opening={opening} />
       </div>
 
       <MoveList timeline={timeline} currentPly={ply} onSelectPly={goTo} classifications={classifications} />
