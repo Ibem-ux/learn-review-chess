@@ -51,5 +51,10 @@ export function buildSecurityHeaders(options: {
       key: "Cross-Origin-Opener-Policy",
       value: "same-origin",
     },
+    {
+      key: "Permissions-Policy",
+      value:
+        "camera=(), microphone=(), geolocation=(), usb=(), serial=(), payment=(), display-capture=(), xr-spatial-tracking=()",
+    },
   ];
 }

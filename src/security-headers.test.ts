@@ -48,6 +48,19 @@ describe("security-headers", () => {
     expect(headerMap.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
   });
 
+  it("buildSecurityHeaders sets Permissions-Policy denying sensitive features", () => {
+    const headers = buildSecurityHeaders({ dev: false });
+    const headerMap = new Map(headers.map((h) => [h.key, h.value]));
+    expect(headerMap.get("Permissions-Policy")).toBe(
+      "camera=(), microphone=(), geolocation=(), usb=(), serial=(), payment=(), display-capture=(), xr-spatial-tracking=()",
+    );
+  });
+
+  it("Permissions-Policy is present in dev as well as production", () => {
+    const devKeys = buildSecurityHeaders({ dev: true }).map((h) => h.key);
+    expect(devKeys).toContain("Permissions-Policy");
+  });
+
   it("no header key appears more than once in buildSecurityHeaders", () => {
     const headers = buildSecurityHeaders({ dev: false });
     const keys = headers.map((h) => h.key);
