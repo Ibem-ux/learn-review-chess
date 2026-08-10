@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countPgnGames, normalizeHeader, parsePgn } from "@/features/chess/pgn";
+import { countPgnGames, normalizeHeader, parsePgn, splitPgnGames } from "@/features/chess/pgn";
 
 const ELIGIBLE_RESULTS = ["1-0", "0-1", "1/2-1/2"] as const;
 
@@ -331,6 +331,83 @@ describe("parsePgn", () => {
       const pgn = '[Event "Game 1"]\n[Result "1-0"]\n\n1. e4 e5 1-0\n\n[Event "Game 2"]\n[Result "0-1"]\n\n1. d4 d5 0-1';
       const result = parsePgn(pgn);
       expect(result.ok).toBe(false);
+    });
+  });
+
+  describe("splitPgnGames", () => {
+    it("returns an empty array for empty string", () => {
+      expect(splitPgnGames("")).toEqual([]);
+    });
+
+    it("returns an empty array for whitespace-only input", () => {
+      expect(splitPgnGames("   \n\t  ")).toEqual([]);
+    });
+
+    it("returns a single-element array equal to the trimmed input for movetext with no Event tag", () => {
+      expect(splitPgnGames("1. e4 e5 1-0")).toEqual(["1. e4 e5 1-0"]);
+    });
+
+    it("splits a two-game file into two elements where each element starts with an Event tag", () => {
+      const pgn = '[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0';
+      const result = splitPgnGames(pgn);
+      expect(result).toHaveLength(2);
+      expect(result[0].startsWith('[Event "Game 1"]')).toBe(true);
+      expect(result[1].startsWith('[Event "Game 2"]')).toBe(true);
+    });
+
+    it("splits a three-game file into three elements", () => {
+      const pgn = '[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0\n\n[Event "Game 3"]\n1. c4 c5 1-0';
+      const result = splitPgnGames(pgn);
+      expect(result).toHaveLength(3);
+    });
+
+    it("parses each element of a two-game split successfully through parsePgn with ok true", () => {
+      const pgn = '[Event "Game 1"]\n[Result "1-0"]\n\n1. e4 e5 1-0\n\n[Event "Game 2"]\n[Result "0-1"]\n\n1. d4 d5 0-1';
+      const parts = splitPgnGames(pgn);
+      expect(parts).toHaveLength(2);
+      const res1 = parsePgn(parts[0]);
+      const res2 = parsePgn(parts[1]);
+      expect(res1.ok).toBe(true);
+      expect(res2.ok).toBe(true);
+    });
+
+    it("parses distinct White headers for games in a two-game split", () => {
+      const pgn = '[Event "Game 1"]\n[White "Kasparov"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n[White "Carlsen"]\n1. d4 d5 1-0';
+      const parts = splitPgnGames(pgn);
+      expect(parts).toHaveLength(2);
+      const res1 = parsePgn(parts[0]);
+      const res2 = parsePgn(parts[1]);
+      expect(res1).toMatchObject({ ok: true, value: { headers: { White: "Kasparov" } } });
+      expect(res2).toMatchObject({ ok: true, value: { headers: { White: "Carlsen" } } });
+    });
+
+    it("preserves content before the first Event tag in the first element", () => {
+      const pgn = '% Comment line\n[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0';
+      const parts = splitPgnGames(pgn);
+      expect(parts).toHaveLength(2);
+      expect(parts[0]).toBe('% Comment line\n[Event "Game 1"]\n1. e4 e5 1-0');
+    });
+
+    it("handles carriage-return line endings producing the same element count as newline endings", () => {
+      const pgn = '[Event "Game 1"]\r\n1. e4 e5 1-0\r\n\r\n[Event "Game 2"]\r\n1. d4 d5 1-0';
+      const parts = splitPgnGames(pgn);
+      expect(parts).toHaveLength(2);
+    });
+
+    it("satisfies the invariant that splitPgnGames length equals countPgnGames for every fixture", () => {
+      const fixtures = [
+        "",
+        "   \n\t  ",
+        "1. e4 e5 1-0",
+        '[Event "Game 1"]\n1. e4 e5 1-0',
+        '[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0',
+        '[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0\n\n[Event "Game 3"]\n1. c4 c5 1-0',
+        '% Comment\n[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0',
+        '[Event "Game 1"]\r\n1. e4 e5 1-0\r\n\r\n[Event "Game 2"]\r\n1. d4 d5 1-0',
+      ];
+      for (const fixture of fixtures) {
+        expect(splitPgnGames(fixture).length).toBe(countPgnGames(fixture));
+      }
     });
   });
 });

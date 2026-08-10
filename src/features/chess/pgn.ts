@@ -109,3 +109,37 @@ export function countPgnGames(input: string): number {
   }
   return eventHeaderCount;
 }
+
+export function splitPgnGames(input: string): string[] {
+  const trimmed = input.trim();
+  if (trimmed.length === 0) {
+    return [];
+  }
+
+  const normalized = input.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+
+  const eventIndices: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*\[Event[\s"]/.test(lines[i])) {
+      eventIndices.push(i);
+    }
+  }
+
+  if (eventIndices.length === 0) {
+    return [trimmed];
+  }
+
+  const games: string[] = [];
+  for (let i = 0; i < eventIndices.length; i++) {
+    const startIndex = i === 0 ? 0 : eventIndices[i];
+    const endIndex =
+      i === eventIndices.length - 1 ? lines.length : eventIndices[i + 1];
+    const gameChunk = lines.slice(startIndex, endIndex).join("\n").trim();
+    if (gameChunk.length > 0) {
+      games.push(gameChunk);
+    }
+  }
+
+  return games;
+}
