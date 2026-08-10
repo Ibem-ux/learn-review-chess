@@ -260,6 +260,17 @@ describe("ReviewWorkspace", () => {
     );
   });
 
+  it("distributes all three import method buttons evenly across the full group width", () => {
+    render(<ReviewWorkspace />);
+    const group = screen.getByRole("group", { name: "Import method" });
+    expect(group.getAttribute("class")).toContain("w-full");
+    const buttons = group.querySelectorAll("button");
+    expect(buttons.length).toBe(3);
+    expect(buttons[0].getAttribute("class")).toContain("flex-1");
+    expect(buttons[1].getAttribute("class")).toContain("flex-1");
+    expect(buttons[2].getAttribute("class")).toContain("flex-1");
+  });
+
   it("selecting Chess.com renders the game picker", () => {
     render(<ReviewWorkspace />);
     fireEvent.click(screen.getByRole("button", { name: "Chess.com" }));

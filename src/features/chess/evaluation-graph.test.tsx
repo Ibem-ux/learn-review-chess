@@ -176,8 +176,8 @@ describe("EvaluationGraph", () => {
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
     expect(marker).not.toBeNull();
-    expect(marker?.getAttribute("cx")).toBe("0.0");
-    expect(marker?.getAttribute("cy")).toBe("20.0");
+    expect(marker?.getAttribute("style")).toContain("left: 0%");
+    expect(marker?.getAttribute("style")).toContain("top: 50%");
     const cursor = container.querySelector('[data-testid="evaluation-graph-cursor"]');
     expect(cursor?.getAttribute("x1")).toBe("0.0");
     expect(cursor?.getAttribute("x2")).toBe("0.0");
@@ -203,7 +203,7 @@ describe("EvaluationGraph", () => {
       makePoint(2, 0.7),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
-    const buttons = container.querySelectorAll('[data-ply]');
+    const buttons = container.querySelectorAll('button[data-ply]');
     const lastButton = buttons[buttons.length - 1];
     expect(lastButton.getAttribute("style")).toBeNull();
     expect(lastButton.getAttribute("class")).toContain("flex-1");
@@ -235,23 +235,22 @@ describe("EvaluationGraph", () => {
     expect(markers.length).toBe(4);
   });
 
-  it("a marker for a point with san renders a title whose text content is exactly that san", () => {
+  it("a marker for a point with san renders a title attribute whose text content is exactly that san", () => {
     const points = [
       makePoint(0, 0.5, { san: "e4" }),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
-    const title = marker?.querySelector("title");
-    expect(title?.textContent).toBe("e4");
+    expect(marker?.getAttribute("title")).toBe("e4");
   });
 
-  it("a marker for a point with san null renders no title element", () => {
+  it("a marker for a point with san null renders no title attribute", () => {
     const points = [
       makePoint(0, 0.5, { san: null }),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
-    expect(marker?.querySelector("title")).toBeNull();
+    expect(marker?.getAttribute("title")).toBeNull();
   });
 
   it("an overlay button for a point with san has aria-label including the san, and one with san null does not", () => {
@@ -285,13 +284,13 @@ describe("EvaluationGraph", () => {
     expect(labels?.length).toBe(0);
   });
 
-  it("a marker for a point with san has r exactly 1.6", () => {
+  it("a marker for a point with san is styled as a rounded circle", () => {
     const points = [
       makePoint(0, 0.5, { san: "e4" }),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
-    expect(marker?.getAttribute("r")).toBe("1.6");
+    expect(marker?.getAttribute("class")).toContain("rounded-full");
   });
 
   it("an overlay button's className is exactly flex-1 h-full group relative", () => {
@@ -303,12 +302,25 @@ describe("EvaluationGraph", () => {
     expect(button?.getAttribute("class")).toBe("flex-1 h-full group relative");
   });
 
-  it("a marker circle has strokeWidth exactly 0.5", () => {
+  it("a marker element carries a border style", () => {
     const points = [
       makePoint(0, 0.5, { san: "e4" }),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
-    expect(marker?.getAttribute("stroke-width")).toBe("0.5");
+    expect(marker?.getAttribute("class")).toContain("border");
+  });
+
+  it("markers are not SVG circles, carry data-ply, and use percentage style positioning", () => {
+    const points = [
+      makePoint(0, 0.5, { san: "e4" }),
+      makePoint(1, 0.75, { san: "e5" }),
+    ];
+    const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
+    expect(markers[0].tagName.toLowerCase()).not.toBe("circle");
+    expect(markers[0].getAttribute("data-ply")).toBe("0");
+    expect(markers[0].getAttribute("style")).toContain("left:");
+    expect(markers[0].getAttribute("style")).toContain("top:");
   });
 });

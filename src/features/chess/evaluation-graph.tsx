@@ -94,22 +94,6 @@ export function EvaluationGraph({
           return null;
         })}
 
-        {markers.map((marker) => (
-          <circle
-            key={`marker-${marker.ply}`}
-            data-testid="evaluation-graph-marker"
-            data-ply={marker.ply}
-            cx={marker.x.toFixed(1)}
-            cy={marker.y.toFixed(1)}
-            r="1.6"
-            fill="currentColor"
-            className="stroke-white dark:stroke-zinc-900"
-            strokeWidth="0.5"
-          >
-            {marker.san !== null && <title>{marker.san}</title>}
-          </circle>
-        ))}
-
         {cursorX !== null && (
           <line
             data-testid="evaluation-graph-cursor"
@@ -123,6 +107,22 @@ export function EvaluationGraph({
           />
         )}
       </svg>
+
+      <div className="pointer-events-none absolute inset-0">
+        {markers.map((marker) => (
+          <span
+            key={`marker-${marker.ply}`}
+            data-testid="evaluation-graph-marker"
+            data-ply={marker.ply}
+            style={{
+              left: `${marker.x}%`,
+              top: `${(marker.y / 40) * 100}%`,
+            }}
+            title={marker.san ?? undefined}
+            className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-current dark:border-zinc-900"
+          />
+        ))}
+      </div>
 
       <div className="absolute inset-0 flex">
         {points.map((point) => (

@@ -157,7 +157,7 @@ export default function ReviewWorkspace() {
         )}
 
         <div
-          className="mt-5 flex gap-2"
+          className="mt-5 flex w-full gap-2"
           role="group"
           aria-label="Import method"
         >
@@ -165,7 +165,7 @@ export default function ReviewWorkspace() {
             type="button"
             aria-pressed={importMethod === "paste"}
             onClick={() => setImportMethod("paste")}
-            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Paste PGN
           </button>
@@ -173,7 +173,7 @@ export default function ReviewWorkspace() {
             type="button"
             aria-pressed={importMethod === "chesscom"}
             onClick={() => setImportMethod("chesscom")}
-            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Chess.com
           </button>
@@ -181,7 +181,7 @@ export default function ReviewWorkspace() {
             type="button"
             aria-pressed={importMethod === "file"}
             onClick={() => setImportMethod("file")}
-            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Upload file
           </button>
