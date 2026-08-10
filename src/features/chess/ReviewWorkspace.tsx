@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import StudyBoard from "@/features/chess/StudyBoard";
 import ReviewBoard from "@/features/chess/ReviewBoard";
-import { countPgnGames, normalizeHeader, parsePgn } from "@/features/chess/pgn";
+import { getPlayerAndResult, normalizeHeader, parsePgn, splitPgnGames } from "@/features/chess/pgn";
 import { buildTimeline, type ReviewTimeline } from "@/features/chess/timeline";
 import ChesscomGamePicker from "@/features/game-import/ChesscomGamePicker";
 
@@ -37,6 +37,7 @@ export default function ReviewWorkspace() {
   const [importMethod, setImportMethod] = useState<ImportMethod>("paste");
   const [activeSource, setActiveSource] = useState<string | null>(null);
   const [isFileReading, setIsFileReading] = useState(false);
+  const [multiPgnGames, setMultiPgnGames] = useState<string[]>([]);
   const [descriptionId] = useState("pgn-description");
   const [fileDescriptionId] = useState("file-description");
   const [errorId] = useState("pgn-error");
@@ -84,12 +85,13 @@ export default function ReviewWorkspace() {
     setIsFileReading(true);
     try {
       const text = await file.text();
-      if (countPgnGames(text) > 1) {
-        setError(
-          "Multi-game files are not supported. Upload a PGN file containing a single game."
-        );
+      const games = splitPgnGames(text);
+      if (games.length > 1) {
+        setMultiPgnGames(games);
+        setError(null);
         return;
       }
+      setMultiPgnGames([]);
       loadGame("Uploaded file", text);
     } catch {
       setError("Could not read the selected file. Try choosing it again.");
@@ -105,6 +107,7 @@ export default function ReviewWorkspace() {
     setError(null);
     setPgn("");
     setActiveSource(null);
+    setMultiPgnGames([]);
   };
 
   return (
@@ -236,7 +239,7 @@ export default function ReviewWorkspace() {
               Upload a PGN file
             </label>
             <p id={fileDescriptionId} className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-              Select a single-game .pgn file from your computer.
+              Select a .pgn file from your computer. If it contains multiple games, you will be asked to choose one.
             </p>
             <input
               id="file-input"
@@ -254,6 +257,42 @@ export default function ReviewWorkspace() {
               >
                 Reading PGN file...
               </p>
+            )}
+            {multiPgnGames.length > 1 && (
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="text-sm font-medium text-black dark:text-zinc-50">
+                  Showing {multiPgnGames.length > 50 ? `first 50 of ${multiPgnGames.length}` : multiPgnGames.length} games
+                </div>
+                <ul className="flex list-none flex-col gap-2 p-0" role="list">
+                  {multiPgnGames.slice(0, 50).map((gamePgn, index) => {
+                    const { white, black, result } = getPlayerAndResult(gamePgn);
+                    return (
+                      <li
+                        key={index}
+                        className="flex items-center justify-between gap-3 rounded-md border border-black/[.12] px-3 py-2 dark:border-white/[.2]"
+                      >
+                        <div className="flex flex-col gap-1 text-sm font-medium text-black dark:text-zinc-50">
+                          <span>
+                            {white} vs {black}{" "}
+                            {result !== "*" && (
+                              <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                                ({result})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => loadGame("Uploaded file", gamePgn)}
+                          className="rounded-md border border-black/[.12] px-2 py-1 text-xs font-medium text-black transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+                        >
+                          Review game
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             )}
           </div>
         )}

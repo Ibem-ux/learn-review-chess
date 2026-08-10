@@ -460,7 +460,7 @@ describe("ReviewWorkspace", () => {
       expect(screen.getByText("Uploaded file")).toBeInTheDocument();
     });
 
-    it("shows an error naming multi-game files when a file containing two games is chosen, and loads no review", async () => {
+    it("renders a chooser and shows no alert when a file containing two games is chosen, and loads no review initially", async () => {
       render(<ReviewWorkspace />);
       fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
       const input = screen.getByLabelText(/upload/i);
@@ -472,11 +472,8 @@ describe("ReviewWorkspace", () => {
       await act(async () => {
         fireEvent.change(input, { target: { files: [file] } });
       });
-      const alert = screen.getByRole("alert");
-      expect(alert.textContent).toMatch(/multi-game|more than one game/i);
-      expect(
-        screen.getByRole("region", { name: "Chess workspace" })
-      ).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
       expect(screen.queryByTestId("review-ply-count")).not.toBeInTheDocument();
     });
 
@@ -645,6 +642,129 @@ describe("ReviewWorkspace", () => {
 
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
       expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    it("displays White and Black player names for each game in the chooser list", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const pgn =
+        '[Event "G1"]\n[White "Kasparov"]\n[Black "Deep Blue"]\n1. e4 e5 1-0\n\n[Event "G2"]\n[White "Carlsen"]\n[Black "Nakamura"]\n1. d4 d5 0-1';
+      const file = new File([pgn], "games.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByText(/kasparov vs deep blue/i)).toBeInTheDocument();
+      expect(screen.getByText(/carlsen vs nakamura/i)).toBeInTheDocument();
+    });
+
+    it("loads the selected game when clicking its Review game button in the chooser", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const pgn =
+        '[Event "G1"]\n[White "Kasparov"]\n[Black "Deep Blue"]\n1. e4 e5 1-0\n\n[Event "G2"]\n[White "Carlsen"]\n[Black "Nakamura"]\n1. d4 d5 0-1';
+      const file = new File([pgn], "games.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      const reviewButtons = screen.getAllByRole("button", { name: "Review game" });
+      expect(reviewButtons).toHaveLength(2);
+      await act(async () => {
+        fireEvent.click(reviewButtons[1]);
+      });
+      expect(screen.getByText("Carlsen", { selector: "dd" })).toBeInTheDocument();
+      expect(screen.getByText("Nakamura", { selector: "dd" })).toBeInTheDocument();
+      expect(screen.queryByText("Kasparov", { selector: "dd" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Deep Blue", { selector: "dd" })).not.toBeInTheDocument();
+      expect(screen.getByText(/carlsen vs nakamura/i)).toBeInTheDocument();
+      expect(screen.getByTestId("review-ply-count")).toBeInTheDocument();
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
+    });
+
+    it("loads single-game PGN file directly without displaying a chooser", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const file = new File([SHORT_GAME], "single.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByTestId("review-ply-count")).toBeInTheDocument();
+      expect(screen.queryByText(/showing.*games/i)).not.toBeInTheDocument();
+    });
+
+    it("caps chooser display at 50 games and shows total game count when file contains more than 50 games", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const games = [];
+      for (let i = 1; i <= 52; i++) {
+        games.push(`[Event "Game ${i}"]\n[White "Player${i}"]\n1. e4 e5 1-0`);
+      }
+      const multiGamePgn = games.join("\n\n");
+      const file = new File([multiGamePgn], "many-games.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByText(/showing first 50 of 52 games/i)).toBeInTheDocument();
+      const reviewButtons = screen.getAllByRole("button", { name: "Review game" });
+      expect(reviewButtons).toHaveLength(50);
+    });
+
+    it("resets the multi-game chooser when clearing the review", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const pgn =
+        '[Event "G1"]\n[White "Kasparov"]\n[Black "Deep Blue"]\n1. e4 e5 1-0\n\n[Event "G2"]\n[White "Carlsen"]\n[Black "Nakamura"]\n1. d4 d5 0-1';
+      const file = new File([pgn], "games.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
+      const reviewButtons = screen.getAllByRole("button", { name: "Review game" });
+      await act(async () => {
+        fireEvent.click(reviewButtons[0]);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Clear imported game" }));
+      });
+      expect(screen.queryByText(/showing 2 games/i)).not.toBeInTheDocument();
+    });
+
+    it("clears an existing error alert when a multi-game file is chosen", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const largeContent = "x".repeat(1000001);
+      const largeFile = new File([largeContent], "large.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [largeFile] } });
+      });
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      const twoGamesPgn =
+        '[Event "Game 1"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n1. d4 d5 1-0';
+      const multiFile = new File([twoGamesPgn], "two-games.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [multiFile] } });
+      });
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
   });
 });
