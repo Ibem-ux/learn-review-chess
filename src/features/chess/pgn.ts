@@ -143,3 +143,18 @@ export function splitPgnGames(input: string): string[] {
 
   return games;
 }
+
+export function getPlayerAndResult(
+  pgn: string
+): { white: string; black: string; result: string } {
+  const parsed = parsePgn(pgn);
+  if (!parsed.ok) {
+    return { white: "Not specified", black: "Not specified", result: "*" };
+  }
+  const headers = parsed.value.headers;
+  const white = normalizeHeader(headers.White?.trim() || headers.white?.trim());
+  const black = normalizeHeader(headers.Black?.trim() || headers.black?.trim());
+  const rawResult = normalizeHeader(headers.Result?.trim() || headers.result?.trim());
+  const result = rawResult === "Not specified" ? "*" : rawResult;
+  return { white, black, result };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countPgnGames, normalizeHeader, parsePgn, splitPgnGames } from "@/features/chess/pgn";
+import { countPgnGames, getPlayerAndResult, normalizeHeader, parsePgn, splitPgnGames } from "@/features/chess/pgn";
 
 const ELIGIBLE_RESULTS = ["1-0", "0-1", "1/2-1/2"] as const;
 
@@ -408,6 +408,76 @@ describe("parsePgn", () => {
       for (const fixture of fixtures) {
         expect(splitPgnGames(fixture).length).toBe(countPgnGames(fixture));
       }
+    });
+  });
+
+  describe("getPlayerAndResult", () => {
+    it("returns parsed White, Black, and Result headers when all three headers are present", () => {
+      const pgn = '[White "Kasparov"]\n[Black "Deep Blue"]\n[Result "1-0"]\n1. e4 e5 1-0';
+      expect(getPlayerAndResult(pgn)).toEqual({
+        white: "Kasparov",
+        black: "Deep Blue",
+        result: "1-0",
+      });
+    });
+
+    it("returns Not specified for a missing White header", () => {
+      const pgn = '[Black "Bob"]\n[Result "0-1"]\n1. e4 e5 0-1';
+      expect(getPlayerAndResult(pgn)).toEqual({
+        white: "Not specified",
+        black: "Bob",
+        result: "0-1",
+      });
+    });
+
+    it("returns Not specified for a missing Black header", () => {
+      const pgn = '[White "Alice"]\n[Result "1-0"]\n1. e4 e5 1-0';
+      expect(getPlayerAndResult(pgn)).toEqual({
+        white: "Alice",
+        black: "Not specified",
+        result: "1-0",
+      });
+    });
+
+    it("returns asterisk for a missing Result header", () => {
+      const pgn = '[White "Alice"]\n[Black "Bob"]\n1. e4 e5';
+      expect(getPlayerAndResult(pgn)).toEqual({
+        white: "Alice",
+        black: "Bob",
+        result: "*",
+      });
+    });
+
+    it("returns Not specified for players and parsed terminal result when input is movetext with a result token", () => {
+      expect(getPlayerAndResult("1. e4 e5 1-0")).toEqual({
+        white: "Not specified",
+        black: "Not specified",
+        result: "1-0",
+      });
+    });
+
+    it("returns Not specified for players and asterisk for result for empty string", () => {
+      expect(getPlayerAndResult("")).toEqual({
+        white: "Not specified",
+        black: "Not specified",
+        result: "*",
+      });
+    });
+
+    it("yields each game's own White and Black from game chunks produced by splitPgnGames from a two-game fixture", () => {
+      const pgn = '[Event "Game 1"]\n[White "Kasparov"]\n[Black "Deep Blue"]\n[Result "1-0"]\n1. e4 e5 1-0\n\n[Event "Game 2"]\n[White "Carlsen"]\n[Black "Nakamura"]\n[Result "1/2-1/2"]\n1. d4 d5 1/2-1/2';
+      const chunks = splitPgnGames(pgn);
+      expect(chunks).toHaveLength(2);
+      expect(getPlayerAndResult(chunks[0])).toEqual({
+        white: "Kasparov",
+        black: "Deep Blue",
+        result: "1-0",
+      });
+      expect(getPlayerAndResult(chunks[1])).toEqual({
+        white: "Carlsen",
+        black: "Nakamura",
+        result: "1/2-1/2",
+      });
     });
   });
 });
