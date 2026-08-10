@@ -217,6 +217,19 @@ describe("getArchives", () => {
     }
   });
 
+  it("rejects an archive entry that is not a parseable URL without throwing", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      createResponse(200, {
+        archives: ["nota"],
+      })
+    );
+    const result = await getArchives("hikaru", fetchImpl);
+    expect(result.ok).toBe(false);
+    if (isArchivesFailure(result)) {
+      expect(result.error.kind).toBe("invalid-response");
+    }
+  });
+
   it("handles HTTP 404 as not-found", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       createResponse(404, { error: "Player not found" })

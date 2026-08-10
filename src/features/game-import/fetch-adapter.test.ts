@@ -75,4 +75,14 @@ describe("createFetchLike", () => {
     const passedInit = underlying.mock.calls[0][1];
     expect(passedInit?.signal).toBeInstanceOf(AbortSignal);
   });
+
+  it("forwards redirect error to the underlying fetch", async () => {
+    const underlying = vi.fn().mockResolvedValue(
+      new Response("ok", { status: 200 })
+    );
+    const fetchLike = createFetchLike(underlying);
+    await fetchLike("https://api.chess.com/test");
+    const passedInit = underlying.mock.calls[0][1];
+    expect(passedInit?.redirect).toBe("error");
+  });
 });

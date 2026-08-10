@@ -34,15 +34,8 @@ export function createRateLimiter(options: {
 
       if (!entry) {
         if (entries.size >= maxKeys) {
-          let oldestKey: string | null = null;
-          let oldestTime = Infinity;
-          for (const [k, v] of entries) {
-            if (v.lastRefill < oldestTime) {
-              oldestTime = v.lastRefill;
-              oldestKey = k;
-            }
-          }
-          if (oldestKey !== null) {
+          const oldestKey = entries.keys().next().value;
+          if (oldestKey !== undefined) {
             entries.delete(oldestKey);
           }
         }
@@ -56,6 +49,8 @@ export function createRateLimiter(options: {
         const elapsedSeconds = (currentTime - entry.lastRefill) / 1000;
         entry.tokens = Math.min(capacity, entry.tokens + elapsedSeconds * refillPerSecond);
         entry.lastRefill = currentTime;
+        entries.delete(key);
+        entries.set(key, entry);
       }
 
       if (entry.tokens >= 1) {

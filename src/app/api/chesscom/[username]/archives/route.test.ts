@@ -5,7 +5,15 @@ vi.mock("@/features/game-import/chesscom", () => ({
   getArchives: vi.fn(),
 }));
 
+vi.mock("@/client-key", () => {
+  let counter = 0;
+  return {
+    resolveClientKey: vi.fn(() => `mocked-client-key-${++counter}`),
+  };
+});
+
 import { getArchives } from "@/features/game-import/chesscom";
+import { resolveClientKey } from "@/client-key";
 
 describe("GET /api/chesscom/[username]/archives", () => {
   it("returns archive months on success", async () => {
@@ -164,5 +172,14 @@ describe("GET /api/chesscom/[username]/archives", () => {
     expect(json).not.toHaveProperty("body");
     expect(json).not.toHaveProperty("reason");
     expect(json).not.toHaveProperty("status");
+  });
+
+  it("derives rate limit key using resolveClientKey", async () => {
+    vi.mocked(getArchives).mockResolvedValue({ ok: true, archives: [] });
+    const request = new Request("http://localhost/api/chesscom/hikaru/archives", {
+      headers: { "x-forwarded-for": "203.0.113.195" },
+    });
+    await GET(request, { params: Promise.resolve({ username: "hikaru" }) });
+    expect(resolveClientKey).toHaveBeenCalledWith(request.headers);
   });
 });

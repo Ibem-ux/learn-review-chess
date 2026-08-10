@@ -78,7 +78,12 @@ function hasDefaultHTTPSPort(url: string): boolean {
 }
 
 function parseArchiveURL(url: string, expectedPlayer: string): { year: number; month: number } | null {
-  const parsed = new URL(url);
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
   if (parsed.host !== "api.chess.com") return null;
   if (!isHTTPS(url)) return null;
   if (!hasDefaultHTTPSPort(url)) return null;

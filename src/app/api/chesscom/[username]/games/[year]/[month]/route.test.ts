@@ -5,7 +5,15 @@ vi.mock("@/features/game-import/chesscom", () => ({
   getMonthlyGames: vi.fn(),
 }));
 
+vi.mock("@/client-key", () => {
+  let counter = 0;
+  return {
+    resolveClientKey: vi.fn(() => `mocked-client-key-${++counter}`),
+  };
+});
+
 import { getMonthlyGames } from "@/features/game-import/chesscom";
+import { resolveClientKey } from "@/client-key";
 
 describe("GET /api/chesscom/[username]/games/[year]/[month]", () => {
   it("returns monthly games on success", async () => {
@@ -196,5 +204,16 @@ describe("GET /api/chesscom/[username]/games/[year]/[month]", () => {
     expect(json).not.toHaveProperty("reason");
     expect(json).not.toHaveProperty("body");
     expect(json).not.toHaveProperty("status");
+  });
+
+  it("derives rate limit key using resolveClientKey", async () => {
+    vi.mocked(getMonthlyGames).mockResolvedValue({ ok: true, games: [] });
+    const request = new Request("http://localhost/api/chesscom/hikaru/games/2023/01", {
+      headers: { "x-forwarded-for": "203.0.113.195" },
+    });
+    await GET(request, {
+      params: Promise.resolve({ username: "hikaru", year: "2023", month: "01" }),
+    });
+    expect(resolveClientKey).toHaveBeenCalledWith(request.headers);
   });
 });

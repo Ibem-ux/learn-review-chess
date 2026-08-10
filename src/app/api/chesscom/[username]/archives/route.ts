@@ -1,3 +1,4 @@
+import { resolveClientKey } from "@/client-key";
 import { getArchives, type ChesscomError } from "@/features/game-import/chesscom";
 import { createFetchLike } from "@/features/game-import/fetch-adapter";
 import { createRateLimiter } from "@/rate-limit";
@@ -39,8 +40,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ username: string }> }
 ) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const key = forwarded ? forwarded.split(",")[0].trim() || "unknown" : "unknown";
+  const key = resolveClientKey(request.headers);
   const decision = limiter.check(key);
   if (!decision.allowed) {
     return Response.json(
