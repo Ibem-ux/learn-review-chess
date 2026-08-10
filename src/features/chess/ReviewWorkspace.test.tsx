@@ -560,5 +560,91 @@ describe("ReviewWorkspace", () => {
       ).toBeInTheDocument();
       expect(screen.queryByTestId("review-ply-count")).not.toBeInTheDocument();
     });
+
+    it("renders a status element with role status stating the file is being read while reading is in progress", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      let resolveRead!: (value: string) => void;
+      const readPromise = new Promise<string>((resolve) => {
+        resolveRead = resolve;
+      });
+      const file = new File([SHORT_GAME], "game.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      Object.defineProperty(file, "text", {
+        value: () => readPromise,
+      });
+
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+
+      const status = screen.getByRole("status");
+      expect(status).toHaveTextContent(/reading/i);
+
+      await act(async () => {
+        resolveRead(SHORT_GAME);
+      });
+
+      expect(screen.queryByText(/reading pgn file/i)).not.toBeInTheDocument();
+    });
+
+    it("disables the file input while reading and re-enables it after reading completes", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      let resolveRead!: (value: string) => void;
+      const readPromise = new Promise<string>((resolve) => {
+        resolveRead = resolve;
+      });
+      const file = new File([SHORT_GAME], "game.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      Object.defineProperty(file, "text", {
+        value: () => readPromise,
+      });
+
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+
+      expect(input).toBeDisabled();
+
+      await act(async () => {
+        resolveRead(SHORT_GAME);
+      });
+
+      expect(input).not.toBeDisabled();
+    });
+
+    it("removes the busy status element and displays the error alert when reading fails", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      let rejectRead!: (reason?: unknown) => void;
+      const readPromise = new Promise<string>((_, reject) => {
+        rejectRead = reject;
+      });
+      const file = new File([SHORT_GAME], "game.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      Object.defineProperty(file, "text", {
+        value: () => readPromise,
+      });
+
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+
+      expect(screen.getByRole("status")).toBeInTheDocument();
+
+      await act(async () => {
+        rejectRead(new Error("disk read failed"));
+      });
+
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
   });
 });
