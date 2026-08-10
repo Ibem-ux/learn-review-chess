@@ -58,7 +58,9 @@ describe("GET /api/chesscom/[username]/games/[year]/[month]", () => {
       ],
       gameCount: 1,
     });
-    expect(response.headers.get("cache-control")).toBe("public, max-age=1800, s-maxage=3600");
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=300, s-maxage=900, stale-while-revalidate=3600"
+    );
   });
 
   it("passes username, year, and month to the client", async () => {

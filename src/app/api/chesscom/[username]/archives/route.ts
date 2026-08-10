@@ -3,7 +3,8 @@ import { getArchives, type ChesscomError } from "@/features/game-import/chesscom
 import { createFetchLike } from "@/features/game-import/fetch-adapter";
 import { createRateLimiter } from "@/rate-limit";
 
-const ARCHIVE_CACHE_CONTROL = "public, max-age=3600, s-maxage=86400";
+const ARCHIVE_CACHE_CONTROL =
+  "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400";
 
 const limiter = createRateLimiter({ now: () => Date.now() });
 

@@ -3,7 +3,8 @@ import { getMonthlyGames, type ChesscomError } from "@/features/game-import/ches
 import { createFetchLike } from "@/features/game-import/fetch-adapter";
 import { createRateLimiter } from "@/rate-limit";
 
-const MONTHLY_GAMES_CACHE_CONTROL = "public, max-age=1800, s-maxage=3600";
+const MONTHLY_GAMES_CACHE_CONTROL =
+  "public, max-age=300, s-maxage=900, stale-while-revalidate=3600";
 
 const limiter = createRateLimiter({ now: () => Date.now() });
 

@@ -38,7 +38,9 @@ describe("GET /api/chesscom/[username]/archives", () => {
         { url: "https://api.chess.com/pub/player/hikaru/games/2023/02", year: 2023, month: 2 },
       ],
     });
-    expect(response.headers.get("cache-control")).toBe("public, max-age=3600, s-maxage=86400");
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400"
+    );
   });
 
   it("passes the username to the client", async () => {
