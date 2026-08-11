@@ -15,7 +15,7 @@ Features and setup instructions are below. Architecture and roadmap notes are ma
 - **Game Performance Summary**: Per-player move category counts, move accuracy %, average centipawn loss (ACPL), estimated performance ratings, and game phase breakdowns (Opening, Middlegame, Endgame).
 - **Interactive Position Explorer**: Drag pieces on any reviewed position to explore alternative variations with position stack breadcrumbs and instant Return to Game navigation.
 - **ECO Opening Book**: Local ECO lookup matching SAN move-sequence prefixes against a small starter set of 28 lines at most 6 plies deep. Transpositions are not resolved.
-- **PGN File Upload**: Upload a .pgn file from disk as a third import method. Single-game files only. The file is size-checked before it is read, and files containing more than one game are rejected with a clear message.
+- **PGN File Upload**: Upload a .pgn file from disk as a third import method. A file may contain one or more games. If it contains multiple games, they are split and presented as a chooser listing White, Black, and the result for each (capped at 50 rows with the total stated), and selecting a game loads it while keeping the list available.
 - **Third-Party Licences**: A /licenses page names Stockfish, confirms the engine is distributed unmodified, and links to the GPLv3 licence text and source provenance served with the app.
 - **Best-Move Engine Arrows**: On-board arrow overlays displaying top engine candidate moves.
 - **Freeform StudyBoard**: Interactive study board with legal move validation, move history, undo, reset, and board flipping.
