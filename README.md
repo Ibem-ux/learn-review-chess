@@ -6,7 +6,7 @@ Features and setup instructions are below. Architecture and roadmap notes are ma
 
 ## Features
 
-- **Game Import & Selection**: Paste raw PGN text or fetch completed games via Chess.com username. Every public archive month is listed newest first and any month can be selected to load that month's games without refetching the archive list. PGN files can also be uploaded from disk.
+- **Game Import & Selection**: Paste raw PGN text, fetch completed games via Chess.com username, fetch games via Lichess username, or upload PGN files from disk. The UI offers four tabbed import methods in order: Paste PGN, Chess.com, Lichess, and Upload file.
 - **Stockfish Full-Game Quick-Pass Analysis**: Sequential Stockfish 18.0.0 analysis across all game positions at depth 10 with MultiPV 3.
 - **Deep Critical-Position Pass**: Automatic detection of critical turning points (blunders, mistakes, sharp score shifts) with deeper re-analysis (depth 14+) to refine evaluations and brilliancy detection.
 - **Objective Move Classification**: Moves categorized as Brilliant (`!!`), Great (`!`), Best (`★`), Excellent, Good, Inaccuracy (`?!`), Mistake (`?`), Blunder (`??`), or Missed Win using transparent centipawn loss and sacrifice evaluation rules.
@@ -15,7 +15,7 @@ Features and setup instructions are below. Architecture and roadmap notes are ma
 - **Game Performance Summary**: Per-player move category counts, move accuracy %, average centipawn loss (ACPL), estimated performance ratings, and game phase breakdowns (Opening, Middlegame, Endgame).
 - **Interactive Position Explorer**: Drag pieces on any reviewed position to explore alternative variations with position stack breadcrumbs and instant Return to Game navigation.
 - **ECO Opening Book**: Local ECO lookup matching SAN move-sequence prefixes against a small starter set of 28 lines at most 6 plies deep. Transpositions are not resolved.
-- **PGN File Upload**: Upload a .pgn file from disk as a third import method. A file may contain one or more games. If it contains multiple games, they are split and presented as a chooser listing White, Black, and the result for each (capped at 50 rows with the total stated), and selecting a game loads it while keeping the list available.
+- **PGN File Upload**: Upload a .pgn file from disk as one of four import methods. A file may contain one or more games. If it contains multiple games, they are split and presented as a chooser listing White, Black, and the result for each (capped at 50 rows with the total stated), and selecting a game loads it while keeping the list available.
 - **Third-Party Licences**: A /licenses page names Stockfish, confirms the engine is distributed unmodified, and links to the GPLv3 licence text and source provenance served with the app.
 - **Best-Move Engine Arrows**: On-board arrow overlays displaying top engine candidate moves.
 - **Freeform StudyBoard**: Interactive study board with legal move validation, move history, undo, reset, and board flipping.
@@ -81,16 +81,17 @@ Eligible completed games can be analyzed sequentially using Stockfish 18.0.0. In
 
 ## Internal API routes
 
-Internal Next.js server routes proxy Chess.com data through the existing PubAPI client while keeping browser code off the public API:
+Internal Next.js server routes proxy external chess provider APIs while keeping browser code off the public APIs:
 
-- `GET /api/chesscom/[username]/archives` — returns archive URLs for a player
-- `GET /api/chesscom/[username]/games/[year]/[month]` — returns monthly games for a player
+- `GET /api/chesscom/[username]/archives` – returns archive URLs for a player
+- `GET /api/chesscom/[username]/games/[year]/[month]` – returns monthly games for a player
+- `GET /api/lichess/[username]/games` – fetches PGN text from Lichess user endpoint (GET https://lichess.org/api/games/user/{username} with clocks=false, evals=false, literate=false, Accept application/x-chess-pgn, max capped at 20) with headers `public, max-age=60, s-maxage=120, stale-while-revalidate=600`
 
 Responses include conservative `Cache-Control` headers and sanitized error shapes. Rate-limited responses preserve `Retry-After` when available.
 
 ## Game import
 
-Chess.com importing uses the official public [Chess.com PubAPI](https://www.chess.com/news/view/published-chess-api-announcement) and lives under `src/features/game-import`. The typed client provides archive listing and monthly game retrieval with runtime response validation, controlled failures, and no credentials.
+External game importing lives under `src/features/game-import`. Chess.com importing uses the official public [Chess.com PubAPI](https://www.chess.com/news/view/published-chess-api-announcement). Lichess importing uses the public Lichess user games endpoint (`GET https://lichess.org/api/games/user/{username}`). Both typed clients provide game retrieval with runtime response validation, controlled failures, and no credentials.
 
 ## Learn More
 
