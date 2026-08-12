@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ChesscomGamePicker from "@/features/game-import/ChesscomGamePicker";
@@ -560,5 +560,83 @@ describe("ChesscomGamePicker", () => {
     const options = select.querySelectorAll("option");
     expect(options).toHaveLength(1);
     expect(options[0]?.textContent).toBe("June 2024");
+  });
+
+  it("while the archives request is pending, the submit button carries aria-busy=\"true\"; before any submit it carries aria-busy=\"false\"", async () => {
+    let resolveFetch!: (res: Response) => void;
+    const pendingPromise = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    fetchMock.mockReturnValue(pendingPromise);
+
+    render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+    const submitButton = screen.getByRole("button", { name: "Load games" });
+    expect(submitButton).toHaveAttribute("aria-busy", "false");
+
+    fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+    fireEvent.click(submitButton);
+
+    expect(submitButton).toHaveAttribute("aria-busy", "true");
+
+    resolveFetch(createArchivesResponse([]));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  });
+
+  it("the pending status region is queryable by role status and carries aria-live=\"polite\"", async () => {
+    let resolveFetch!: (res: Response) => void;
+    const pendingPromise = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    fetchMock.mockReturnValue(pendingPromise);
+
+    render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+    const statusRegion = screen.getByRole("status");
+    expect(statusRegion).toHaveAttribute("aria-live", "polite");
+    expect(statusRegion).toHaveTextContent("Loading available months...");
+
+    resolveFetch(createArchivesResponse([]));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  });
+
+  it("while the games request following a month change is pending, the archive month select carries aria-busy=\"true\"", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        createArchivesResponse([
+          { url: "/games/2024/05", year: 2024, month: 5 },
+          { url: "/games/2024/04", year: 2024, month: 4 },
+        ])
+      )
+      .mockResolvedValueOnce(createGamesResponse([]));
+
+    render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+    fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+    await waitFor(() => expect(screen.getByTestId("archive-month-select")).toBeInTheDocument());
+
+    const select = screen.getByTestId("archive-month-select");
+    expect(select).toHaveAttribute("aria-busy", "false");
+
+    let resolveGamesFetch!: (res: Response) => void;
+    const pendingGamesPromise = new Promise<Response>((resolve) => {
+      resolveGamesFetch = resolve;
+    });
+    fetchMock.mockReturnValue(pendingGamesPromise);
+
+    fireEvent.change(select, { target: { value: "2024-04" } });
+
+    expect(select).toHaveAttribute("aria-busy", "true");
+
+    resolveGamesFetch(createGamesResponse([]));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
   });
 });

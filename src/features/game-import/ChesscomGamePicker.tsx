@@ -383,6 +383,7 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
         <button
           type="submit"
           disabled={isSubmitting}
+          aria-busy={isSubmitting}
           className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
         >
           {isSubmitting ? "Loading..." : "Load games"}
@@ -403,6 +404,7 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
             value={formatArchiveKey(selectedArchive.year, selectedArchive.month)}
             onChange={handleMonthChange}
             disabled={isSubmitting}
+            aria-busy={isSubmitting}
             className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             {archives.map((a) => {
@@ -417,7 +419,7 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
         </div>
       )}
 
-      <div aria-live="polite" className="text-sm font-medium text-black dark:text-zinc-50">
+      <div role="status" aria-live="polite" className="text-sm font-medium text-black dark:text-zinc-50">
         {status === "loading-archives" && "Loading available months..."}
         {status === "loading-games" && "Loading recent games..."}
         {status === "success" && (
