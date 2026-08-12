@@ -6,11 +6,13 @@ import ReviewBoard from "@/features/chess/ReviewBoard";
 import { getPlayerAndResult, normalizeHeader, parsePgn, splitPgnGames } from "@/features/chess/pgn";
 import { buildTimeline, type ReviewTimeline } from "@/features/chess/timeline";
 import ChesscomGamePicker from "@/features/game-import/ChesscomGamePicker";
+import LichessGamePicker from "@/features/game-import/LichessGamePicker";
 
 const MAX_PGN_LENGTH = 20000;
 const MAX_PGN_FILE_BYTES = 1000000;
 
-type ImportMethod = "paste" | "chesscom" | "file";
+type ImportMethod = "paste" | "chesscom" | "lichess" | "file";
+
 
 function summarize(parsed: {
   halfMoveCount: number;
@@ -69,7 +71,12 @@ export default function ReviewWorkspace() {
     loadGame("Chess.com", selectedPgn);
   };
 
+  const handleLichessSelect = (selectedPgn: string) => {
+    loadGame("Lichess", selectedPgn);
+  };
+
   const handleFileUpload = async (
+
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const input = event.target;
@@ -185,6 +192,14 @@ export default function ReviewWorkspace() {
           </button>
           <button
             type="button"
+            aria-pressed={importMethod === "lichess"}
+            onClick={() => setImportMethod("lichess")}
+            className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+          >
+            Lichess
+          </button>
+          <button
+            type="button"
             aria-pressed={importMethod === "file"}
             onClick={() => setImportMethod("file")}
             className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
@@ -229,6 +244,13 @@ export default function ReviewWorkspace() {
             <ChesscomGamePicker onSelectPgn={handleChesscomSelect} />
           </div>
         )}
+
+        {importMethod === "lichess" && (
+          <div className="mt-4">
+            <LichessGamePicker onSelectPgn={handleLichessSelect} />
+          </div>
+        )}
+
 
         {importMethod === "file" && (
           <div className="mt-4">

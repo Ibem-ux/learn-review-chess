@@ -1,4 +1,4 @@
-import { act, render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("react-chessboard", () => import("@/features/chess/__mocks__/react-chessboard"));
@@ -260,16 +260,18 @@ describe("ReviewWorkspace", () => {
     );
   });
 
-  it("distributes all three import method buttons evenly across the full group width", () => {
+  it("distributes all four import method buttons evenly across the full group width", () => {
     render(<ReviewWorkspace />);
     const group = screen.getByRole("group", { name: "Import method" });
     expect(group.getAttribute("class")).toContain("w-full");
     const buttons = group.querySelectorAll("button");
-    expect(buttons.length).toBe(3);
+    expect(buttons.length).toBe(4);
     expect(buttons[0].getAttribute("class")).toContain("flex-1");
     expect(buttons[1].getAttribute("class")).toContain("flex-1");
     expect(buttons[2].getAttribute("class")).toContain("flex-1");
+    expect(buttons[3].getAttribute("class")).toContain("flex-1");
   });
+
 
   it("selecting Chess.com renders the game picker", () => {
     render(<ReviewWorkspace />);
@@ -767,4 +769,75 @@ describe("ReviewWorkspace", () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
   });
+
+  describe("Lichess import method", () => {
+    it("renders a fourth import tab labelled for Lichess", () => {
+      render(<ReviewWorkspace />);
+      expect(screen.getByRole("button", { name: "Lichess" })).toBeInTheDocument();
+      const group = screen.getByRole("group", { name: "Import method" });
+      expect(group.querySelectorAll("button")).toHaveLength(4);
+    });
+
+    it("renders Lichess username field and hides Chess.com username field when Lichess tab is selected", () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Lichess" }));
+      expect(screen.getByLabelText(/lichess username/i)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/chess\.com username/i)).not.toBeInTheDocument();
+    });
+
+    it("loads a game selected from Lichess picker into the workspace", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ pgn: SHORT_GAME, gameCount: 1 }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Lichess" }));
+      fireEvent.change(screen.getByLabelText(/lichess username/i), { target: { value: "thibault" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      await waitFor(() => expect(screen.getByRole("button", { name: /Alice vs Bob/i })).toBeInTheDocument());
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /Alice vs Bob/i }));
+      });
+
+      expect(screen.getByRole("region", { name: "Review chessboard" })).toBeInTheDocument();
+      expect(screen.getByTestId("review-ply-count")).toHaveTextContent("(0 / 4)");
+      expect(screen.getByText("Source:")).toBeInTheDocument();
+      expect(screen.getByText("Lichess", { selector: "dd" })).toBeInTheDocument();
+
+      vi.unstubAllGlobals();
+    });
+
+    it("queries status role without multiple matches when Lichess tab request is pending", async () => {
+      let resolveFetch!: (res: Response) => void;
+      const fetchPromise = new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      });
+      const fetchMock = vi.fn().mockReturnValue(fetchPromise);
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Lichess" }));
+      fireEvent.change(screen.getByLabelText(/lichess username/i), { target: { value: "thibault" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      expect(screen.getAllByRole("status")).toHaveLength(1);
+      expect(screen.getByRole("status")).toHaveTextContent(/fetching games from lichess/i);
+
+      resolveFetch({
+        ok: true,
+        json: async () => ({ pgn: "", gameCount: 0 }),
+      } as Response);
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      vi.unstubAllGlobals();
+    });
+  });
 });
+
