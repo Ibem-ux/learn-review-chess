@@ -768,6 +768,57 @@ describe("ReviewWorkspace", () => {
       expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
+
+    it("while a PGN file is being read, the file input carries aria-busy=\"true\"; when idle it carries aria-busy=\"false\"", async () => {
+      let resolveFileText!: (text: string) => void;
+      const filePromise = new Promise<string>((resolve) => {
+        resolveFileText = resolve;
+      });
+
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+
+      const fileInput = screen.getByLabelText(/Upload a PGN file/i);
+      expect(fileInput).toHaveAttribute("aria-busy", "false");
+
+      const file = new File(['[Event "G1"]\n1. e4 *'], "test.pgn", { type: "text/plain" });
+      file.text = vi.fn().mockReturnValue(filePromise);
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      expect(fileInput).toHaveAttribute("aria-busy", "true");
+
+      resolveFileText('[Event "G1"]\n1. e4 *');
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(fileInput).toHaveAttribute("aria-busy", "false");
+    });
+
+    it("the file-reading status paragraph carries aria-live=\"polite\"", async () => {
+      let resolveFileText!: (text: string) => void;
+      const filePromise = new Promise<string>((resolve) => {
+        resolveFileText = resolve;
+      });
+
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+
+      const fileInput = screen.getByLabelText(/Upload a PGN file/i);
+      const file = new File(['[Event "G1"]\n1. e4 *'], "test.pgn", { type: "text/plain" });
+      file.text = vi.fn().mockReturnValue(filePromise);
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const statusParagraph = screen.getByText("Reading PGN file...");
+      expect(statusParagraph).toHaveAttribute("aria-live", "polite");
+
+      resolveFileText('[Event "G1"]\n1. e4 *');
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    });
   });
 
   describe("Lichess import method", () => {
@@ -838,6 +889,7 @@ describe("ReviewWorkspace", () => {
 
       vi.unstubAllGlobals();
     });
+
   });
 });
 

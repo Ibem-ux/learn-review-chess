@@ -221,6 +221,7 @@ function FullGameAnalysisPanelEligible({
         type="button"
         onClick={handleStart}
         disabled={!canStart}
+        aria-busy={!canStart}
         className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
       >
         Analyze full game

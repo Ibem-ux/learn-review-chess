@@ -269,12 +269,14 @@ export default function ReviewWorkspace() {
               accept=".pgn,application/x-chess-pgn,text/plain"
               onChange={handleFileUpload}
               disabled={isFileReading}
+              aria-busy={isFileReading}
               aria-describedby={fileDescriptionId}
               className="mt-2 block w-full text-sm text-zinc-600 file:mr-4 file:rounded-md file:border file:border-black/[.12] file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-black hover:file:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-400 dark:file:border-white/[.2] dark:file:bg-black dark:file:text-zinc-50 dark:hover:file:bg-white/[.08]"
             />
             {isFileReading && (
               <p
                 role="status"
+                aria-live="polite"
                 className="mt-2 text-xs font-medium text-zinc-600 dark:text-zinc-400"
               >
                 Reading PGN file...

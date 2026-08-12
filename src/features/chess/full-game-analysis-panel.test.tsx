@@ -402,4 +402,23 @@ describe("FullGameAnalysisPanel", () => {
     rerender(<FullGameAnalysisPanel timeline={ineligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
     expect(stableCancel).not.toHaveBeenCalled();
   });
+
+  it("on first render the Analyze full game button carries aria-busy reflecting whether it can be started", () => {
+    render(<FullGameAnalysisPanel {...defaultProps} />);
+    const button = screen.getByRole("button", { name: "Analyze full game" });
+    expect(button).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("while analysis is running, the Analyze full game button carries aria-busy=\"true\"", () => {
+    const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
+    const button = screen.getByRole("button", { name: "Analyze full game" });
+    button.click();
+    rerender(
+      <FullGameAnalysisPanel
+        {...defaultProps}
+        analysisState={{ ...mockAnalysisState, status: "running" }}
+      />
+    );
+    expect(button).toHaveAttribute("aria-busy", "true");
+  });
 });
