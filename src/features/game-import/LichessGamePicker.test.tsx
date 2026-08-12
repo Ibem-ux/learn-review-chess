@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LichessGamePicker from "./LichessGamePicker";
@@ -203,8 +203,8 @@ describe("LichessGamePicker", () => {
     fireEvent.change(screen.getByLabelText(/Lichess username/i), { target: { value: "gooduser" } });
     fireEvent.click(screen.getByRole("button", { name: /Load games/i }));
 
-    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
-    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(1));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("a game row is a button that can be activated from the keyboard", async () => {
@@ -258,4 +258,54 @@ describe("LichessGamePicker", () => {
     resolveFetch2(createJsonResponse({ pgn: "", gameCount: 0 }));
     await waitFor(() => expect(screen.getByRole("button", { name: /Load games/i })).toBeEnabled());
   });
+
+  it("while a request is pending, the submit button carries aria-busy=\"true\". When not pending, the submit button carries aria-busy=\"false\"", async () => {
+    let resolveFetch!: (res: Response) => void;
+    const pendingPromise = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    fetchMock.mockReturnValue(pendingPromise);
+
+    render(<LichessGamePicker onSelectPgn={vi.fn()} />);
+    const submitButton = screen.getByRole("button", { name: /Load games/i });
+    expect(submitButton).toHaveAttribute("aria-busy", "false");
+
+    fireEvent.change(screen.getByLabelText(/Lichess username/i), { target: { value: "thibault" } });
+    fireEvent.click(submitButton);
+
+    const pendingButton = screen.getByRole("button", { name: /Loading|Load/i });
+    expect(pendingButton).toHaveAttribute("aria-busy", "true");
+
+    resolveFetch(createJsonResponse({ pgn: "", gameCount: 0 }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Load games/i })).toHaveAttribute("aria-busy", "false"));
+  });
+
+  it("the pending status region is queryable by role status AND has an aria-live attribute of \"polite\"", async () => {
+    let resolveFetch!: (res: Response) => void;
+    const pendingPromise = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    fetchMock.mockReturnValue(pendingPromise);
+
+    render(<LichessGamePicker onSelectPgn={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/Lichess username/i), { target: { value: "thibault" } });
+    fireEvent.click(screen.getByRole("button", { name: /Load games/i }));
+
+    const statusRegion = screen.getByRole("status");
+    expect(statusRegion).toHaveAttribute("aria-live", "polite");
+    expect(statusRegion).toHaveTextContent(/Fetching games from Lichess/i);
+
+    resolveFetch(createJsonResponse({ pgn: "", gameCount: 0 }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  });
+
+  it("the username input's class list contains \"border-black/[.12]\" and does not contain \"bg-slate-900\"", () => {
+    render(<LichessGamePicker onSelectPgn={vi.fn()} />);
+    const input = screen.getByLabelText(/Lichess username/i);
+    expect(input.classList.contains("border-black/[.12]")).toBe(true);
+    expect(input.classList.contains("bg-slate-900")).toBe(false);
+  });
 });
+

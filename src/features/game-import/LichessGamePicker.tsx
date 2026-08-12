@@ -107,63 +107,63 @@ export default function LichessGamePicker({ onSelectPgn }: LichessGamePickerProp
   };
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="space-y-3">
+    <div className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div>
-          <label htmlFor="lichess-username" className="block text-sm font-medium text-slate-200 mb-1">
+          <label htmlFor="lichess-username" className="block text-sm font-medium text-black dark:text-zinc-50">
             Lichess username
           </label>
-          <input
-            id="lichess-username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="e.g. thibault"
-            disabled={pending}
-            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-          />
         </div>
-
+        <input
+          id="lichess-username"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="e.g. thibault"
+          disabled={pending}
+          className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+        />
         <button
           type="submit"
           disabled={pending}
-          className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-busy={pending}
+          className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
         >
           {pending ? "Loading..." : "Load games"}
         </button>
       </form>
 
       {pending && (
-        <div role="status" className="text-sm text-slate-400">
+        <div role="status" aria-live="polite" className="text-sm text-zinc-600 dark:text-zinc-400">
           Fetching games from Lichess...
         </div>
       )}
 
       {error && (
-        <div role="alert" className="p-3 bg-red-950/50 border border-red-800 rounded-md text-sm text-red-300">
+        <div role="alert" className="rounded-md border border-red-400 bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
           {error}
         </div>
       )}
 
       {games !== null && !pending && !error && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {games.length === 0 ? (
-            <div className="text-sm text-slate-400">No games found for this user.</div>
+            <div className="text-sm text-zinc-600 dark:text-zinc-400">No games found for this user.</div>
           ) : (
-            <ul className="space-y-2">
+            <ul className="flex list-none flex-col gap-2 p-0" role="list">
               {games.map((gamePgn, index) => {
                 const info = getPlayerAndResult(gamePgn);
                 return (
-                  <li key={index} className="border border-slate-700 rounded-md overflow-hidden">
+                  <li key={index} className="flex items-center justify-between gap-3 rounded-md border border-black/[.12] px-3 py-2 dark:border-white/[.2]">
                     <button
                       type="button"
                       onClick={() => onSelectPgn(gamePgn)}
-                      className="w-full p-3 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex w-full items-center justify-between gap-3 text-left"
                     >
-                      <span className="font-medium text-slate-200">
+                      <span className="font-medium text-black dark:text-zinc-50">
                         {info.white} vs {info.black}
                       </span>
-                      <span className="text-xs px-2 py-1 bg-slate-900 rounded text-slate-400 font-mono">
+                      <span className="text-xs text-zinc-600 dark:text-zinc-400 font-mono">
                         {info.result}
                       </span>
                     </button>
