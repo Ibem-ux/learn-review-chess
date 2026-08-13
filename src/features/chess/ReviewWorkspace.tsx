@@ -29,6 +29,14 @@ function summarize(parsed: {
   };
 }
 
+function pgnKeyHash(input: string): string {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) + hash + input.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(36);
+}
+
 export default function ReviewWorkspace() {
   const [pgn, setPgn] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -54,11 +62,19 @@ export default function ReviewWorkspace() {
 
   const loadGame = useCallback((source: string, rawPgn: string) => {
     if (rawPgn.length > MAX_PGN_LENGTH) {
-      setError(
-        source === "Pasted PGN"
-          ? "PGN input is too long. Paste a completed game of reasonable size."
-          : "PGN file is too long. Choose a completed game of reasonable size."
-      );
+      if (source === "Pasted PGN") {
+        setError(
+          "PGN input is too long. Paste a completed game of reasonable size."
+        );
+      } else if (source === "Uploaded file") {
+        setError(
+          "PGN file is too long. Choose a completed game of reasonable size."
+        );
+      } else {
+        setError(
+          "This game's PGN is too long to analyze. Choose a shorter game."
+        );
+      }
       return;
     }
     const result = parsePgn(rawPgn);
@@ -309,7 +325,7 @@ export default function ReviewWorkspace() {
                     return multiPgnGames.slice(0, 50).map((gamePgn) => {
                       const count = (gameCounts.get(gamePgn) ?? 0) + 1;
                       gameCounts.set(gamePgn, count);
-                      const key = `${gamePgn.slice(0, 32)}-${gamePgn.length}-${count}`;
+                      const key = `${pgnKeyHash(gamePgn)}-${count}`;
                       const { white, black, result } = getPlayerAndResult(gamePgn);
                       return (
                         <li

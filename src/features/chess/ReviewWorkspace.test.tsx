@@ -1130,5 +1130,72 @@ describe("ReviewWorkspace", () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
   });
+
+  describe("source-correct over-length messages and collision-proof chooser keys", () => {
+    it("displays API-source over-length error message without mentioning file when a fetched game is too long", async () => {
+      const overLengthPgn =
+        '[Event "Lichess Game"]\n[White "Alice"]\n[Black "Bob"]\n[Result "1-0"]\n\n1. e4 e5 ' +
+        "2. Nf3 Nf6 3. Ng1 Ng8 ".repeat(1000) +
+        " 1-0";
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ pgn: overLengthPgn, gameCount: 1 }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Lichess" }));
+      fireEvent.change(screen.getByLabelText(/lichess username/i), {
+        target: { value: "thibault" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: /Alice vs Bob/i })).toBeInTheDocument()
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /Alice vs Bob/i }));
+      });
+
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent(
+        "This game's PGN is too long to analyze. Choose a shorter game."
+      );
+      expect(alert).not.toHaveTextContent("file");
+
+      vi.unstubAllGlobals();
+    });
+
+    it("avoids duplicate key warning for distinct games sharing 32-char prefix and total length", async () => {
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+
+      const gameA =
+        '[Event "Live Chess - Chess.com"]\n[White "Carlos"]\n[Black "Naka"]\n1. e4 e5 1-0';
+      const gameB =
+        '[Event "Live Chess - Chess.com"]\n[White "Magnus"]\n[Black "Naka"]\n1. e4 e5 1-0';
+      const multiFile = new File([`${gameA}\n\n${gameB}`], "collision.pgn", {
+        type: "application/x-chess-pgn",
+      });
+
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [multiFile] } });
+      });
+
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Review game" })).toHaveLength(2);
+      expect(screen.getByText(/Carlos/)).toBeInTheDocument();
+      expect(screen.getByText(/Magnus/)).toBeInTheDocument();
+
+      const duplicateKeyCall = consoleErrorSpy.mock.calls.find((call) =>
+        call.some((arg) => typeof arg === "string" && arg.includes("same key"))
+      );
+      expect(duplicateKeyCall).toBeUndefined();
+      consoleErrorSpy.mockRestore();
+    });
+  });
 });
 
