@@ -408,12 +408,16 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
             onChange={handleMonthChange}
             disabled={isSubmitting}
             aria-busy={isSubmitting}
-            className="rounded-md border border-black/[.12] px-3 py-1.5 text-sm text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            className="rounded-md border border-black/[.12] bg-white px-3 py-1.5 text-sm text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             {archives.map((a) => {
               const key = formatArchiveKey(a.year, a.month);
               return (
-                <option key={key} value={key}>
+                <option
+                  key={key}
+                  value={key}
+                  className="bg-white text-black dark:bg-zinc-900 dark:text-zinc-50"
+                >
                   {formatMonthLabel(a.year, a.month)}
                 </option>
               );

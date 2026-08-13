@@ -260,16 +260,16 @@ describe("ReviewWorkspace", () => {
     );
   });
 
-  it("distributes all four import method buttons evenly across the full group width", () => {
+  it("distributes all four import method buttons evenly across the full group width using grid layout", () => {
     render(<ReviewWorkspace />);
     const group = screen.getByRole("group", { name: "Import method" });
     expect(group.getAttribute("class")).toContain("w-full");
+    expect(group.getAttribute("class")).toContain("grid-cols-2");
     const buttons = group.querySelectorAll("button");
     expect(buttons.length).toBe(4);
-    expect(buttons[0].getAttribute("class")).toContain("flex-1");
-    expect(buttons[1].getAttribute("class")).toContain("flex-1");
-    expect(buttons[2].getAttribute("class")).toContain("flex-1");
-    expect(buttons[3].getAttribute("class")).toContain("flex-1");
+    for (const button of buttons) {
+      expect(button.getAttribute("class")).not.toContain("flex-1");
+    }
   });
 
 
@@ -1209,12 +1209,23 @@ describe("ReviewWorkspace", () => {
       }
     });
 
-    it("carries grid grid-cols-2 gap-2 sm:grid-cols-4 responsive layout classes on the tab container", () => {
+    it("carries grid grid-cols-2 gap-2 layout classes on the tab container without sm:grid-cols-4", () => {
       render(<ReviewWorkspace />);
       const group = screen.getByRole("group", { name: "Import method" });
       expect(group.className).toContain("grid");
       expect(group.className).toContain("grid-cols-2");
-      expect(group.className).toContain("sm:grid-cols-4");
+      expect(group.className).toContain("gap-2");
+      expect(group.className).not.toContain("sm:grid-cols-4");
+    });
+
+    it("none of the four import tab buttons contains dead flex-1 class (task B3)", () => {
+      render(<ReviewWorkspace />);
+      const group = screen.getByRole("group", { name: "Import method" });
+      const buttons = group.querySelectorAll("button");
+      expect(buttons).toHaveLength(4);
+      for (const button of buttons) {
+        expect(button.className).not.toContain("flex-1");
+      }
     });
 
     it("preserves correct aria-pressed states and exact accessible names after clicking each tab", () => {

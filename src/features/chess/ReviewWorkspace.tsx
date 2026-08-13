@@ -201,7 +201,7 @@ export default function ReviewWorkspace() {
         )}
 
         <div
-          className="mt-5 grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
+          className="mt-5 grid w-full grid-cols-2 gap-2"
           role="group"
           aria-label="Import method"
         >
@@ -209,7 +209,7 @@ export default function ReviewWorkspace() {
             type="button"
             aria-pressed={importMethod === "paste"}
             onClick={() => handleMethodChange("paste")}
-            className="flex-1 whitespace-nowrap rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            className="whitespace-nowrap rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Paste PGN
           </button>
@@ -217,7 +217,7 @@ export default function ReviewWorkspace() {
             type="button"
             aria-pressed={importMethod === "chesscom"}
             onClick={() => handleMethodChange("chesscom")}
-            className="flex-1 whitespace-nowrap rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            className="whitespace-nowrap rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Chess.com
           </button>
@@ -225,7 +225,7 @@ export default function ReviewWorkspace() {
             type="button"
             aria-pressed={importMethod === "lichess"}
             onClick={() => handleMethodChange("lichess")}
-            className="flex-1 whitespace-nowrap rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            className="whitespace-nowrap rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Lichess
           </button>
@@ -233,7 +233,7 @@ export default function ReviewWorkspace() {
             type="button"
             aria-pressed={importMethod === "file"}
             onClick={() => handleMethodChange("file")}
-            className="flex-1 whitespace-nowrap rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+            className="whitespace-nowrap rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Upload file
           </button>

@@ -848,4 +848,98 @@ describe("ChesscomGamePicker", () => {
       expect(screen.queryByText(/JuneW vs JuneB/)).not.toBeInTheDocument();
     });
   });
+
+  describe("native select dark-mode contrast contract (task B3)", () => {
+    it("carries bg-white and dark:bg-zinc-900 on the archive month select element", async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          createArchivesResponse([
+            { url: "/games/2024/06", year: 2024, month: 6 },
+            { url: "/games/2024/01", year: 2024, month: 1 },
+          ])
+        )
+        .mockResolvedValueOnce(createGamesResponse([]));
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      await waitFor(() => expect(screen.getByTestId("archive-month-select")).toBeInTheDocument());
+
+      const select = screen.getByTestId("archive-month-select");
+      expect(select.className).toContain("bg-white");
+      expect(select.className).toContain("dark:bg-zinc-900");
+    });
+
+    it("carries bg-white, text-black, dark:bg-zinc-900 and dark:text-zinc-50 on every option element inside the archive month select", async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          createArchivesResponse([
+            { url: "/games/2024/06", year: 2024, month: 6 },
+            { url: "/games/2024/05", year: 2024, month: 5 },
+            { url: "/games/2024/01", year: 2024, month: 1 },
+          ])
+        )
+        .mockResolvedValueOnce(createGamesResponse([]));
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      await waitFor(() => expect(screen.getByTestId("archive-month-select")).toBeInTheDocument());
+
+      const select = screen.getByTestId("archive-month-select");
+      const options = select.querySelectorAll("option");
+      expect(options.length).toBeGreaterThan(1);
+
+      for (const option of options) {
+        expect(option.className).toContain("bg-white");
+        expect(option.className).toContain("text-black");
+        expect(option.className).toContain("dark:bg-zinc-900");
+        expect(option.className).toContain("dark:text-zinc-50");
+      }
+    });
+
+    it("preserves text-black and dark:text-zinc-50 on the archive month select element", async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          createArchivesResponse([
+            { url: "/games/2024/06", year: 2024, month: 6 },
+            { url: "/games/2024/01", year: 2024, month: 1 },
+          ])
+        )
+        .mockResolvedValueOnce(createGamesResponse([]));
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      await waitFor(() => expect(screen.getByTestId("archive-month-select")).toBeInTheDocument());
+
+      const select = screen.getByTestId("archive-month-select");
+      expect(select.className).toContain("text-black");
+      expect(select.className).toContain("dark:text-zinc-50");
+    });
+
+    it("preserves min-h-5 on the status region and renders the status-indicator spinner during loading (B2-F regression guard)", () => {
+      let resolveArchivesFetch!: (res: Response) => void;
+      const archivesPromise = new Promise<Response>((resolve) => {
+        resolveArchivesFetch = resolve;
+      });
+      fetchMock.mockReturnValue(archivesPromise);
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      const statusElement = screen.getByRole("status");
+      expect(statusElement.className).toContain("min-h-5");
+
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      const spinner = screen.getByTestId("status-indicator");
+      expect(spinner).toBeInTheDocument();
+      expect(spinner.getAttribute("aria-hidden")).toBe("true");
+
+      resolveArchivesFetch(createArchivesResponse([]));
+    });
+  });
 });
