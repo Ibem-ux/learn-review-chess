@@ -663,4 +663,189 @@ describe("ChesscomGamePicker", () => {
       });
     });
   });
+
+  describe("month-switch loading feedback and stability (task B2-F)", () => {
+    it("status region carries min-h-5 minimum height class", () => {
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      const statusElement = screen.getByRole("status");
+      expect(statusElement.className).toContain("min-h-5");
+    });
+
+    it("renders data-testid status-indicator with aria-hidden true during loading states, and omits it in non-loading states", async () => {
+      let resolveArchivesFetch!: (res: Response) => void;
+      const archivesPromise = new Promise<Response>((resolve) => {
+        resolveArchivesFetch = resolve;
+      });
+
+      fetchMock.mockReturnValue(archivesPromise);
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      expect(screen.queryByTestId("status-indicator")).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      const indicator = screen.getByTestId("status-indicator");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator.getAttribute("aria-hidden")).toBe("true");
+
+      let resolveGamesFetch!: (res: Response) => void;
+      const gamesPromise = new Promise<Response>((resolve) => {
+        resolveGamesFetch = resolve;
+      });
+
+      fetchMock.mockReturnValue(gamesPromise);
+
+      resolveArchivesFetch(
+        createArchivesResponse([{ url: "/games/2024/06", year: 2024, month: 6 }])
+      );
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      const gamesIndicator = screen.getByTestId("status-indicator");
+      expect(gamesIndicator).toBeInTheDocument();
+      expect(gamesIndicator.getAttribute("aria-hidden")).toBe("true");
+
+      resolveGamesFetch(
+        createGamesResponse([
+          { url: "1", endTime: "100", timeClass: "rapid", pgn: '[Event "1"]\n\n1. e4 *' },
+        ])
+      );
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(screen.queryByTestId("status-indicator")).not.toBeInTheDocument();
+    });
+
+    it("retains previously loaded game rows with aria-busy true on ul while new month fetch is in flight, and updates to new games with aria-busy false when resolved", async () => {
+      const juneGames = [
+        { url: "1", endTime: "100", timeClass: "rapid", pgn: '[Event "June"]\n[White "JuneW"]\n[Black "JuneB"]\n\n1. e4 *' },
+      ];
+      const janGames = [
+        { url: "2", endTime: "200", timeClass: "rapid", pgn: '[Event "Jan"]\n[White "JanW"]\n[Black "JanB"]\n\n1. d4 *' },
+      ];
+
+      let resolveJanGamesFetch!: (res: Response) => void;
+      const janGamesPromise = new Promise<Response>((resolve) => {
+        resolveJanGamesFetch = resolve;
+      });
+
+      fetchMock
+        .mockResolvedValueOnce(
+          createArchivesResponse([
+            { url: "/games/2024/06", year: 2024, month: 6 },
+            { url: "/games/2024/01", year: 2024, month: 1 },
+          ])
+        )
+        .mockResolvedValueOnce(createGamesResponse(juneGames))
+        .mockReturnValueOnce(janGamesPromise);
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      await waitFor(() => expect(screen.getByText(/JuneW vs JuneB/)).toBeInTheDocument());
+
+      const listBefore = screen.getByRole("list");
+      expect(listBefore.getAttribute("aria-busy")).toBe("false");
+      expect(listBefore.className).not.toContain("opacity-50");
+
+      fireEvent.change(screen.getByTestId("archive-month-select"), { target: { value: "2024-01" } });
+
+      expect(screen.getByText(/JuneW vs JuneB/)).toBeInTheDocument();
+      const listInFlight = screen.getByRole("list");
+      expect(listInFlight.getAttribute("aria-busy")).toBe("true");
+      expect(listInFlight.className).toContain("opacity-50");
+      expect(listInFlight.className).toContain("pointer-events-none");
+
+      resolveJanGamesFetch(createGamesResponse(janGames));
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(screen.getByText(/JanW vs JanB/)).toBeInTheDocument();
+      expect(screen.queryByText(/JuneW vs JuneB/)).not.toBeInTheDocument();
+      const listAfter = screen.getByRole("list");
+      expect(listAfter.getAttribute("aria-busy")).toBe("false");
+      expect(listAfter.className).not.toContain("opacity-50");
+    });
+
+    it("clears stale game rows and shows no-games message when new month resolves with zero games", async () => {
+      const juneGames = [
+        { url: "1", endTime: "100", timeClass: "rapid", pgn: '[Event "June"]\n[White "JuneW"]\n[Black "JuneB"]\n\n1. e4 *' },
+      ];
+
+      fetchMock
+        .mockResolvedValueOnce(
+          createArchivesResponse([
+            { url: "/games/2024/06", year: 2024, month: 6 },
+            { url: "/games/2024/01", year: 2024, month: 1 },
+          ])
+        )
+        .mockResolvedValueOnce(createGamesResponse(juneGames))
+        .mockResolvedValueOnce(createGamesResponse([]));
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      await waitFor(() => expect(screen.getByText(/JuneW vs JuneB/)).toBeInTheDocument());
+
+      fireEvent.change(screen.getByTestId("archive-month-select"), { target: { value: "2024-01" } });
+
+      await waitFor(() => {
+        expect(screen.getByText("No games found for January 2024.")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole("list")).not.toBeInTheDocument();
+      expect(screen.queryByText(/JuneW vs JuneB/)).not.toBeInTheDocument();
+    });
+
+    it("does not write games into state from a superseded or stale month response", async () => {
+      let resolveJuneFetch!: (res: Response) => void;
+      const junePromise = new Promise<Response>((resolve) => {
+        resolveJuneFetch = resolve;
+      });
+
+      const juneGames = [
+        { url: "1", endTime: "100", timeClass: "rapid", pgn: '[Event "June"]\n[White "JuneW"]\n[Black "JuneB"]\n\n1. e4 *' },
+      ];
+      const janGames = [
+        { url: "2", endTime: "200", timeClass: "rapid", pgn: '[Event "Jan"]\n[White "JanW"]\n[Black "JanB"]\n\n1. d4 *' },
+      ];
+
+      fetchMock
+        .mockResolvedValueOnce(
+          createArchivesResponse([
+            { url: "/games/2024/06", year: 2024, month: 6 },
+            { url: "/games/2024/01", year: 2024, month: 1 },
+          ])
+        )
+        .mockReturnValueOnce(junePromise)
+        .mockResolvedValueOnce(createGamesResponse(janGames));
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      await waitFor(() => expect(screen.getByTestId("archive-month-select")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByTestId("archive-month-select"), { target: { value: "2024-01" } });
+
+      await waitFor(() => expect(screen.getByText(/JanW vs JanB/)).toBeInTheDocument());
+
+      resolveJuneFetch(createGamesResponse(juneGames));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(screen.getByText(/JanW vs JanB/)).toBeInTheDocument();
+      expect(screen.queryByText(/JuneW vs JuneB/)).not.toBeInTheDocument();
+    });
+  });
 });

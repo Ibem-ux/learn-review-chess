@@ -166,6 +166,7 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
           if (generation !== generationRef.current) return;
           setStatus("error");
           setErrorMessage("Invalid games response from server.");
+          setGames([]);
           return;
         }
 
@@ -181,12 +182,14 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
             setStatus("error");
             setErrorMessage("Server error while loading games.");
           }
+          setGames([]);
           return;
         }
 
         if (!isInternalGamesResponse(gamesJson)) {
           setStatus("error");
           setErrorMessage("Invalid games response from server.");
+          setGames([]);
           return;
         }
 
@@ -214,6 +217,7 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
         if (generation !== generationRef.current) return;
         setStatus("error");
         setErrorMessage("Unable to reach the server. Please try again later.");
+        setGames([]);
       }
     },
     []
@@ -331,7 +335,6 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
       if (!entry) return;
 
       setSelectedArchive(entry);
-      setGames([]);
       setErrorMessage("");
       setErrorRetryAfter(undefined);
 
@@ -419,7 +422,14 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
         </div>
       )}
 
-      <div role="status" aria-live="polite" className="text-sm font-medium text-black dark:text-zinc-50">
+      <div role="status" aria-live="polite" className="flex items-center gap-2 min-h-5 text-sm font-medium text-black dark:text-zinc-50">
+        {(status === "loading-archives" || status === "loading-games") && (
+          <span
+            data-testid="status-indicator"
+            aria-hidden="true"
+            className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"
+          />
+        )}
         {status === "loading-archives" && "Loading available months..."}
         {status === "loading-games" && "Loading recent games..."}
         {status === "success" && (
@@ -442,8 +452,12 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
         </div>
       )}
 
-      {status === "success" && games.length > 0 && (
-        <ul className="flex list-none flex-col gap-2 p-0" role="list">
+      {(status === "success" || status === "loading-games") && games.length > 0 && (
+        <ul
+          className={`flex list-none flex-col gap-2 p-0${status === "loading-games" ? " opacity-50 pointer-events-none" : ""}`}
+          role="list"
+          aria-busy={status === "loading-games"}
+        >
           {games.map((game, index) => {
             const { white, black, result } = getPlayerAndResult(game.pgn);
             const timeClass = game.timeClass ?? "Unknown time class";
