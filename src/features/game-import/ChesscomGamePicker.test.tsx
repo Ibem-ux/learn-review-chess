@@ -640,8 +640,8 @@ describe("ChesscomGamePicker", () => {
     });
   });
 
-  describe("loading text visibility contract (task B2)", () => {
-    it("renders status text element with readable foreground color classes text-zinc-600 and dark:text-zinc-400 during loading", async () => {
+  describe("loading text contrast contract (task B2-R)", () => {
+    it("renders status text element with high-contrast foreground color classes text-black and dark:text-zinc-50 during loading", async () => {
       let resolveFetch!: (res: Response) => void;
       const pendingPromise = new Promise<Response>((resolve) => {
         resolveFetch = resolve;
@@ -654,8 +654,8 @@ describe("ChesscomGamePicker", () => {
 
       const statusElement = screen.getByRole("status");
       expect(statusElement).toBeInTheDocument();
-      expect(statusElement.className).toContain("text-zinc-600");
-      expect(statusElement.className).toContain("dark:text-zinc-400");
+      expect(statusElement.className).toContain("text-black");
+      expect(statusElement.className).toContain("dark:text-zinc-50");
 
       resolveFetch(createArchivesResponse([]));
       await act(async () => {

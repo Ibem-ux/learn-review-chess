@@ -419,7 +419,7 @@ export default function ChesscomGamePicker({ onSelectPgn }: ChesscomGamePickerPr
         </div>
       )}
 
-      <div role="status" aria-live="polite" className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+      <div role="status" aria-live="polite" className="text-sm font-medium text-black dark:text-zinc-50">
         {status === "loading-archives" && "Loading available months..."}
         {status === "loading-games" && "Loading recent games..."}
         {status === "success" && (
