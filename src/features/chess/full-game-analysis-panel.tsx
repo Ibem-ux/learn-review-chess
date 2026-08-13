@@ -255,8 +255,26 @@ function FullGameAnalysisPanelEligible({
             ? "Loading engine..."
             : "Ready to analyze.";
 
+  const progressPercent =
+    totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
+
   return (
     <section aria-label="Full-game analysis" className="mt-4 space-y-3">
+      {isRunning && totalJobs > 0 && (
+        <div
+          role="progressbar"
+          aria-label="Full-game analysis progress"
+          aria-valuenow={completedJobs}
+          aria-valuemin={0}
+          aria-valuemax={totalJobs}
+          className="h-2 w-full overflow-hidden rounded-full bg-black/[.06] dark:bg-white/[.08]"
+        >
+          <div
+            className="h-full bg-black dark:bg-zinc-50"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      )}
       <div role="status" aria-live="polite" className="text-sm text-zinc-600 dark:text-zinc-400">
         {progressText}
       </div>

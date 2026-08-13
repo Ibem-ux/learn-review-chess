@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import FullGameAnalysisPanel from "@/features/chess/full-game-analysis-panel";
 import type { EngineAnalysisLimit } from "@/features/chess/engine";
 import type { ReviewTimeline } from "@/features/chess/timeline";
@@ -412,7 +412,9 @@ describe("FullGameAnalysisPanel", () => {
   it("while analysis is running, the Analyze full game button carries aria-busy=\"true\"", () => {
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
     const button = screen.getByRole("button", { name: "Analyze full game" });
-    button.click();
+    act(() => {
+      button.click();
+    });
     rerender(
       <FullGameAnalysisPanel
         {...defaultProps}
@@ -420,5 +422,89 @@ describe("FullGameAnalysisPanel", () => {
       />
     );
     expect(button).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("on first render with defaultProps, there is no element with role progressbar", () => {
+    render(<FullGameAnalysisPanel {...defaultProps} />);
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+
+  it("while analysis is running with totalJobs 40 and completedJobs 7, an element with role progressbar exists and carries aria-valuenow=\"7\", aria-valuemin=\"0\", and aria-valuemax=\"40\"", () => {
+    const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
+    const button = screen.getByRole("button", { name: "Analyze full game" });
+    act(() => {
+      button.click();
+    });
+    rerender(
+      <FullGameAnalysisPanel
+        {...defaultProps}
+        analysisState={{
+          ...mockAnalysisState,
+          status: "running",
+          totalJobs: 40,
+          completedJobs: 7,
+        }}
+      />
+    );
+    const progressbar = screen.getByRole("progressbar");
+    expect(progressbar).toHaveAttribute("aria-valuenow", "7");
+    expect(progressbar).toHaveAttribute("aria-valuemin", "0");
+    expect(progressbar).toHaveAttribute("aria-valuemax", "40");
+  });
+
+  it("from that same running state, a further rerender with completedJobs 21 changes aria-valuenow to \"21\" while aria-valuemax stays \"40\"", () => {
+    const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
+    const button = screen.getByRole("button", { name: "Analyze full game" });
+    act(() => {
+      button.click();
+    });
+    rerender(
+      <FullGameAnalysisPanel
+        {...defaultProps}
+        analysisState={{
+          ...mockAnalysisState,
+          status: "running",
+          totalJobs: 40,
+          completedJobs: 7,
+        }}
+      />
+    );
+    const progressbar = screen.getByRole("progressbar");
+    expect(progressbar).toHaveAttribute("aria-valuenow", "7");
+
+    rerender(
+      <FullGameAnalysisPanel
+        {...defaultProps}
+        analysisState={{
+          ...mockAnalysisState,
+          status: "running",
+          totalJobs: 40,
+          completedJobs: 21,
+        }}
+      />
+    );
+    expect(progressbar).toHaveAttribute("aria-valuenow", "21");
+    expect(progressbar).toHaveAttribute("aria-valuemax", "40");
+  });
+
+  it("while running, the existing progress text is still present and the number of elements with role status inside the panel is unchanged (1 element)", () => {
+    const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
+    const button = screen.getByRole("button", { name: "Analyze full game" });
+    act(() => {
+      button.click();
+    });
+    rerender(
+      <FullGameAnalysisPanel
+        {...defaultProps}
+        analysisState={{
+          ...mockAnalysisState,
+          status: "running",
+          totalJobs: 40,
+          completedJobs: 7,
+        }}
+      />
+    );
+    expect(screen.getByText("Analyzing position ... (7/40)")).toBeDefined();
+    expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 });
