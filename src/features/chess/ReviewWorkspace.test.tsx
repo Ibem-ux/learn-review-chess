@@ -1197,5 +1197,40 @@ describe("ReviewWorkspace", () => {
       consoleErrorSpy.mockRestore();
     });
   });
+
+  describe("responsive import tab bar contract (task B2)", () => {
+    it("carries whitespace-nowrap on all four import tab buttons", () => {
+      render(<ReviewWorkspace />);
+      const group = screen.getByRole("group", { name: "Import method" });
+      const buttons = group.querySelectorAll("button");
+      expect(buttons).toHaveLength(4);
+      for (const button of buttons) {
+        expect(button.className).toContain("whitespace-nowrap");
+      }
+    });
+
+    it("carries grid grid-cols-2 gap-2 sm:grid-cols-4 responsive layout classes on the tab container", () => {
+      render(<ReviewWorkspace />);
+      const group = screen.getByRole("group", { name: "Import method" });
+      expect(group.className).toContain("grid");
+      expect(group.className).toContain("grid-cols-2");
+      expect(group.className).toContain("sm:grid-cols-4");
+    });
+
+    it("preserves correct aria-pressed states and exact accessible names after clicking each tab", () => {
+      render(<ReviewWorkspace />);
+      const names = ["Paste PGN", "Chess.com", "Lichess", "Upload file"];
+      
+      for (const clickedName of names) {
+        const clickedButton = screen.getByRole("button", { name: clickedName });
+        fireEvent.click(clickedButton);
+
+        for (const name of names) {
+          const button = screen.getByRole("button", { name });
+          expect(button.getAttribute("aria-pressed")).toBe(name === clickedName ? "true" : "false");
+        }
+      }
+    });
+  });
 });
 

@@ -639,4 +639,28 @@ describe("ChesscomGamePicker", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
   });
+
+  describe("loading text visibility contract (task B2)", () => {
+    it("renders status text element with readable foreground color classes text-zinc-600 and dark:text-zinc-400 during loading", async () => {
+      let resolveFetch!: (res: Response) => void;
+      const pendingPromise = new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      });
+      fetchMock.mockReturnValue(pendingPromise);
+
+      render(<ChesscomGamePicker onSelectPgn={() => {}} />);
+      fireEvent.change(screen.getByLabelText("Chess.com username"), { target: { value: "hikaru" } });
+      fireEvent.click(screen.getByRole("button", { name: "Load games" }));
+
+      const statusElement = screen.getByRole("status");
+      expect(statusElement).toBeInTheDocument();
+      expect(statusElement.className).toContain("text-zinc-600");
+      expect(statusElement.className).toContain("dark:text-zinc-400");
+
+      resolveFetch(createArchivesResponse([]));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    });
+  });
 });
