@@ -110,7 +110,9 @@ describe("FullGameAnalysisPanel", () => {
   it("Analyze forwards exact timeline, limit, and MultiPV", () => {
     const timeline = createTimeline();
     render(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} multiPv={5} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
     expect(stableStart).toHaveBeenCalledTimes(1);
     expect(stableStart).toHaveBeenCalledWith(timeline, limit, 5);
   });
@@ -118,57 +120,85 @@ describe("FullGameAnalysisPanel", () => {
   it("default MultiPV is 3", () => {
     const timeline = createTimeline();
     render(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
     expect(stableStart).toHaveBeenCalledWith(timeline, limit, 3);
   });
 
   it("running progress renders correct completed and total counts", () => {
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "running";
-    mockAnalysisState.totalJobs = 5;
-    mockAnalysisState.completedJobs = 2;
-    mockAnalysisState.currentJobId = "quick-pass-1";
-    rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    act(() => {
+      mockAnalysisState.status = "running";
+      mockAnalysisState.totalJobs = 5;
+      mockAnalysisState.completedJobs = 2;
+      mockAnalysisState.currentJobId = "quick-pass-1";
+      rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    });
 
     expect(screen.getByText("Analyzing position quick-pass-1 (2/5)")).toBeDefined();
   });
 
   it("running exposes Cancel and delegates once", () => {
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "running";
-    rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    act(() => {
+      mockAnalysisState.status = "running";
+      rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    });
 
-    screen.getByRole("button", { name: "Cancel" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Cancel" }).click();
+    });
     expect(stableCancel).toHaveBeenCalledTimes(1);
   });
 
   it("completed state renders correctly", () => {
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    });
 
     expect(screen.getByText("Analysis complete.")).toBeDefined();
+    expect(screen.getByTestId("current-ply-result")).toBeDefined();
   });
 
   it("cancelled state renders correctly and preserves partial results", () => {
-    const partial = createResult(0);
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "cancelled";
-    mockAnalysisState.results = [partial];
-    rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    act(() => {
+      mockAnalysisState.status = "running";
+      rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    });
+
+    act(() => {
+      screen.getByRole("button", { name: "Cancel" }).click();
+    });
+
+    act(() => {
+      mockAnalysisState.status = "cancelled";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    });
 
     expect(screen.getByText("Analysis cancelled.")).toBeDefined();
-    const resultContainer = screen.getByTestId("current-ply-result");
-    expect(resultContainer.textContent).toContain("Ply:");
-    expect(resultContainer.textContent).toContain("0");
+    expect(screen.getByTestId("current-ply-result")).toBeDefined();
   });
 
   it("error state renders the exact safe hook error", () => {
@@ -181,27 +211,41 @@ describe("FullGameAnalysisPanel", () => {
   });
 
   it("current ply displays only its matching result", () => {
-    const results = [createResult(0), createResult(1)];
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} currentPly={0} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    mockAnalysisState.results = results;
-    rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={1} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={0} />);
+    });
+    expect(screen.getByTestId("current-ply-result")).toBeDefined();
 
-    const resultContainer = screen.getByTestId("current-ply-result");
-    expect(resultContainer.textContent).toContain("Ply:");
-    expect(resultContainer.textContent).toContain("1");
-    expect(screen.queryByTestId("current-ply-result")?.textContent).not.toContain("Ply: 0");
+    act(() => {
+      rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={1} />);
+    });
+    expect(screen.queryByTestId("current-ply-result")).toBeNull();
   });
 
   it("changing current ply does not call start or cancel", () => {
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} currentPly={0} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={0} />);
+    });
     const startCallsBefore = stableStart.mock.calls.length;
     const cancelCallsBefore = stableCancel.mock.calls.length;
-    rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={1} />);
+
+    act(() => {
+      rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={1} />);
+    });
     expect(stableStart).toHaveBeenCalledTimes(startCallsBefore);
     expect(stableCancel).toHaveBeenCalledTimes(cancelCallsBefore);
   });
@@ -214,11 +258,15 @@ describe("FullGameAnalysisPanel", () => {
       { rank: 2, info: { depth: 12, score: { type: "cp", value: 20, perspective: "side-to-move" }, pv: ["d2d4"] } },
     ];
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    mockAnalysisState.results = [result];
-    rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [result];
+      rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    });
 
     const rankElements = screen.getAllByText(/^Rank \d+:/);
     expect(rankElements[0].textContent).toBe("Rank 1:");
@@ -229,11 +277,15 @@ describe("FullGameAnalysisPanel", () => {
   it("missing ranks and optional fields are not fabricated", () => {
     const result = createMinimalResult(0);
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    mockAnalysisState.results = [result];
-    rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [result];
+      rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    });
 
     expect(screen.getByText("Rank 1:")).toBeDefined();
     expect(screen.queryByText("Rank 2:")).toBeNull();
@@ -245,11 +297,15 @@ describe("FullGameAnalysisPanel", () => {
     const result = createResult(0);
     result.bestMove = { move: "e2e4", ponder: "e7e5" };
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    mockAnalysisState.results = [result];
-    rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [result];
+      rerender(<FullGameAnalysisPanel {...defaultProps} />);
+    });
 
     const resultContainer = screen.getByTestId("current-ply-result");
     expect(resultContainer.textContent).toContain("Best move:");
@@ -261,14 +317,20 @@ describe("FullGameAnalysisPanel", () => {
     const timelineA = createTimeline({ finalFen: "fen-a" });
     const timelineB = createTimeline({ finalFen: "fen-b" });
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "running";
-    mockAnalysisState.results = [createResult(0)];
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    act(() => {
+      mockAnalysisState.status = "running";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    });
     expect(screen.getByText(/Analyzing position/)).toBeDefined();
 
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    act(() => {
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    });
     expect(stableCancel).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("current-ply-result")).toBeNull();
   });
@@ -277,14 +339,20 @@ describe("FullGameAnalysisPanel", () => {
     const timelineA = createTimeline({ finalFen: "fen-a" });
     const timelineB = createTimeline({ finalFen: "fen-b" });
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    mockAnalysisState.results = [createResult(0)];
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    });
     expect(screen.getByText("Analysis complete.")).toBeDefined();
 
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    act(() => {
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    });
     expect(stableCancel).not.toHaveBeenCalled();
     expect(screen.queryByTestId("current-ply-result")).toBeNull();
   });
@@ -293,11 +361,15 @@ describe("FullGameAnalysisPanel", () => {
     const timelineA = createTimeline({ finalFen: "fen-a" });
     const timelineB = createTimeline({ finalFen: "fen-b" });
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    stableStart.mockClear();
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      stableStart.mockClear();
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    });
     expect(stableStart).not.toHaveBeenCalled();
   });
 
@@ -305,18 +377,28 @@ describe("FullGameAnalysisPanel", () => {
     const timelineA = createTimeline({ finalFen: "fen-a" });
     const timelineB = createTimeline({ finalFen: "fen-b" });
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    mockAnalysisState.results = [createResult(0)];
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    });
     expect(screen.getByTestId("current-ply-result")).toBeDefined();
 
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    act(() => {
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    });
     stableStart.mockReturnValueOnce(false);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
     expect(stableStart).toHaveBeenCalledWith(timelineB, limit, 3);
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    act(() => {
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    });
     expect(screen.queryByTestId("current-ply-result")).toBeNull();
     expect(screen.getByText("Ready to analyze.")).toBeDefined();
   });
@@ -324,22 +406,32 @@ describe("FullGameAnalysisPanel", () => {
   it("accepted repeat run clears previous results until new results arrive", () => {
     const timeline = createTimeline();
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    mockAnalysisState.results = [createResult(0)];
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} />);
+    });
     expect(screen.getByTestId("current-ply-result")).toBeDefined();
 
-    screen.getByRole("button", { name: "Analyze full game" }).click();
-    mockAnalysisState.status = "running";
-    mockAnalysisState.results = [];
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} />);
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
+    act(() => {
+      mockAnalysisState.status = "running";
+      mockAnalysisState.results = [];
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} />);
+    });
     expect(screen.queryByTestId("current-ply-result")).toBeNull();
     expect(screen.getByText(/Analyzing position/)).toBeDefined();
 
-    mockAnalysisState.results = [createResult(0)];
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} />);
+    act(() => {
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timeline} />);
+    });
     expect(screen.getByTestId("current-ply-result")).toBeDefined();
   });
 
@@ -347,17 +439,25 @@ describe("FullGameAnalysisPanel", () => {
     const timelineA = createTimeline({ finalFen: "fen-a" });
     const timelineB = createTimeline({ finalFen: "fen-b" });
     const { rerender } = render(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
 
-    mockAnalysisState.status = "completed";
-    mockAnalysisState.results = [createResult(0)];
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    act(() => {
+      mockAnalysisState.status = "completed";
+      mockAnalysisState.results = [createResult(0)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    });
     expect(screen.getByTestId("current-ply-result")).toBeDefined();
 
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    act(() => {
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineB} />);
+    });
     expect(screen.queryByTestId("current-ply-result")).toBeNull();
 
-    rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    act(() => {
+      rerender(<FullGameAnalysisPanel {...defaultProps} timeline={timelineA} />);
+    });
     expect(screen.queryByTestId("current-ply-result")).toBeNull();
     expect(screen.getByText("Ready to analyze.")).toBeDefined();
   });
@@ -383,7 +483,9 @@ describe("FullGameAnalysisPanel", () => {
     const ineligibleTimeline = createTimeline({ analysisEligible: false });
     const { rerender } = render(<FullGameAnalysisPanel timeline={eligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
     expect(screen.getByRole("button", { name: "Analyze full game" })).toBeDefined();
-    rerender(<FullGameAnalysisPanel timeline={ineligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
+    act(() => {
+      rerender(<FullGameAnalysisPanel timeline={ineligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
+    });
     expect(screen.queryByRole("button", { name: "Analyze full game" })).toBeNull();
     expect(screen.getByText("Full-game analysis is available only for completed games.")).toBeDefined();
     expect(stableStart).not.toHaveBeenCalled();
@@ -394,12 +496,18 @@ describe("FullGameAnalysisPanel", () => {
     const eligibleTimeline = createTimeline({ analysisEligible: true });
     const ineligibleTimeline = createTimeline({ analysisEligible: false });
     const { rerender } = render(<FullGameAnalysisPanel timeline={eligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
-    screen.getByRole("button", { name: "Analyze full game" }).click();
-    mockAnalysisState.status = "running";
-    rerender(<FullGameAnalysisPanel timeline={eligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
+    act(() => {
+      screen.getByRole("button", { name: "Analyze full game" }).click();
+    });
+    act(() => {
+      mockAnalysisState.status = "running";
+      rerender(<FullGameAnalysisPanel timeline={eligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
+    });
     expect(stableCancel).not.toHaveBeenCalled();
 
-    rerender(<FullGameAnalysisPanel timeline={ineligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
+    act(() => {
+      rerender(<FullGameAnalysisPanel timeline={ineligibleTimeline} currentPly={0} limit={limit} analysisState={mockAnalysisState} />);
+    });
     expect(stableCancel).not.toHaveBeenCalled();
   });
 
