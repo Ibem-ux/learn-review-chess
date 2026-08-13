@@ -198,7 +198,9 @@ describe("FullGameAnalysisPanel", () => {
     });
 
     expect(screen.getByText("Analysis cancelled.")).toBeDefined();
-    expect(screen.getByTestId("current-ply-result")).toBeDefined();
+    const resultContainer = screen.getByTestId("current-ply-result");
+    expect(resultContainer.textContent).toContain("Ply:");
+    expect(resultContainer.textContent).toContain("0");
   });
 
   it("error state renders the exact safe hook error", () => {
@@ -218,12 +220,16 @@ describe("FullGameAnalysisPanel", () => {
 
     act(() => {
       mockAnalysisState.status = "completed";
-      mockAnalysisState.results = [createResult(0)];
-      rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={0} />);
+      mockAnalysisState.results = [createResult(0), createResult(1)];
+      rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={1} />);
     });
-    expect(screen.getByTestId("current-ply-result")).toBeDefined();
+    const resultContainer = screen.getByTestId("current-ply-result");
+    expect(resultContainer.textContent).toContain("Ply:");
+    expect(resultContainer.textContent).toContain("1");
+    expect(resultContainer.textContent).not.toContain("Ply: 0");
 
     act(() => {
+      mockAnalysisState.results = [createResult(0)];
       rerender(<FullGameAnalysisPanel {...defaultProps} currentPly={1} />);
     });
     expect(screen.queryByTestId("current-ply-result")).toBeNull();
