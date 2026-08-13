@@ -966,5 +966,169 @@ describe("ReviewWorkspace", () => {
       expect(screen.queryByRole("region", { name: "Review chessboard" })).not.toBeInTheDocument();
     });
   });
+
+  describe("hardening multi-game chooser, source-aware error, aria-invalid, and tab switches", () => {
+    it("renders two byte-identical games in a multi-game file with stable unique keys and no duplicate key warnings", async () => {
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const singlePgn = '[Event "Same"]\n[White "A"]\n[Black "B"]\n1. e4 e5 1-0';
+      const twoIdenticalGames = `${singlePgn}\n\n${singlePgn}`;
+      const file = new File([twoIdenticalGames], "identical.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Review game" })).toHaveLength(2);
+
+      const duplicateKeyCall = consoleErrorSpy.mock.calls.find((call) =>
+        call.some((arg) => typeof arg === "string" && arg.includes("same key"))
+      );
+      expect(duplicateKeyCall).toBeUndefined();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("produces the original unchanged over-length error message for pasted PGN", () => {
+      render(<ReviewWorkspace />);
+      const overLengthPgn = "1. e4 ".repeat(4000);
+      fireEvent.change(screen.getByLabelText(/paste a completed pgn game/i), {
+        target: { value: overLengthPgn },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Load game" }));
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "PGN input is too long. Paste a completed game of reasonable size."
+      );
+    });
+
+    it("produces the file-specific over-length error message for an uploaded file", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const overLengthPgn = '[Event "Big"]\n1. e4 ' + "e5 1. e4 ".repeat(4000) + " 1-0";
+      const file = new File([overLengthPgn], "overlength.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "PGN file is too long. Choose a completed game of reasonable size."
+      );
+    });
+
+    it("sets aria-invalid on the file input when an error is showing and omits it when no error is showing", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      let fileInput = screen.getByLabelText(/upload a pgn file/i);
+      expect(fileInput).not.toHaveAttribute("aria-invalid");
+
+      const largeContent = "x".repeat(1000001);
+      const largeFile = new File([largeContent], "large.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [largeFile] } });
+      });
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(fileInput).toHaveAttribute("aria-invalid", "true");
+
+      fireEvent.click(screen.getByRole("button", { name: "Paste PGN" }));
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      fileInput = screen.getByLabelText(/upload a pgn file/i);
+      expect(fileInput).not.toHaveAttribute("aria-invalid");
+    });
+
+    it("produces the file-specific over-length error message when selecting an over-length game from the chooser", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const normalGame = '[Event "G1"]\n1. e4 e5 1-0';
+      const overLengthGame = '[Event "G2"]\n1. e4 ' + "e5 1. e4 ".repeat(4000) + " 1-0";
+      const multiPgn = `${normalGame}\n\n${overLengthGame}`;
+      const file = new File([multiPgn], "multi.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
+      const reviewButtons = screen.getAllByRole("button", { name: "Review game" });
+      await act(async () => {
+        fireEvent.click(reviewButtons[1]);
+      });
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "PGN file is too long. Choose a completed game of reasonable size."
+      );
+    });
+
+    it("clears visible import error banner when switching from Upload file to Lichess", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const fileInput = screen.getByLabelText(/upload a pgn file/i);
+      const largeContent = "x".repeat(1000001);
+      const largeFile = new File([largeContent], "large.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [largeFile] } });
+      });
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Lichess" }));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("does not render chooser when an in-flight file read of a multi-game file completes after switching import methods", async () => {
+      let resolveFileText!: (text: string) => void;
+      const filePromise = new Promise<string>((resolve) => {
+        resolveFileText = resolve;
+      });
+
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const fileInput = screen.getByLabelText(/upload a pgn file/i);
+      const multiPgn = '[Event "G1"]\n1. e4 e5 1-0\n\n[Event "G2"]\n1. d4 d5 0-1';
+      const file = new File([multiPgn], "multi.pgn", { type: "text/plain" });
+      file.text = vi.fn().mockReturnValue(filePromise);
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+      fireEvent.click(screen.getByRole("button", { name: "Lichess" }));
+
+      resolveFileText(multiPgn);
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      expect(screen.queryByText(/showing 2 games/i)).not.toBeInTheDocument();
+    });
+
+    it("leaves no stale chooser and no stale error after rapid repeated method switches", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const multiPgn = '[Event "G1"]\n1. e4 e5 1-0\n\n[Event "G2"]\n1. d4 d5 0-1';
+      const file = new File([multiPgn], "multi.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Paste PGN" }));
+      fireEvent.click(screen.getByRole("button", { name: "Chess.com" }));
+      fireEvent.click(screen.getByRole("button", { name: "Lichess" }));
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      fireEvent.click(screen.getByRole("button", { name: "Paste PGN" }));
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+
+      expect(screen.queryByText(/showing 2 games/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
 });
 

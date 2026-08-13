@@ -55,7 +55,9 @@ export default function ReviewWorkspace() {
   const loadGame = useCallback((source: string, rawPgn: string) => {
     if (rawPgn.length > MAX_PGN_LENGTH) {
       setError(
-        "PGN input is too long. Paste a completed game of reasonable size."
+        source === "Pasted PGN"
+          ? "PGN input is too long. Paste a completed game of reasonable size."
+          : "PGN file is too long. Choose a completed game of reasonable size."
       );
       return;
     }
@@ -283,6 +285,7 @@ export default function ReviewWorkspace() {
               onChange={handleFileUpload}
               disabled={isFileReading}
               aria-busy={isFileReading}
+              aria-invalid={error ? true : undefined}
               aria-describedby={fileDescriptionId}
               className="mt-2 block w-full text-sm text-zinc-600 file:mr-4 file:rounded-md file:border file:border-black/[.12] file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-black hover:file:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-400 dark:file:border-white/[.2] dark:file:bg-black dark:file:text-zinc-50 dark:hover:file:bg-white/[.08]"
             />
@@ -301,33 +304,39 @@ export default function ReviewWorkspace() {
                   Showing {multiPgnGames.length > 50 ? `first 50 of ${multiPgnGames.length}` : multiPgnGames.length} games
                 </div>
                 <ul className="flex list-none flex-col gap-2 p-0" role="list">
-                  {multiPgnGames.slice(0, 50).map((gamePgn, index) => {
-                    const { white, black, result } = getPlayerAndResult(gamePgn);
-                    return (
-                      <li
-                        key={index}
-                        className="flex items-center justify-between gap-3 rounded-md border border-black/[.12] px-3 py-2 dark:border-white/[.2]"
-                      >
-                        <div className="flex flex-col gap-1 text-sm font-medium text-black dark:text-zinc-50">
-                          <span>
-                            {white} vs {black}{" "}
-                            {result !== "*" && (
-                              <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                                ({result})
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => loadGame("Uploaded file", gamePgn)}
-                          className="rounded-md border border-black/[.12] px-2 py-1 text-xs font-medium text-black transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+                  {(() => {
+                    const gameCounts = new Map<string, number>();
+                    return multiPgnGames.slice(0, 50).map((gamePgn) => {
+                      const count = (gameCounts.get(gamePgn) ?? 0) + 1;
+                      gameCounts.set(gamePgn, count);
+                      const key = `${gamePgn.slice(0, 32)}-${gamePgn.length}-${count}`;
+                      const { white, black, result } = getPlayerAndResult(gamePgn);
+                      return (
+                        <li
+                          key={key}
+                          className="flex items-center justify-between gap-3 rounded-md border border-black/[.12] px-3 py-2 dark:border-white/[.2]"
                         >
-                          Review game
-                        </button>
-                      </li>
-                    );
-                  })}
+                          <div className="flex flex-col gap-1 text-sm font-medium text-black dark:text-zinc-50">
+                            <span>
+                              {white} vs {black}{" "}
+                              {result !== "*" && (
+                                <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                                  ({result})
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => loadGame("Uploaded file", gamePgn)}
+                            className="rounded-md border border-black/[.12] px-2 py-1 text-xs font-medium text-black transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+                          >
+                            Review game
+                          </button>
+                        </li>
+                      );
+                    });
+                  })()}
                 </ul>
               </div>
             )}
