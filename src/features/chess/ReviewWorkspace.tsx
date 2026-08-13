@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import StudyBoard from "@/features/chess/StudyBoard";
 import ReviewBoard from "@/features/chess/ReviewBoard";
 import { getPlayerAndResult, normalizeHeader, parsePgn, splitPgnGames } from "@/features/chess/pgn";
@@ -37,12 +37,20 @@ export default function ReviewWorkspace() {
     null
   );
   const [importMethod, setImportMethod] = useState<ImportMethod>("paste");
+  const importMethodRef = useRef<ImportMethod>("paste");
   const [activeSource, setActiveSource] = useState<string | null>(null);
   const [isFileReading, setIsFileReading] = useState(false);
   const [multiPgnGames, setMultiPgnGames] = useState<string[]>([]);
   const [descriptionId] = useState("pgn-description");
   const [fileDescriptionId] = useState("file-description");
   const [errorId] = useState("pgn-error");
+
+  const handleMethodChange = (method: ImportMethod) => {
+    importMethodRef.current = method;
+    setImportMethod(method);
+    setError(null);
+    setMultiPgnGames([]);
+  };
 
   const loadGame = useCallback((source: string, rawPgn: string) => {
     if (rawPgn.length > MAX_PGN_LENGTH) {
@@ -92,6 +100,9 @@ export default function ReviewWorkspace() {
     setIsFileReading(true);
     try {
       const text = await file.text();
+      if (importMethodRef.current !== "file") {
+        return;
+      }
       const games = splitPgnGames(text);
       if (games.length > 1) {
         setMultiPgnGames(games);
@@ -101,7 +112,9 @@ export default function ReviewWorkspace() {
       setMultiPgnGames([]);
       loadGame("Uploaded file", text);
     } catch {
-      setError("Could not read the selected file. Try choosing it again.");
+      if (importMethodRef.current === "file") {
+        setError("Could not read the selected file. Try choosing it again.");
+      }
     } finally {
       setIsFileReading(false);
       input.value = "";
@@ -177,7 +190,7 @@ export default function ReviewWorkspace() {
           <button
             type="button"
             aria-pressed={importMethod === "paste"}
-            onClick={() => setImportMethod("paste")}
+            onClick={() => handleMethodChange("paste")}
             className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Paste PGN
@@ -185,7 +198,7 @@ export default function ReviewWorkspace() {
           <button
             type="button"
             aria-pressed={importMethod === "chesscom"}
-            onClick={() => setImportMethod("chesscom")}
+            onClick={() => handleMethodChange("chesscom")}
             className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Chess.com
@@ -193,7 +206,7 @@ export default function ReviewWorkspace() {
           <button
             type="button"
             aria-pressed={importMethod === "lichess"}
-            onClick={() => setImportMethod("lichess")}
+            onClick={() => handleMethodChange("lichess")}
             className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Lichess
@@ -201,7 +214,7 @@ export default function ReviewWorkspace() {
           <button
             type="button"
             aria-pressed={importMethod === "file"}
-            onClick={() => setImportMethod("file")}
+            onClick={() => handleMethodChange("file")}
             className="flex-1 rounded-md border border-black/[.12] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
           >
             Upload file

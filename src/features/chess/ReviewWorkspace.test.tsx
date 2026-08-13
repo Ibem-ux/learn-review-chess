@@ -889,7 +889,82 @@ describe("ReviewWorkspace", () => {
 
       vi.unstubAllGlobals();
     });
+  });
 
+  describe("switching import methods cleans up transient UI state", () => {
+    it("clears the multi-game chooser when switching away from Upload file and returning", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      const input = screen.getByLabelText(/upload/i);
+      const pgn =
+        '[Event "G1"]\n[White "Kasparov"]\n[Black "Deep Blue"]\n1. e4 e5 1-0\n\n[Event "G2"]\n[White "Carlsen"]\n[Black "Nakamura"]\n1. d4 d5 0-1';
+      const file = new File([pgn], "games.pgn", {
+        type: "application/x-chess-pgn",
+      });
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+      expect(screen.getByText(/showing 2 games/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Paste PGN" }));
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+
+      expect(screen.queryByText(/showing 2 games/i)).not.toBeInTheDocument();
+    });
+
+    it("clears visible import error banner when switching between import methods", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.change(screen.getByLabelText(/paste a completed pgn game/i), {
+        target: { value: "invalid pgn text" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Load game" }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Chess.com" }));
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("preserves a successfully loaded game across import method tab switches", async () => {
+      render(<ReviewWorkspace />);
+      fireEvent.change(screen.getByLabelText(/paste a completed pgn game/i), {
+        target: { value: SHORT_GAME },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Load game" }));
+
+      expect(screen.getByRole("region", { name: "Review chessboard" })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+      fireEvent.click(screen.getByRole("button", { name: "Lichess" }));
+      fireEvent.click(screen.getByRole("button", { name: "Paste PGN" }));
+
+      expect(screen.getByRole("region", { name: "Review chessboard" })).toBeInTheDocument();
+    });
+
+    it("does not load a game or chooser when an in-flight file read completes after switching import methods", async () => {
+      let resolveFileText!: (text: string) => void;
+      const filePromise = new Promise<string>((resolve) => {
+        resolveFileText = resolve;
+      });
+
+      render(<ReviewWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: "Upload file" }));
+
+      const fileInput = screen.getByLabelText(/Upload a PGN file/i);
+      const file = new File([SHORT_GAME], "single.pgn", { type: "text/plain" });
+      file.text = vi.fn().mockReturnValue(filePromise);
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      fireEvent.click(screen.getByRole("button", { name: "Paste PGN" }));
+
+      resolveFileText(SHORT_GAME);
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(screen.queryByRole("region", { name: "Review chessboard" })).not.toBeInTheDocument();
+    });
   });
 });
 
