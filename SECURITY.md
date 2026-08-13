@@ -14,4 +14,4 @@ We aim to acknowledge all vulnerability reports within 7 days.
 
 ## System Scope & Architecture
 
-Learn Review Chess is a local-first browser application with one server-side proxy to the public Chess.com API and no user accounts or secrets.
+Learn Review Chess is a local-first browser application with server-side proxy routes for public Chess.com and Lichess APIs, and no user accounts or secrets.

@@ -7,7 +7,7 @@ Features and setup instructions are below. Architecture and roadmap notes are ma
 ## Features
 
 - **Game Import & Selection**: Paste raw PGN text, fetch completed games via Chess.com username, fetch games via Lichess username, or upload PGN files from disk. The UI offers four tabbed import methods in order: Paste PGN, Chess.com, Lichess, and Upload file.
-- **Stockfish Full-Game Quick-Pass Analysis**: Sequential Stockfish 18.0.0 analysis across all game positions at depth 10 with MultiPV 3.
+- **Stockfish Full-Game Quick-Pass Analysis**: Sequential Stockfish 18.0.0 analysis across all game positions at depth 10 with MultiPV 3, driven by a determinate progress bar and assistive technology announcements.
 - **Deep Critical-Position Pass**: Automatic detection of critical turning points (blunders, mistakes, sharp score shifts) with deeper re-analysis (depth 14+) to refine evaluations and brilliancy detection.
 - **Objective Move Classification**: Moves categorized as Brilliant (`!!`), Great (`!`), Best (`★`), Excellent, Good, Inaccuracy (`?!`), Mistake (`?`), Blunder (`??`), or Missed Win using transparent centipawn loss and sacrifice evaluation rules.
 - **Natural Language Move Explanations**: Explanatory text detailing tactical threats, move quality, and positional mistakes for selected positions.
@@ -15,26 +15,47 @@ Features and setup instructions are below. Architecture and roadmap notes are ma
 - **Game Performance Summary**: Per-player move category counts, move accuracy %, average centipawn loss (ACPL), estimated performance ratings, and game phase breakdowns (Opening, Middlegame, Endgame).
 - **Interactive Position Explorer**: Drag pieces on any reviewed position to explore alternative variations with position stack breadcrumbs and instant Return to Game navigation.
 - **ECO Opening Book**: Local ECO lookup matching SAN move-sequence prefixes against a small starter set of 28 lines at most 6 plies deep. Transpositions are not resolved.
-- **PGN File Upload**: Upload a .pgn file from disk as one of four import methods. A file may contain one or more games. If it contains multiple games, they are split and presented as a chooser listing White, Black, and the result for each (capped at 50 rows with the total stated), and selecting a game loads it while keeping the list available.
+- **PGN File Upload**: Upload a .pgn file from disk as one of four import methods. A file may contain one or more games. If it contains multiple games, they are split and presented as a chooser listing White, Black, and the result for each (capped at 50 rows with the total stated, using deterministic content-hash React keys), and selecting a game loads it while keeping the list available.
 - **Third-Party Licences**: A /licenses page names Stockfish, confirms the engine is distributed unmodified, and links to the GPLv3 licence text and source provenance served with the app.
 - **Best-Move Engine Arrows**: On-board arrow overlays displaying top engine candidate moves.
 - **Freeform StudyBoard**: Interactive study board with legal move validation, move history, undo, reset, and board flipping.
 
+## Project Status & Milestones
+
+Milestone A (Import UX & Full-Game Analysis Hardening) is code-complete as of commit `3e6a498e459392ee8103e42659565c6b4fa84922`:
+- **Determinate Progress Bar**: Added a determinate progress bar (`role="progressbar"`) driven by completed and total jobs in the full-game analysis panel (`74b48d9`).
+- **Import UI State Reset**: Tab switches clear transient UI state (multi-game chooser list and error banner) without resetting loaded game review state (`d2968e7`).
+- **Chooser Hardening & Accessibility**: Hardened multi-game chooser with deterministic content-hash keys (`pgnKeyHash`), source-aware over-length PGN error messages (`"Pasted PGN"`, `"Uploaded file"`, and API sources), and `aria-invalid` attributes on inputs (`e7a0179`, `3e6a498`).
+- **Automated Test Baseline**: 1,449 unit/integration tests passing across 65 test files as of commit `3e6a498e459392ee8103e42659565c6b4fa84922`.
+
+### Roadmap
+- **Milestone B**: UI polish & loading feedback
+- **Milestone C**: Explanation engine & drills
+- **Milestone D**: Play vs Stockfish
+
 ## Getting Started
 
-First, run the development server:
+The project requires Node.js 22.x. First, start the development server (which automatically runs `npm run prepare:engines` beforehand via `predev`):
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Available Scripts
+
+| Script | Description |
+| --- | --- |
+| `npm run dev` | Runs development server with automatic Stockfish engine asset preparation (`predev`). |
+| `npm run build` | Builds production bundle with engine asset preparation (`prebuild`). |
+| `npm run start` | Starts Next.js production server. |
+| `npm run lint` | Runs ESLint code style check. |
+| `npm run typecheck` | Runs TypeScript compiler type check (`tsc --noEmit`). |
+| `npm run test` | Runs Vitest in interactive watch mode. |
+| `npm run test:run` | Runs full Vitest unit/integration test suite once in CI mode. |
+| `npm run test:e2e` | Runs Playwright browser smoke suite. |
+| `npm run prepare:engines` | Verifies and copies Stockfish 18.0.0 engine WASM and JS assets to `public/engines/stockfish/18.0.0/`. |
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
