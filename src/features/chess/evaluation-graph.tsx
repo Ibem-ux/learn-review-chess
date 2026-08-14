@@ -7,6 +7,9 @@ export type EvaluationGraphProps = {
   readonly onSelectPly: (ply: number) => void;
 };
 
+// Graph container is max-w-2xl (672px); markers are w-2.5 (10px); markers avoid contact when 672/(N-1) >= 14px, i.e. N <= 49; 48 is used.
+export const MARKER_DENSITY_LIMIT = 48;
+
 export function EvaluationGraph({
   points,
   currentPly,
@@ -40,7 +43,12 @@ export function EvaluationGraph({
     const x = points.length === 1 ? 0 : (i / (points.length - 1)) * width;
     const y = (1 - point.advantage) * height;
     currentSegment.push({ x, y, ply: point.ply });
-    markers.push({ x, y, ply: point.ply, san: point.san });
+    if (
+      points.length <= MARKER_DENSITY_LIMIT ||
+      point.ply === currentPly
+    ) {
+      markers.push({ x, y, ply: point.ply, san: point.san });
+    }
   }
 
   if (currentSegment.length > 0) {

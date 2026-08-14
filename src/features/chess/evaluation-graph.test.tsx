@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { EvaluationGraph } from "@/features/chess/evaluation-graph";
+import { EvaluationGraph, MARKER_DENSITY_LIMIT } from "@/features/chess/evaluation-graph";
 import type { GraphPoint } from "@/features/chess/evaluation-graph-model";
+import ReviewBoard from "@/features/chess/ReviewBoard";
+import { parsePgn, type PgnParsed } from "@/features/chess/pgn";
+import { buildTimeline } from "@/features/chess/timeline";
+
+vi.mock("react-chessboard", () => import("@/features/chess/__mocks__/react-chessboard"));
 
 function makePoint(
   ply: number,
@@ -322,5 +327,112 @@ describe("EvaluationGraph", () => {
     expect(markers[0].getAttribute("data-ply")).toBe("0");
     expect(markers[0].getAttribute("style")).toContain("left:");
     expect(markers[0].getAttribute("style")).toContain("top:");
+  });
+});
+
+describe("marker density limit (task B4)", () => {
+  it("a series of exactly MARKER_DENSITY_LIMIT fully evaluated points renders exactly MARKER_DENSITY_LIMIT markers", () => {
+    const points = Array.from({ length: MARKER_DENSITY_LIMIT }, (_, i) =>
+      makePoint(i, 0.5)
+    );
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
+    expect(markers.length).toBe(MARKER_DENSITY_LIMIT);
+  });
+
+  it("a series of MARKER_DENSITY_LIMIT + 1 fully evaluated points, with currentPly set to an evaluated ply, renders exactly 1 marker, and that marker's data-ply equals currentPly", () => {
+    const points = Array.from({ length: 49 }, (_, i) =>
+      makePoint(i, 0.5)
+    );
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={10} onSelectPly={() => {}} />
+    );
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
+    expect(markers.length).toBe(1);
+    expect(markers[0].getAttribute("data-ply")).toBe("10");
+  });
+
+  it("a series of MARKER_DENSITY_LIMIT + 1 points where the current ply has hasValue false renders exactly 0 markers", () => {
+    const points = Array.from({ length: 49 }, (_, i) =>
+      makePoint(i, 0.5, { hasValue: i !== 5 })
+    );
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={5} onSelectPly={() => {}} />
+    );
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
+    expect(markers.length).toBe(0);
+  });
+
+  it("a series of MARKER_DENSITY_LIMIT + 1 points with a currentPly matching no point renders exactly 0 markers", () => {
+    const points = Array.from({ length: 49 }, (_, i) =>
+      makePoint(i, 0.5)
+    );
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={999} onSelectPly={() => {}} />
+    );
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
+    expect(markers.length).toBe(0);
+  });
+
+  it("in the over-limit case, the polyline segment count and each segment's points attribute are unchanged from the equivalent under-limit computation", () => {
+    const count = 49;
+    const points = Array.from({ length: count }, (_, i) =>
+      makePoint(i, 0.5)
+    );
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const segments = container.querySelectorAll('[data-testid="evaluation-graph-segment"]');
+    expect(segments.length).toBe(1);
+    const expectedPointsStr = points
+      .map((_, i) => `${((i / (count - 1)) * 100).toFixed(1)},20.0`)
+      .join(" ");
+    expect(segments[0].getAttribute("points")).toBe(expectedPointsStr);
+  });
+
+  it("in the over-limit case, one overlay button per point is still rendered", () => {
+    const count = 49;
+    const points = Array.from({ length: count }, (_, i) =>
+      makePoint(i, 0.5)
+    );
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const buttons = container.querySelectorAll("button[data-ply]");
+    expect(buttons.length).toBe(count);
+  });
+
+  it("the single marker rendered in the over-limit case carries the exact required className string", () => {
+    const points = Array.from({ length: 49 }, (_, i) =>
+      makePoint(i, 0.5)
+    );
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
+    expect(markers.length).toBe(1);
+    expect(markers[0].getAttribute("class")).toBe(
+      "absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-current dark:border-zinc-900"
+    );
+  });
+
+  it("renders evaluation graph wrapper div with mt-6 class in ReviewBoard", () => {
+    const pgnResult = parsePgn("1. e4 e5 *");
+    expect(pgnResult.ok).toBe(true);
+    const parsed: PgnParsed = pgnResult.ok
+      ? pgnResult.value
+      : {
+          headers: {},
+          moves: [],
+          finalFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          halfMoveCount: 0,
+          analysisEligible: true,
+        };
+    const timeline = buildTimeline(parsed);
+    const { container } = render(<ReviewBoard timeline={timeline} />);
+    const graph = container.querySelector('[data-testid="evaluation-graph"]');
+    expect(graph?.parentElement?.getAttribute("class")).toBe("mt-6 w-full max-w-2xl");
   });
 });

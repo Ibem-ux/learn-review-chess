@@ -374,7 +374,7 @@ export default function ReviewBoard({
         onReset={() => setExplorer(null)}
       />
 
-      <div className="w-full max-w-2xl">
+      <div className="mt-6 w-full max-w-2xl">
         <EvaluationGraph points={graphPoints} currentPly={ply} onSelectPly={goTo} />
       </div>
       <div className="w-full max-w-2xl space-y-3">
