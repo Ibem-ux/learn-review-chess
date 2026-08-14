@@ -1031,10 +1031,13 @@ describe("ReviewBoard", () => {
     expect(screen.getByTestId("chessboard").getAttribute("data-position")).toBe(before);
   });
 
-  it("an illegal drop leaves the explorer depth at 0", () => {
+  it("an illegal drop leaves the explorer at the game position", () => {
     render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     fireEvent.click(screen.getByTestId("simulate-illegal-drop"));
-    expect(screen.getByTestId("explorer-depth")).toHaveTextContent("0");
+    expect(screen.getByTestId("explorer-breadcrumb")).toHaveTextContent(
+      "Exploring from the game position"
+    );
+    expect(screen.queryAllByTestId("explorer-crumb")).toHaveLength(0);
   });
 
   it("two legal drops show both sans in the breadcrumb in order", () => {
@@ -1069,7 +1072,6 @@ describe("ReviewBoard", () => {
     render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     fireEvent.click(screen.getByTestId("simulate-drop"));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByTestId("explorer-depth")).toHaveTextContent("0");
     expect(screen.getByTestId("explorer-breadcrumb")).toHaveTextContent(
       "Exploring from the game position"
     );

@@ -30,10 +30,6 @@ export function ExplorerPanel({ stack, onBack, onReset, disabled }: ExplorerPane
         )}
       </div>
 
-      <div data-testid="explorer-depth" className="text-sm text-zinc-700 dark:text-zinc-300">
-        {depth}
-      </div>
-
       <div className="flex gap-2">
         <button
           type="button"

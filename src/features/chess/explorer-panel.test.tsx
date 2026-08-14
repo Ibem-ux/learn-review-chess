@@ -24,12 +24,6 @@ describe("ExplorerPanel", () => {
     expect(screen.queryAllByTestId("explorer-crumb")).toHaveLength(0);
   });
 
-  it("at depth zero the depth indicator reads 0", () => {
-    const stack = createExplorerStack({ ply: 4, fen: rootFen });
-    render(<ExplorerPanel stack={stack} onBack={() => {}} onReset={() => {}} />);
-    expect(screen.getByTestId("explorer-depth").textContent).toBe("0");
-  });
-
   it("at depth zero Back is disabled", () => {
     const stack = createExplorerStack({ ply: 4, fen: rootFen });
     render(<ExplorerPanel stack={stack} onBack={() => {}} onReset={() => {}} />);
@@ -51,13 +45,6 @@ describe("ExplorerPanel", () => {
     expect(crumbs[0].textContent).toBe("Bc4");
   });
 
-  it("after one push the depth indicator reads 1", () => {
-    const stack = createExplorerStack({ ply: 4, fen: rootFen });
-    const pushed = pushExplorerPosition(stack, { fen: "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3", san: "Bc4" });
-    render(<ExplorerPanel stack={pushed} onBack={() => {}} onReset={() => {}} />);
-    expect(screen.getByTestId("explorer-depth").textContent).toBe("1");
-  });
-
   it("after one push Back is enabled", () => {
     const stack = createExplorerStack({ ply: 4, fen: rootFen });
     const pushed = pushExplorerPosition(stack, { fen: "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3", san: "Bc4" });
@@ -74,14 +61,6 @@ describe("ExplorerPanel", () => {
     expect(crumbs).toHaveLength(2);
     expect(crumbs[0].textContent).toBe("Bc4");
     expect(crumbs[1].textContent).toBe("Bc5");
-  });
-
-  it("after two pushes the depth indicator reads 2", () => {
-    const stack = createExplorerStack({ ply: 4, fen: rootFen });
-    const afterBc4 = pushExplorerPosition(stack, { fen: "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3", san: "Bc4" });
-    const afterBc5 = pushExplorerPosition(afterBc4, { fen: "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", san: "Bc5" });
-    render(<ExplorerPanel stack={afterBc5} onBack={() => {}} onReset={() => {}} />);
-    expect(screen.getByTestId("explorer-depth").textContent).toBe("2");
   });
 
   it("clicking Back calls onBack exactly once", () => {
@@ -117,5 +96,26 @@ describe("ExplorerPanel", () => {
     const afterBc5 = pushExplorerPosition(afterBc4, { fen: "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", san: "Bc5" });
     render(<ExplorerPanel stack={afterBc5} onBack={() => {}} onReset={() => {}} />);
     expect(screen.getByTestId("explorer-breadcrumb").textContent).toBe("Bc4 Bc5");
+  });
+});
+
+describe("depth indicator removal (task B5)", () => {
+  it("no element with data-testid explorer-depth is rendered at depth zero or at depth two", () => {
+    const stack = createExplorerStack({ ply: 4, fen: rootFen });
+    const { queryByTestId, rerender } = render(
+      <ExplorerPanel stack={stack} onBack={() => {}} onReset={() => {}} />
+    );
+    expect(queryByTestId("explorer-depth")).toBeNull();
+
+    const afterBc4 = pushExplorerPosition(stack, {
+      fen: "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      san: "Bc4",
+    });
+    const afterBc5 = pushExplorerPosition(afterBc4, {
+      fen: "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+      san: "Bc5",
+    });
+    rerender(<ExplorerPanel stack={afterBc5} onBack={() => {}} onReset={() => {}} />);
+    expect(queryByTestId("explorer-depth")).toBeNull();
   });
 });
