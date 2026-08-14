@@ -2,11 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { EvaluationGraph, MARKER_DENSITY_LIMIT } from "@/features/chess/evaluation-graph";
 import type { GraphPoint } from "@/features/chess/evaluation-graph-model";
-import ReviewBoard from "@/features/chess/ReviewBoard";
-import { parsePgn, type PgnParsed } from "@/features/chess/pgn";
-import { buildTimeline } from "@/features/chess/timeline";
-
-vi.mock("react-chessboard", () => import("@/features/chess/__mocks__/react-chessboard"));
 
 function makePoint(
   ply: number,
@@ -342,6 +337,10 @@ describe("marker density limit (task B4)", () => {
     expect(markers.length).toBe(MARKER_DENSITY_LIMIT);
   });
 
+  // 49 is hardcoded rather than derived from MARKER_DENSITY_LIMIT + 1 because:
+  // 1. Deriving it would make the M1 mutation proof unprovable (raising the limit would also raise the fixture size and the test would pass).
+  // 2. A very large limit made the derived fixture exhaust the V8 heap.
+  // Consequence: If MARKER_DENSITY_LIMIT is ever changed, these hardcoded fixtures must be revisited.
   it("a series of MARKER_DENSITY_LIMIT + 1 fully evaluated points, with currentPly set to an evaluated ply, renders exactly 1 marker, and that marker's data-ply equals currentPly", () => {
     const points = Array.from({ length: 49 }, (_, i) =>
       makePoint(i, 0.5)
@@ -416,23 +415,5 @@ describe("marker density limit (task B4)", () => {
     expect(markers[0].getAttribute("class")).toBe(
       "absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-current dark:border-zinc-900"
     );
-  });
-
-  it("renders evaluation graph wrapper div with mt-6 class in ReviewBoard", () => {
-    const pgnResult = parsePgn("1. e4 e5 *");
-    expect(pgnResult.ok).toBe(true);
-    const parsed: PgnParsed = pgnResult.ok
-      ? pgnResult.value
-      : {
-          headers: {},
-          moves: [],
-          finalFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-          halfMoveCount: 0,
-          analysisEligible: true,
-        };
-    const timeline = buildTimeline(parsed);
-    const { container } = render(<ReviewBoard timeline={timeline} />);
-    const graph = container.querySelector('[data-testid="evaluation-graph"]');
-    expect(graph?.parentElement?.getAttribute("class")).toBe("mt-6 w-full max-w-2xl");
   });
 });

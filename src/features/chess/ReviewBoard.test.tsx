@@ -213,6 +213,12 @@ describe("ReviewBoard", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders evaluation graph wrapper div with mt-6 class", () => {
+    const { container } = render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
+    const graph = container.querySelector('[data-testid="evaluation-graph"]');
+    expect(graph?.parentElement?.getAttribute("class")).toBe("mt-6 w-full max-w-2xl");
+  });
+
   it("starts at ply 0 with the start position label", () => {
     render(<ReviewBoard timeline={timelineOf(SHORT_GAME)} />);
     expect(screen.getByTestId("review-ply-status")).toHaveTextContent(
