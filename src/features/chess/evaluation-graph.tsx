@@ -79,7 +79,7 @@ export function EvaluationGraph({
         preserveAspectRatio="none"
         role="img"
         aria-label="Evaluation graph"
-        className="h-40 w-full"
+        className="h-40 w-full rounded border border-black/[.15] dark:border-white/[.2] bg-zinc-500"
       >
         <line
           data-testid="evaluation-graph-midline"
@@ -87,9 +87,8 @@ export function EvaluationGraph({
           y1="20"
           x2="100"
           y2="20"
-          stroke="currentColor"
           strokeWidth="0.5"
-          opacity="0.3"
+          className="stroke-zinc-500"
         />
 
         {segments.map((segment, idx) => {
@@ -97,27 +96,38 @@ export function EvaluationGraph({
             const firstX = segment[0].x.toFixed(1);
             const lastX = segment[segment.length - 1].x.toFixed(1);
             const segmentPoints = polylinePoints(segment);
+            // Fills and strokes are theme-independent: the graph paints its own zinc-500 surface so that
+            // White's region is always the lighter side in both themes. Translucent black/white fills
+            // composited against the page background made the shaded side invert between themes (task B6 defect).
             return (
               <Fragment key={`segment-group-${idx}`}>
                 <polygon
                   key={`black-region-${idx}`}
                   data-testid="evaluation-graph-black-region"
                   points={`${segmentPoints} ${lastX},0.0 ${firstX},0.0`}
-                  className="fill-black/[.10] dark:fill-black/[.45]"
+                  className="fill-zinc-900"
                 />
                 <polygon
                   key={`white-region-${idx}`}
                   data-testid="evaluation-graph-white-region"
                   points={`${segmentPoints} ${lastX},40.0 ${firstX},40.0`}
-                  className="fill-white/[.60] dark:fill-white/[.14]"
+                  className="fill-zinc-50"
+                />
+                <polyline
+                  key={`segment-outline-${idx}`}
+                  data-testid="evaluation-graph-segment-outline"
+                  points={segmentPoints}
+                  fill="none"
+                  strokeWidth="2.5"
+                  className="stroke-zinc-50"
                 />
                 <polyline
                   key={`segment-${idx}`}
                   data-testid="evaluation-graph-segment"
                   points={segmentPoints}
                   fill="none"
-                  stroke="currentColor"
                   strokeWidth="1.5"
+                  className="stroke-zinc-900"
                 />
               </Fragment>
             );
@@ -132,9 +142,8 @@ export function EvaluationGraph({
             y1="0"
             x2={cursorX.toFixed(1)}
             y2="40"
-            stroke="currentColor"
             strokeWidth="0.5"
-            opacity="0.6"
+            className="stroke-zinc-500"
           />
         )}
       </svg>
@@ -150,7 +159,7 @@ export function EvaluationGraph({
               top: `${(marker.y / 40) * 100}%`,
             }}
             title={marker.san ?? undefined}
-            className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-current dark:border-zinc-900"
+            className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-zinc-50 bg-zinc-900"
           />
         ))}
       </div>
@@ -169,7 +178,7 @@ export function EvaluationGraph({
             {point.san !== null && (
               <span
                 data-testid="evaluation-graph-label"
-                className="pointer-events-none absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded bg-black px-1.5 py-0.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100 dark:bg-zinc-100 dark:text-black"
+                className="pointer-events-none absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900 px-1.5 py-0.5 text-xs font-medium text-zinc-50 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100"
               >
                 {point.san}
               </span>

@@ -413,7 +413,7 @@ describe("marker density limit (task B4)", () => {
     const markers = container.querySelectorAll('[data-testid="evaluation-graph-marker"]');
     expect(markers.length).toBe(1);
     expect(markers[0].getAttribute("class")).toBe(
-      "absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-current dark:border-zinc-900"
+      "absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-zinc-50 bg-zinc-900"
     );
   });
 });
@@ -531,7 +531,7 @@ describe("two-section fill and coordinate inset (task B6)", () => {
     );
   });
 
-  it("the white region className is exactly \"fill-white/[.60] dark:fill-white/[.14]\" and the black region className is exactly \"fill-black/[.10] dark:fill-black/[.45]\"", () => {
+  it("the white region className is exactly \"fill-zinc-50\" and the black region className is exactly \"fill-zinc-900\"", () => {
     const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
     const { container } = render(
       <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
@@ -543,10 +543,10 @@ describe("two-section fill and coordinate inset (task B6)", () => {
       '[data-testid="evaluation-graph-black-region"]'
     );
     expect(whiteRegion?.getAttribute("class")).toBe(
-      "fill-white/[.60] dark:fill-white/[.14]"
+      "fill-zinc-50"
     );
     expect(blackRegion?.getAttribute("class")).toBe(
-      "fill-black/[.10] dark:fill-black/[.45]"
+      "fill-zinc-900"
     );
   });
 
@@ -599,5 +599,215 @@ describe("two-section fill and coordinate inset (task B6)", () => {
     );
     expect(whiteRegion?.getAttribute("stroke")).toBeNull();
     expect(blackRegion?.getAttribute("stroke")).toBeNull();
+  });
+});
+
+describe("theme-independent surface and two-tone fills (task B7)", () => {
+  it("the white region className is exactly \"fill-zinc-50\"", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const whiteRegion = container.querySelector(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    if (!whiteRegion) throw new Error("whiteRegion not found");
+    expect(whiteRegion.getAttribute("class")).toBe("fill-zinc-50");
+  });
+
+  it("the black region className is exactly \"fill-zinc-900\"", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const blackRegion = container.querySelector(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    if (!blackRegion) throw new Error("blackRegion not found");
+    expect(blackRegion.getAttribute("class")).toBe("fill-zinc-900");
+  });
+
+  it("neither region className contains a dark: variant", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const whiteRegion = container.querySelector(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    const blackRegion = container.querySelector(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    if (!whiteRegion) throw new Error("whiteRegion not found");
+    if (!blackRegion) throw new Error("blackRegion not found");
+    expect(whiteRegion.getAttribute("class")).not.toContain("dark:");
+    expect(blackRegion.getAttribute("class")).not.toContain("dark:");
+  });
+
+  it("the svg carries bg-zinc-500 and the theme-aware box border", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const svg = container.querySelector("svg");
+    if (!svg) throw new Error("svg element not found");
+    const className = svg.getAttribute("class") ?? "";
+    expect(className).toContain("bg-zinc-500");
+    expect(className).toContain("border-black/[.15]");
+    expect(className).toContain("dark:border-white/[.2]");
+  });
+
+  it("each segment renders one outline polyline and one inner polyline", () => {
+    const points = [
+      makePoint(0, 0.5),
+      makePoint(1, 0.6),
+      makePoint(2, 0.7),
+      makePoint(3, 0.8),
+      makePoint(4, 0.9),
+    ];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const outlines = container.querySelectorAll(
+      '[data-testid="evaluation-graph-segment-outline"]'
+    );
+    const inners = container.querySelectorAll(
+      '[data-testid="evaluation-graph-segment"]'
+    );
+    expect(outlines.length).toBe(1);
+    expect(inners.length).toBe(1);
+  });
+
+  it("the outline polyline is stroke-zinc-50 and the inner polyline is stroke-zinc-900", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const outline = container.querySelector(
+      '[data-testid="evaluation-graph-segment-outline"]'
+    );
+    const inner = container.querySelector(
+      '[data-testid="evaluation-graph-segment"]'
+    );
+    if (!outline) throw new Error("outline polyline not found");
+    if (!inner) throw new Error("inner polyline not found");
+    expect(outline.getAttribute("class")).toBe("stroke-zinc-50");
+    expect(inner.getAttribute("class")).toBe("stroke-zinc-900");
+  });
+
+  it("the outline strokeWidth is exactly 2.5 and the inner strokeWidth is exactly 1.5", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const outline = container.querySelector(
+      '[data-testid="evaluation-graph-segment-outline"]'
+    );
+    const inner = container.querySelector(
+      '[data-testid="evaluation-graph-segment"]'
+    );
+    if (!outline) throw new Error("outline polyline not found");
+    if (!inner) throw new Error("inner polyline not found");
+    expect(outline.getAttribute("stroke-width")).toBe("2.5");
+    expect(inner.getAttribute("stroke-width")).toBe("1.5");
+  });
+
+  it("neither polyline carries a stroke attribute of currentColor", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const outline = container.querySelector(
+      '[data-testid="evaluation-graph-segment-outline"]'
+    );
+    const inner = container.querySelector(
+      '[data-testid="evaluation-graph-segment"]'
+    );
+    if (!outline) throw new Error("outline polyline not found");
+    if (!inner) throw new Error("inner polyline not found");
+    expect(outline.getAttribute("stroke")).toBeNull();
+    expect(inner.getAttribute("stroke")).toBeNull();
+  });
+
+  it("within the svg, DOM order is black region, white region, outline, inner line", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const svg = container.querySelector("svg");
+    if (!svg) throw new Error("svg element not found");
+    const children = Array.from(svg.children);
+    const blackIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-black-region"
+    );
+    const whiteIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-white-region"
+    );
+    const outlineIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-segment-outline"
+    );
+    const innerIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-segment"
+    );
+    expect(blackIdx).toBeGreaterThanOrEqual(0);
+    expect(whiteIdx).toBeGreaterThanOrEqual(0);
+    expect(outlineIdx).toBeGreaterThanOrEqual(0);
+    expect(innerIdx).toBeGreaterThanOrEqual(0);
+    expect(blackIdx).toBeLessThan(whiteIdx);
+    expect(whiteIdx).toBeLessThan(outlineIdx);
+    expect(outlineIdx).toBeLessThan(innerIdx);
+  });
+
+  it("the marker className is exactly the R6 string and contains no dark: variant", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const marker = container.querySelector(
+      '[data-testid="evaluation-graph-marker"]'
+    );
+    if (!marker) throw new Error("marker not found");
+    const className = marker.getAttribute("class") ?? "";
+    expect(className).toBe(
+      "absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-zinc-50 bg-zinc-900"
+    );
+    expect(className).not.toContain("dark:");
+  });
+
+  it("the midline and cursor both use stroke-zinc-500 and carry no opacity attribute", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const midline = container.querySelector(
+      '[data-testid="evaluation-graph-midline"]'
+    );
+    const cursor = container.querySelector(
+      '[data-testid="evaluation-graph-cursor"]'
+    );
+    if (!midline) throw new Error("midline not found");
+    if (!cursor) throw new Error("cursor not found");
+    expect(midline.getAttribute("class")).toBe("stroke-zinc-500");
+    expect(cursor.getAttribute("class")).toBe("stroke-zinc-500");
+    expect(midline.getAttribute("opacity")).toBeNull();
+    expect(cursor.getAttribute("opacity")).toBeNull();
+  });
+
+  it("the tooltip label uses bg-zinc-900 and text-zinc-50 and contains no dark: variant", () => {
+    const points = [
+      makePoint(0, 0.5, { san: "e4" }),
+      makePoint(1, 0.75, { san: "e5" }),
+    ];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const label = container.querySelector(
+      '[data-testid="evaluation-graph-label"]'
+    );
+    if (!label) throw new Error("label not found");
+    const className = label.getAttribute("class") ?? "";
+    expect(className).toContain("bg-zinc-900");
+    expect(className).toContain("text-zinc-50");
+    expect(className).not.toContain("dark:");
   });
 });
