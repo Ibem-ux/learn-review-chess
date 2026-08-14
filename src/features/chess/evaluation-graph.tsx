@@ -1,11 +1,17 @@
 import type { GraphPoint } from "./evaluation-graph-model";
-import type { ReactElement } from "react";
+import { Fragment, type ReactElement } from "react";
 
 export type EvaluationGraphProps = {
   readonly points: readonly GraphPoint[];
   readonly currentPly: number;
   readonly onSelectPly: (ply: number) => void;
 };
+
+// Insets keep the 1.5-unit line stroke and the 10px marker dots inside the 672x160 box.
+// Vertical inset is driven by the marker, not the stroke: a marker half-height is 5px, and one
+// coordinate unit is 4px vertically, so 1.5 units (6px) contains it while 1.0 units (4px) does not.
+export const GRAPH_X_INSET = 1;
+export const GRAPH_Y_INSET = 1.5;
 
 // Graph container is max-w-2xl (672px); markers are w-2.5 (10px); markers avoid contact when 672/(N-1) >= 14px, i.e. N <= 49; 48 is used.
 export const MARKER_DENSITY_LIMIT = 48;
@@ -23,9 +29,6 @@ export function EvaluationGraph({
     );
   }
 
-  const width = 100;
-  const height = 40;
-
   const segments: { x: number; y: number; ply: number }[][] = [];
   let currentSegment: { x: number; y: number; ply: number }[] = [];
   const markers: { x: number; y: number; ply: number; san: string | null }[] = [];
@@ -40,8 +43,11 @@ export function EvaluationGraph({
       continue;
     }
 
-    const x = points.length === 1 ? 0 : (i / (points.length - 1)) * width;
-    const y = (1 - point.advantage) * height;
+    const x =
+      points.length === 1
+        ? 50
+        : GRAPH_X_INSET + (i / (points.length - 1)) * (100 - 2 * GRAPH_X_INSET);
+    const y = GRAPH_Y_INSET + (1 - point.advantage) * (40 - 2 * GRAPH_Y_INSET);
     currentSegment.push({ x, y, ply: point.ply });
     if (
       points.length <= MARKER_DENSITY_LIMIT ||
@@ -59,8 +65,8 @@ export function EvaluationGraph({
   const cursorIndex = cursorPoint ? points.findIndex((p) => p.ply === currentPly) : -1;
   const cursorX = cursorIndex >= 0
     ? points.length === 1
-      ? 0
-      : (cursorIndex / (points.length - 1)) * width
+      ? 50
+      : GRAPH_X_INSET + (cursorIndex / (points.length - 1)) * (100 - 2 * GRAPH_X_INSET)
     : null;
 
   const polylinePoints = (segment: { x: number; y: number }[]) =>
@@ -88,15 +94,32 @@ export function EvaluationGraph({
 
         {segments.map((segment, idx) => {
           if (segment.length >= 2) {
+            const firstX = segment[0].x.toFixed(1);
+            const lastX = segment[segment.length - 1].x.toFixed(1);
+            const segmentPoints = polylinePoints(segment);
             return (
-              <polyline
-                key={`segment-${idx}`}
-                data-testid="evaluation-graph-segment"
-                points={polylinePoints(segment)}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
+              <Fragment key={`segment-group-${idx}`}>
+                <polygon
+                  key={`black-region-${idx}`}
+                  data-testid="evaluation-graph-black-region"
+                  points={`${segmentPoints} ${lastX},0.0 ${firstX},0.0`}
+                  className="fill-black/[.10] dark:fill-black/[.45]"
+                />
+                <polygon
+                  key={`white-region-${idx}`}
+                  data-testid="evaluation-graph-white-region"
+                  points={`${segmentPoints} ${lastX},40.0 ${firstX},40.0`}
+                  className="fill-white/[.60] dark:fill-white/[.14]"
+                />
+                <polyline
+                  key={`segment-${idx}`}
+                  data-testid="evaluation-graph-segment"
+                  points={segmentPoints}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+              </Fragment>
             );
           }
           return null;

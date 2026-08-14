@@ -89,17 +89,17 @@ describe("EvaluationGraph", () => {
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const segment = container.querySelector('[data-testid="evaluation-graph-segment"]');
-    expect(segment?.getAttribute("points")).toBe("0.0,20.0 50.0,10.0 100.0,30.0");
+    expect(segment?.getAttribute("points")).toBe("1.0,20.0 50.0,10.8 99.0,29.3");
   });
 
-  it("advantage 1 maps to y 0 and advantage 0 maps to y 40", () => {
+  it("advantage 1 maps to the top inset and advantage 0 maps to the bottom inset", () => {
     const points = [
       makePoint(0, 1),
       makePoint(1, 0),
     ];
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const segment = container.querySelector('[data-testid="evaluation-graph-segment"]');
-    expect(segment?.getAttribute("points")).toBe("0.0,0.0 100.0,40.0");
+    expect(segment?.getAttribute("points")).toBe("1.0,1.5 99.0,38.5");
   });
 
   it("the midline is present", () => {
@@ -176,11 +176,11 @@ describe("EvaluationGraph", () => {
     const { container } = render(<EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />);
     const marker = container.querySelector('[data-testid="evaluation-graph-marker"]');
     expect(marker).not.toBeNull();
-    expect(marker?.getAttribute("style")).toContain("left: 0%");
+    expect(marker?.getAttribute("style")).toContain("left: 50%");
     expect(marker?.getAttribute("style")).toContain("top: 50%");
     const cursor = container.querySelector('[data-testid="evaluation-graph-cursor"]');
-    expect(cursor?.getAttribute("x1")).toBe("0.0");
-    expect(cursor?.getAttribute("x2")).toBe("0.0");
+    expect(cursor?.getAttribute("x1")).toBe("50.0");
+    expect(cursor?.getAttribute("x2")).toBe("50.0");
   });
 
   it("the last point's button calls onSelectPly with the last ply when clicked", () => {
@@ -386,7 +386,7 @@ describe("marker density limit (task B4)", () => {
     const segments = container.querySelectorAll('[data-testid="evaluation-graph-segment"]');
     expect(segments.length).toBe(1);
     const expectedPointsStr = points
-      .map((_, i) => `${((i / (count - 1)) * 100).toFixed(1)},20.0`)
+      .map((_, i) => `${(1 + (i / (count - 1)) * 98).toFixed(1)},20.0`)
       .join(" ");
     expect(segments[0].getAttribute("points")).toBe(expectedPointsStr);
   });
@@ -415,5 +415,189 @@ describe("marker density limit (task B4)", () => {
     expect(markers[0].getAttribute("class")).toBe(
       "absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-current dark:border-zinc-900"
     );
+  });
+});
+
+describe("two-section fill and coordinate inset (task B6)", () => {
+  it("a fully evaluated series of 5 renders exactly 1 white region", () => {
+    const points = [
+      makePoint(0, 0.5),
+      makePoint(1, 0.6),
+      makePoint(2, 0.7),
+      makePoint(3, 0.8),
+      makePoint(4, 0.9),
+    ];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const whiteRegions = container.querySelectorAll(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    expect(whiteRegions.length).toBe(1);
+  });
+
+  it("a fully evaluated series of 5 renders exactly 1 black region", () => {
+    const points = [
+      makePoint(0, 0.5),
+      makePoint(1, 0.6),
+      makePoint(2, 0.7),
+      makePoint(3, 0.8),
+      makePoint(4, 0.9),
+    ];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const blackRegions = container.querySelectorAll(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    expect(blackRegions.length).toBe(1);
+  });
+
+  it("a series with one gap renders exactly 2 white regions and exactly 2 black regions", () => {
+    const points = [
+      makePoint(0, 0.5),
+      makePoint(1, 0.6),
+      makePoint(2, 0, { hasValue: false }),
+      makePoint(3, 0.7),
+      makePoint(4, 0.8),
+    ];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const whiteRegions = container.querySelectorAll(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    const blackRegions = container.querySelectorAll(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    expect(whiteRegions.length).toBe(2);
+    expect(blackRegions.length).toBe(2);
+  });
+
+  it("an isolated evaluated point between two gaps renders 0 white regions, 0 black regions, and 1 marker", () => {
+    const points = [
+      makePoint(0, 0, { hasValue: false }),
+      makePoint(1, 0.5),
+      makePoint(2, 0, { hasValue: false }),
+    ];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const whiteRegions = container.querySelectorAll(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    const blackRegions = container.querySelectorAll(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    const markers = container.querySelectorAll(
+      '[data-testid="evaluation-graph-marker"]'
+    );
+    expect(whiteRegions.length).toBe(0);
+    expect(blackRegions.length).toBe(0);
+    expect(markers.length).toBe(1);
+  });
+
+  it("the white region's points attribute for the known 3-point series is exactly \"1.0,20.0 50.0,10.8 99.0,29.3 99.0,40.0 1.0,40.0\"", () => {
+    const points = [
+      makePoint(0, 0.5),
+      makePoint(1, 0.75),
+      makePoint(2, 0.25),
+    ];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const whiteRegion = container.querySelector(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    expect(whiteRegion?.getAttribute("points")).toBe(
+      "1.0,20.0 50.0,10.8 99.0,29.3 99.0,40.0 1.0,40.0"
+    );
+  });
+
+  it("the black region's points attribute for the same series is exactly \"1.0,20.0 50.0,10.8 99.0,29.3 99.0,0.0 1.0,0.0\"", () => {
+    const points = [
+      makePoint(0, 0.5),
+      makePoint(1, 0.75),
+      makePoint(2, 0.25),
+    ];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const blackRegion = container.querySelector(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    expect(blackRegion?.getAttribute("points")).toBe(
+      "1.0,20.0 50.0,10.8 99.0,29.3 99.0,0.0 1.0,0.0"
+    );
+  });
+
+  it("the white region className is exactly \"fill-white/[.60] dark:fill-white/[.14]\" and the black region className is exactly \"fill-black/[.10] dark:fill-black/[.45]\"", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const whiteRegion = container.querySelector(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    const blackRegion = container.querySelector(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    expect(whiteRegion?.getAttribute("class")).toBe(
+      "fill-white/[.60] dark:fill-white/[.14]"
+    );
+    expect(blackRegion?.getAttribute("class")).toBe(
+      "fill-black/[.10] dark:fill-black/[.45]"
+    );
+  });
+
+  it("within the svg, both regions appear before the polyline in DOM order, asserted by comparing indices of the svg's children rather than by any visual assumption", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const svg = container.querySelector("svg");
+    if (!svg) throw new Error("svg element not found");
+    const children = Array.from(svg.children);
+    const blackIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-black-region"
+    );
+    const whiteIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-white-region"
+    );
+    const polylineIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-segment"
+    );
+    expect(blackIdx).toBeGreaterThanOrEqual(0);
+    expect(whiteIdx).toBeGreaterThanOrEqual(0);
+    expect(polylineIdx).toBeGreaterThanOrEqual(0);
+    expect(blackIdx).toBeLessThan(polylineIdx);
+    expect(whiteIdx).toBeLessThan(polylineIdx);
+  });
+
+  it("a marker at advantage 1 has style exactly containing \"top: 3.75%\" and a marker at advantage 0 has style exactly containing \"top: 96.25%\"", () => {
+    const points = [makePoint(0, 1), makePoint(1, 0)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const markers = container.querySelectorAll(
+      '[data-testid="evaluation-graph-marker"]'
+    );
+    expect(markers[0]?.getAttribute("style")).toContain("top: 3.75%");
+    expect(markers[1]?.getAttribute("style")).toContain("top: 96.25%");
+  });
+
+  it("neither region element carries a stroke attribute", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const whiteRegion = container.querySelector(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    const blackRegion = container.querySelector(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    expect(whiteRegion?.getAttribute("stroke")).toBeNull();
+    expect(blackRegion?.getAttribute("stroke")).toBeNull();
   });
 });
