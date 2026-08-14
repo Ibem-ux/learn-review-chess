@@ -79,33 +79,24 @@ export function EvaluationGraph({
         preserveAspectRatio="none"
         role="img"
         aria-label="Evaluation graph"
-        className="h-40 w-full rounded border border-black/[.15] dark:border-white/[.2] bg-zinc-500"
+        className="h-40 w-full rounded border border-zinc-500 bg-zinc-700"
       >
-        <line
-          data-testid="evaluation-graph-midline"
-          x1="0"
-          y1="20"
-          x2="100"
-          y2="20"
-          strokeWidth="0.5"
-          className="stroke-zinc-500"
-        />
-
         {segments.map((segment, idx) => {
           if (segment.length >= 2) {
             const firstX = segment[0].x.toFixed(1);
             const lastX = segment[segment.length - 1].x.toFixed(1);
             const segmentPoints = polylinePoints(segment);
-            // Fills and strokes are theme-independent: the graph paints its own zinc-500 surface so that
-            // White's region is always the lighter side in both themes. Translucent black/white fills
-            // composited against the page background made the shaded side invert between themes (task B6 defect).
+            // The graph paints its own dark zinc-700 field and Black's region matches it, so White's
+            // share reads as a near-white area against charcoal (Chess.com treatment). Contrast at the
+            // dark end cannot reach 3:1 between surface and a near-black region, so the two-tone
+            // outlined line carries the boundary. Unanalysed gaps therefore read as Black-favoured.
             return (
               <Fragment key={`segment-group-${idx}`}>
                 <polygon
                   key={`black-region-${idx}`}
                   data-testid="evaluation-graph-black-region"
                   points={`${segmentPoints} ${lastX},0.0 ${firstX},0.0`}
-                  className="fill-zinc-900"
+                  className="fill-zinc-700"
                 />
                 <polygon
                   key={`white-region-${idx}`}
@@ -134,6 +125,16 @@ export function EvaluationGraph({
           }
           return null;
         })}
+
+        <line
+          data-testid="evaluation-graph-midline"
+          x1="0"
+          y1="20"
+          x2="100"
+          y2="20"
+          strokeWidth="0.5"
+          className="stroke-zinc-500"
+        />
 
         {cursorX !== null && (
           <line

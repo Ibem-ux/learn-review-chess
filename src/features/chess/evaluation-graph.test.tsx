@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { EvaluationGraph, MARKER_DENSITY_LIMIT } from "@/features/chess/evaluation-graph";
+import {
+  EvaluationGraph,
+  GRAPH_X_INSET,
+  GRAPH_Y_INSET,
+  MARKER_DENSITY_LIMIT,
+} from "@/features/chess/evaluation-graph";
 import type { GraphPoint } from "@/features/chess/evaluation-graph-model";
 
 function makePoint(
@@ -531,7 +536,7 @@ describe("two-section fill and coordinate inset (task B6)", () => {
     );
   });
 
-  it("the white region className is exactly \"fill-zinc-50\" and the black region className is exactly \"fill-zinc-900\"", () => {
+  it("the white region className is exactly \"fill-zinc-50\" and the black region className is exactly \"fill-zinc-700\"", () => {
     const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
     const { container } = render(
       <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
@@ -546,7 +551,7 @@ describe("two-section fill and coordinate inset (task B6)", () => {
       "fill-zinc-50"
     );
     expect(blackRegion?.getAttribute("class")).toBe(
-      "fill-zinc-900"
+      "fill-zinc-700"
     );
   });
 
@@ -615,7 +620,7 @@ describe("theme-independent surface and two-tone fills (task B7)", () => {
     expect(whiteRegion.getAttribute("class")).toBe("fill-zinc-50");
   });
 
-  it("the black region className is exactly \"fill-zinc-900\"", () => {
+  it("the black region className is exactly \"fill-zinc-700\"", () => {
     const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
     const { container } = render(
       <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
@@ -624,7 +629,7 @@ describe("theme-independent surface and two-tone fills (task B7)", () => {
       '[data-testid="evaluation-graph-black-region"]'
     );
     if (!blackRegion) throw new Error("blackRegion not found");
-    expect(blackRegion.getAttribute("class")).toBe("fill-zinc-900");
+    expect(blackRegion.getAttribute("class")).toBe("fill-zinc-700");
   });
 
   it("neither region className contains a dark: variant", () => {
@@ -644,7 +649,7 @@ describe("theme-independent surface and two-tone fills (task B7)", () => {
     expect(blackRegion.getAttribute("class")).not.toContain("dark:");
   });
 
-  it("the svg carries bg-zinc-500 and the theme-aware box border", () => {
+  it("the svg className is exactly the R1 string and carries no dark: variant", () => {
     const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
     const { container } = render(
       <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
@@ -652,9 +657,10 @@ describe("theme-independent surface and two-tone fills (task B7)", () => {
     const svg = container.querySelector("svg");
     if (!svg) throw new Error("svg element not found");
     const className = svg.getAttribute("class") ?? "";
-    expect(className).toContain("bg-zinc-500");
-    expect(className).toContain("border-black/[.15]");
-    expect(className).toContain("dark:border-white/[.2]");
+    expect(className).toBe(
+      "h-40 w-full rounded border border-zinc-500 bg-zinc-700"
+    );
+    expect(className).not.toContain("dark:");
   });
 
   it("each segment renders one outline polyline and one inner polyline", () => {
@@ -809,5 +815,134 @@ describe("theme-independent surface and two-tone fills (task B7)", () => {
     expect(className).toContain("bg-zinc-900");
     expect(className).toContain("text-zinc-50");
     expect(className).not.toContain("dark:");
+  });
+});
+
+describe("Chess.com-style dark field (task B8)", () => {
+  it("the svg className is exactly \"h-40 w-full rounded border border-zinc-500 bg-zinc-700\"", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const svg = container.querySelector("svg");
+    if (!svg) throw new Error("svg element not found");
+    expect(svg.getAttribute("class")).toBe(
+      "h-40 w-full rounded border border-zinc-500 bg-zinc-700"
+    );
+  });
+
+  it("no element inside the svg carries a class containing \"dark:\"", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const svg = container.querySelector("svg");
+    if (!svg) throw new Error("svg element not found");
+    const allSvgElements = [svg, ...Array.from(svg.querySelectorAll("*"))];
+    for (const el of allSvgElements) {
+      const cls = el.getAttribute("class") ?? "";
+      expect(cls).not.toContain("dark:");
+    }
+  });
+
+  it("the black region className is exactly \"fill-zinc-700\" and the white region className is exactly \"fill-zinc-50\"", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const black = container.querySelector(
+      '[data-testid="evaluation-graph-black-region"]'
+    );
+    const white = container.querySelector(
+      '[data-testid="evaluation-graph-white-region"]'
+    );
+    if (!black) throw new Error("black region not found");
+    if (!white) throw new Error("white region not found");
+    expect(black.getAttribute("class")).toBe("fill-zinc-700");
+    expect(white.getAttribute("class")).toBe("fill-zinc-50");
+  });
+
+  it("the midline renders after both region polygons and both polylines in svg DOM order", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const svg = container.querySelector("svg");
+    if (!svg) throw new Error("svg element not found");
+    const children = Array.from(svg.children);
+    const blackIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-black-region"
+    );
+    const whiteIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-white-region"
+    );
+    const outlineIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-segment-outline"
+    );
+    const innerIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-segment"
+    );
+    const midlineIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-midline"
+    );
+    expect(blackIdx).toBeGreaterThanOrEqual(0);
+    expect(whiteIdx).toBeGreaterThanOrEqual(0);
+    expect(outlineIdx).toBeGreaterThanOrEqual(0);
+    expect(innerIdx).toBeGreaterThanOrEqual(0);
+    expect(midlineIdx).toBeGreaterThanOrEqual(0);
+    expect(midlineIdx).toBeGreaterThan(blackIdx);
+    expect(midlineIdx).toBeGreaterThan(whiteIdx);
+    expect(midlineIdx).toBeGreaterThan(outlineIdx);
+    expect(midlineIdx).toBeGreaterThan(innerIdx);
+  });
+
+  it("the midline renders before the cursor line in svg DOM order", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const svg = container.querySelector("svg");
+    if (!svg) throw new Error("svg element not found");
+    const children = Array.from(svg.children);
+    const midlineIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-midline"
+    );
+    const cursorIdx = children.findIndex(
+      (el) => el.getAttribute("data-testid") === "evaluation-graph-cursor"
+    );
+    expect(midlineIdx).toBeGreaterThanOrEqual(0);
+    expect(cursorIdx).toBeGreaterThanOrEqual(0);
+    expect(midlineIdx).toBeLessThan(cursorIdx);
+  });
+
+  it("the midline retains x1 0, y1 20, x2 100, y2 20, strokeWidth 0.5, and className stroke-zinc-500", () => {
+    const points = [makePoint(0, 0.5), makePoint(1, 0.75)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const midline = container.querySelector(
+      '[data-testid="evaluation-graph-midline"]'
+    );
+    if (!midline) throw new Error("midline not found");
+    expect(midline.getAttribute("x1")).toBe("0");
+    expect(midline.getAttribute("y1")).toBe("20");
+    expect(midline.getAttribute("x2")).toBe("100");
+    expect(midline.getAttribute("y2")).toBe("20");
+    expect(midline.getAttribute("stroke-width")).toBe("0.5");
+    expect(midline.getAttribute("class")).toBe("stroke-zinc-500");
+  });
+
+  it("the graph geometry constants are unchanged by the palette work", () => {
+    expect(GRAPH_X_INSET).toBe(1);
+    expect(GRAPH_Y_INSET).toBe(1.5);
+    const points = [makePoint(0, 1), makePoint(1, 0)];
+    const { container } = render(
+      <EvaluationGraph points={points} currentPly={0} onSelectPly={() => {}} />
+    );
+    const inner = container.querySelector(
+      '[data-testid="evaluation-graph-segment"]'
+    );
+    if (!inner) throw new Error("inner polyline not found");
+    expect(inner.getAttribute("points")).toBe("1.0,1.5 99.0,38.5");
   });
 });
